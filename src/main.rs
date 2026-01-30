@@ -43,8 +43,10 @@ fn main() {
         // TODO(manon): Gather window resolution
         (1280, 720)
     } else {
-        (640, 480)
+        (1280, 720)
     };
+
+    let (render_width, render_height) = (256, 192);
 
     let mut window = minifb::Window::new(
         "PIXL",
@@ -218,8 +220,8 @@ fn main() {
                 .format(vk::Format::B8G8R8A8_SRGB)
                 .extent(
                     vk::Extent3D::default()
-                        .width(window_width as u32)
-                        .height(window_height as u32)
+                        .width(render_width as u32)
+                        .height(render_height as u32)
                         .depth(1),
                 )
                 .mip_levels(1)
@@ -233,13 +235,16 @@ fn main() {
         .collect::<Vec<_>>();
 
     let layout = unsafe {
-        device.get_image_subresource_layout(upload_textures[0], vk::ImageSubresource {
-            aspect_mask: vk::ImageAspectFlags::COLOR,
-            mip_level: 0,
-            array_layer: 0,
-        })
+        device.get_image_subresource_layout(
+            upload_textures[0],
+            vk::ImageSubresource {
+                aspect_mask: vk::ImageAspectFlags::COLOR,
+                mip_level: 0,
+                array_layer: 0,
+            },
+        )
     };
-    let screen_stride = layout.row_pitch / 4;
+    let render_stride = layout.row_pitch / 4;
 
     // Find a compatible memory type for the upload textures
     let mem_props = unsafe { vk_instance.get_physical_device_memory_properties(physical_device) };
@@ -405,9 +410,9 @@ fn main() {
         let mapped_ptr = upload_texture_allocations[swap_index].1;
         let mut bitmap = Bitmap::new_borrowed(
             mapped_ptr as *mut _,
-            window_width,
-            window_height,
-            screen_stride as usize,
+            render_width,
+            render_height,
+            render_stride as usize,
         );
 
         // Update the game
@@ -474,6 +479,16 @@ fn main() {
                 ],
             );
 
+            let scale_x = window_width as f32 / render_width as f32;
+            let scale_y = window_height as f32 / render_height as f32;
+            let scale = scale_x.min(scale_y);
+
+            let blit_width = (render_width as f32 * scale) as i32;
+            let blit_height = (render_height as f32 * scale) as i32;
+
+            let blit_x = (window_width as i32 - blit_width) / 2;
+            let blit_y = (window_height as i32 - blit_height) / 2;
+
             // copy image to the swapchain
             device.cmd_blit_image(
                 cmd,
@@ -486,17 +501,21 @@ fn main() {
                     .src_offsets([
                         vk::Offset3D::default(),
                         vk::Offset3D {
-                            x: window_width as i32,
-                            y: window_height as i32,
+                            x: render_width as i32,
+                            y: render_height as i32,
                             z: 1,
                         },
                     ])
                     .dst_subresource(SINGLE_IMAGE_SUBRESOURCE_LAYERS)
                     .dst_offsets([
-                        vk::Offset3D::default(),
                         vk::Offset3D {
-                            x: window_width as i32,
-                            y: window_height as i32,
+                            x: blit_x,
+                            y: blit_y,
+                            z: 0,
+                        },
+                        vk::Offset3D {
+                            x: blit_x + blit_width,
+                            y: blit_y + blit_height,
                             z: 1,
                         },
                     ])],
