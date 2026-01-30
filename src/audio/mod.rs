@@ -4,8 +4,9 @@ use std::sync::{
     mpsc::{Receiver, Sender, channel},
 };
 
+pub mod notes;
 pub mod sound;
-use sound::sine;
+use sound::audio;
 
 #[derive(Clone)]
 struct AudioSettings {
@@ -100,7 +101,7 @@ impl Audio {
 
         assert!(sample_format == cpal::SampleFormat::F32);
 
-        let settings = AudioSettings::default();
+        let settings: AudioSettings = AudioSettings::default();
         let (settings_sender, settings_recv) = channel();
 
         let (shit_sender, shit_recv) = channel();
@@ -148,7 +149,7 @@ impl Audio {
 
                         // let b = dbg!((440. * t) % 1.0);
                         // let value = (440. * t) % 1.0;
-                        let value = sine(t);
+                        let value = audio(t);
 
                         let value = value as f32;
                         let value = value * settings.volume * 0.5;
