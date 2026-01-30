@@ -27,17 +27,50 @@ struct TileMap {
     tiles: Vec<u32>,
 }
 
+#[derive(Debug)]
+struct Aabb {
+    min: Vec2,
+    max: Vec2,
+}
+
 impl TileMap {
     fn draw(&self, tile_set: &TileSet, target: &mut Bitmap, camera: Vec2) {
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let tile_index = self.tiles[(y * self.width + x) as usize];
+        let screen_size = vec2(target.width as f32, target.height as f32);
+        let camera = camera - screen_size * 0.5;
+        let bounds = Aabb {
+            min: camera,
+            max: camera + screen_size,
+        };
+        let tile_sizef = self.tile_size as f32;
+
+        let bounds_in_tiles = Aabb {
+            min: bounds.min / tile_sizef,
+            max: bounds.max / tile_sizef,
+        };
+        let tile_min_x = bounds_in_tiles.min.x.max(0.0) as usize;
+        let tile_min_y = bounds_in_tiles.min.y.max(0.0) as usize;
+
+        let tile_max_x = bounds_in_tiles.max.x.ceil().clamp(0.0, self.width as f32) as usize;
+        let tile_max_y = bounds_in_tiles.max.y.ceil().clamp(0.0, self.height as f32) as usize;
+
+        let tile_count_x = tile_max_x - tile_min_x;
+        let tile_count_y = tile_max_y - tile_min_y;
+
+        for y in 0..tile_count_y {
+            for x in 0..tile_count_x {
+                let tx = (tile_min_x + x) as u32;
+                let ty = (tile_min_y + y) as u32;
+
+                let sx = x as i32 * self.tile_size as i32;
+                let sy = y as i32 * self.tile_size as i32;
+
+                let tile_index = self.tiles[(ty * self.width + tx) as usize];
                 if tile_index != 0 {
                     let tile = &tile_set.tiles[(tile_index - 1) as usize];
                     tile.draw_on(
                         target,
-                        (x * self.tile_size) as i32 - camera.x as i32,
-                        (y * self.tile_size) as i32 - camera.y as i32,
+                        sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
+                        sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
                     );
                 }
             }
