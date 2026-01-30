@@ -5,6 +5,7 @@ use kira::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[repr(usize)]
 pub enum Key {
     Up,
     Down,
@@ -12,6 +13,8 @@ pub enum Key {
     Right,
     A,
     B,
+
+    Count,
 }
 
 struct TileSet {
@@ -27,7 +30,7 @@ struct TileMap {
 }
 
 impl TileMap {
-    fn draw(&self, tile_set: &TileSet, target: &mut Bitmap) {
+    fn draw(&self, tile_set: &TileSet, target: &mut Bitmap, camera: Vec2) {
         for y in 0..self.height {
             for x in 0..self.width {
                 let tile_index = self.tiles[(y * self.width + x) as usize];
@@ -35,8 +38,8 @@ impl TileMap {
                     let tile = &tile_set.tiles[(tile_index - 1) as usize];
                     tile.draw_on(
                         target,
-                        (x * self.tile_size) as i32,
-                        (y * self.tile_size) as i32,
+                        (x * self.tile_size) as i32 - camera.x as i32,
+                        (y * self.tile_size) as i32 - camera.y as i32,
                     );
                 }
             }
@@ -51,6 +54,10 @@ pub struct Game {
 
     tile_set: TileSet,
     tile_map: TileMap,
+
+    camera: Vec2,
+
+    key_state: [bool; Key::Count as usize],
 
     test_sprite: Bitmap,
     test_sound: StaticSoundData,
@@ -105,6 +112,9 @@ impl Game {
             test_sprite: Bitmap::load("assets/test_sprite.png"),
             test_sound,
 
+            camera: vec2(0.0, 0.0),
+            key_state: [false; Key::Count as usize],
+
             tile_set,
             tile_map,
 
@@ -125,6 +135,8 @@ impl Game {
     pub(crate) fn on_mouse_button_down(&mut self, _button: super::MouseButton, _x: i32, _y: i32) {}
     pub(crate) fn on_mouse_button_up(&mut self, _button: super::MouseButton, _x: i32, _y: i32) {}
     pub(crate) fn on_key_down(&mut self, key: Key) {
+        self.key_state[key as usize] = true;
+
         match key {
             Key::Up => self.player_y -= 10,
             Key::Down => self.player_y += 10,
@@ -138,14 +150,29 @@ impl Game {
             _ => {}
         }
     }
-    pub(crate) fn on_key_up(&mut self, _key: Key) {}
+    pub(crate) fn on_key_up(&mut self, key: Key) {
+        self.key_state[key as usize] = false;
+    }
 
     pub fn tick(&mut self, delta_time: f32, screen: &mut Bitmap) {
         self.time += delta_time;
 
         screen.clear(0);
 
-        self.tile_map.draw(&self.tile_set, screen);
+        if self.key_state[Key::Left as usize] {
+            self.camera.x -= delta_time * 50.0;
+        }
+        if self.key_state[Key::Right as usize] {
+            self.camera.x += delta_time * 50.0;
+        }
+        if self.key_state[Key::Up as usize] {
+            self.camera.y -= delta_time * 50.0;
+        }
+        if self.key_state[Key::Down as usize] {
+            self.camera.y += delta_time * 50.0;
+        }
+
+        self.tile_map.draw(&self.tile_set, screen, self.camera);
 
         self.test_sprite
             .draw_on(screen, self.player_x, self.player_y);
@@ -162,6 +189,14 @@ impl Game {
             &format!("delta time: {:.5} s", delta_time),
             10,
             20,
+            0xffff00,
+        );
+
+        screen.draw_str(
+            &self.font,
+            &format!("camera: {:?}", self.camera),
+            10,
+            30,
             0xffff00,
         );
     }
