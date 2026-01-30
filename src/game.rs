@@ -134,6 +134,7 @@ impl Game {
             Key::Right => self.player_x += 10,
             Key::A => {}
             Key::B => {}
+            _ => {}
         }
     }
     pub(crate) fn on_key_up(&mut self, key: Key) {
