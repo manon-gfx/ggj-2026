@@ -46,7 +46,7 @@ impl TileMap {
 }
 
 pub struct Game {
-    audio: Audio,
+    audio: Option<Audio>,
     font: Font,
 
     tile_set: TileSet,
@@ -97,7 +97,8 @@ impl Game {
         };
 
         Self {
-            audio: Audio::new(),
+            // audio: Some(Audio::new()),
+            audio: None,
             font: Font::new_default(),
 
             test_sprite: Bitmap::load("assets/test_sprite.png"),
