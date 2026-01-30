@@ -11,6 +11,7 @@ pub enum Key {
     Right,
     A,
     B,
+    Space,
 
     Count,
 }
@@ -100,6 +101,8 @@ pub struct Game {
 
     time: f32,
 
+    editor_mode: bool,
+
     color_mask: crate::bitmap::ColorChannel,
 }
 
@@ -154,6 +157,7 @@ impl Game {
             time: 0.0,
 
             color_mask: crate::bitmap::RED,
+            editor_mode: false,
         }
     }
 
@@ -173,6 +177,7 @@ impl Game {
             Key::Right => self.player_x += 10,
             Key::A => {}
             Key::B => {}
+            Key::Space => self.editor_mode = !self.editor_mode,
             _ => {}
         }
     }
@@ -197,21 +202,24 @@ impl Game {
 
         screen.clear(0);
 
-        if self.key_state[Key::Left as usize] {
-            self.camera.x -= delta_time * 50.0;
-        }
-        if self.key_state[Key::Right as usize] {
-            self.camera.x += delta_time * 50.0;
-        }
-        if self.key_state[Key::Up as usize] {
-            self.camera.y -= delta_time * 50.0;
-        }
-        if self.key_state[Key::Down as usize] {
-            self.camera.y += delta_time * 50.0;
+        if self.editor_mode {
+            if self.key_state[Key::Left as usize] {
+                self.camera.x -= delta_time * 50.0;
+            }
+            if self.key_state[Key::Right as usize] {
+                self.camera.x += delta_time * 50.0;
+            }
+            if self.key_state[Key::Up as usize] {
+                self.camera.y -= delta_time * 50.0;
+            }
+            if self.key_state[Key::Down as usize] {
+                self.camera.y += delta_time * 50.0;
+            }
+        } else {
+            // do game things here
         }
 
         self.tile_map.draw(&self.tile_set, screen, self.camera);
-
         self.test_sprite
             .draw_on(screen, self.player_x, self.player_y, self.color_mask);
 
@@ -237,5 +245,15 @@ impl Game {
             30,
             0xffff00,
         );
+        screen.draw_str(
+            &self.font,
+            &format!(
+                "editor_mode: {}",
+                if self.editor_mode { "true" } else { "false" }
+            ),
+            10,
+            40,
+            0xffff00,
+        )
     }
 }
