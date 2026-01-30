@@ -1,8 +1,6 @@
+use crate::audio::Audio;
 use crate::bitmap::{Bitmap, Font};
 use glam::*;
-use kira::{
-    AudioManager, AudioManagerSettings, DefaultBackend, sound::static_sound::StaticSoundData,
-};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(usize)]
@@ -48,8 +46,7 @@ impl TileMap {
 }
 
 pub struct Game {
-    audio_manager: AudioManager<DefaultBackend>,
-
+    audio: Option<Audio>,
     font: Font,
 
     tile_set: TileSet,
@@ -60,7 +57,6 @@ pub struct Game {
     key_state: [bool; Key::Count as usize],
 
     test_sprite: Bitmap,
-    test_sound: StaticSoundData,
 
     mouse_x: i32,
     mouse_y: i32,
@@ -81,11 +77,6 @@ fn wang_hash(seed: u32) -> u32 {
 
 impl Game {
     pub fn new() -> Self {
-        let audio_manager = AudioManager::<DefaultBackend>::new(AudioManagerSettings::default())
-            .expect("Failed to initialize audio manager");
-        let test_sound =
-            StaticSoundData::from_file("assets/test_sound.wav").expect("Failed to load sound");
-
         let mut tile = Bitmap::new(16, 16);
         tile.clear(0xffff7fff);
 
@@ -106,11 +97,11 @@ impl Game {
         };
 
         Self {
-            audio_manager,
+            // audio: Some(Audio::new()),
+            audio: None,
             font: Font::new_default(),
 
             test_sprite: Bitmap::load("assets/test_sprite.png"),
-            test_sound,
 
             camera: vec2(0.0, 0.0),
             key_state: [false; Key::Count as usize],
@@ -142,11 +133,8 @@ impl Game {
             Key::Down => self.player_y += 10,
             Key::Left => self.player_x -= 10,
             Key::Right => self.player_x += 10,
-            Key::A => {
-                self.audio_manager
-                    .play(self.test_sound.clone())
-                    .expect("Failed to play sound");
-            }
+            Key::A => {}
+            Key::B => {}
             _ => {}
         }
     }

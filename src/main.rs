@@ -1,3 +1,4 @@
+pub mod audio;
 pub(crate) mod bitmap;
 pub(crate) mod game;
 
