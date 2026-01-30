@@ -32,7 +32,6 @@ pub struct Bitmap {
     pub height: usize,
     pub stride: usize,
     pub pixels: BitmapData,
-    pub color_mask: ColorChannel,
 }
 
 // ColorChannels
@@ -41,9 +40,6 @@ pub const GREEN: ColorChannel = 0xff00ff00;
 pub const BLUE: ColorChannel = 0xff0000ff;
 pub const WHITE: ColorChannel = RED | GREEN | BLUE;
 
-// Starting mask
-const DEFAULT_COLOR_MASK: ColorChannel = RED;
-
 impl Bitmap {
     pub(crate) fn new(width: usize, height: usize) -> Self {
         Self {
@@ -51,7 +47,6 @@ impl Bitmap {
             height,
             stride: width,
             pixels: BitmapData::Owned(vec![0; width * height]),
-            color_mask: DEFAULT_COLOR_MASK,
         }
     }
 
@@ -66,7 +61,6 @@ impl Bitmap {
             height,
             stride,
             pixels: BitmapData::Pointer(pointer, height * stride),
-            color_mask: DEFAULT_COLOR_MASK,
         }
     }
 
@@ -99,7 +93,6 @@ impl Bitmap {
             stride: image.width,
 
             pixels: BitmapData::Owned(pixels),
-            color_mask: DEFAULT_COLOR_MASK,
         }
     }
 
