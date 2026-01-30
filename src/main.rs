@@ -232,6 +232,15 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
+    let layout = unsafe {
+        device.get_image_subresource_layout(upload_textures[0], vk::ImageSubresource {
+            aspect_mask: vk::ImageAspectFlags::COLOR,
+            mip_level: 0,
+            array_layer: 0,
+        })
+    };
+    let screen_stride = layout.row_pitch / 4;
+
     // Find a compatible memory type for the upload textures
     let mem_props = unsafe { vk_instance.get_physical_device_memory_properties(physical_device) };
     let mut memory_type = (0..mem_props.memory_type_count).find(|&type_index| {
@@ -398,7 +407,7 @@ fn main() {
             mapped_ptr as *mut _,
             window_width,
             window_height,
-            window_width,
+            screen_stride as usize,
         );
 
         // Update the game
