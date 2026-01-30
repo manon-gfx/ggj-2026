@@ -192,6 +192,12 @@ impl Game {
             0xffff00,
         );
 
-        screen.draw_str(&self.font, &format!("camera: {:?}", self.camera), 10, 30, 0xffff00);
+        screen.draw_str(
+            &self.font,
+            &format!("camera: {:?}", self.camera),
+            10,
+            30,
+            0xffff00,
+        );
     }
 }
