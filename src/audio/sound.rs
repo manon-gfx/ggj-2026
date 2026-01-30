@@ -6,9 +6,9 @@ impl MusicSettings {
     pub const TEMPO: f64 = 560. / 60.; // beats per second
 }
 
-pub const MELODY: [f64; 36] = [
-    A1, A1, REST, A1, A1, REST, A1, A1, REST, REST, C2, C2, REST, REST, REST, REST, REST, REST, F1,
-    F1, REST, F1, F1, REST, F1, F1, REST, REST, G1, G1, REST, REST, REST, REST, REST, REST,
+pub const MELODY: [f64; 32] = [
+    A1, A1, REST, A1, A1, REST, A1, A1, REST, REST, C2, C2, REST, REST, REST, REST, F1, F1, REST,
+    F1, F1, REST, F1, F1, REST, REST, G1, G1, REST, REST, REST, REST,
 ];
 
 pub fn audio(t: f64) -> f64 {
