@@ -387,6 +387,7 @@ fn main() {
         handle_key_events(minifb::Key::Right, game::Key::Right);
         handle_key_events(minifb::Key::Z, game::Key::A);
         handle_key_events(minifb::Key::X, game::Key::B);
+        handle_key_events(minifb::Key::Space, game::Key::Space);
 
         mouse_down_left = now_left_down;
         mouse_down_right = now_left_down;
