@@ -1,6 +1,6 @@
+use crate::audio::Audio;
 use crate::bitmap::{Bitmap, Font};
 use glam::*;
-use crate::audio::Audio;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(usize)]
@@ -77,7 +77,6 @@ fn wang_hash(seed: u32) -> u32 {
 
 impl Game {
     pub fn new() -> Self {
-
         let mut tile = Bitmap::new(16, 16);
         tile.clear(0xffff7fff);
 

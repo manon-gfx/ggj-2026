@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{
-    mpsc::{channel, Receiver, Sender},
     Arc,
+    mpsc::{Receiver, Sender, channel},
 };
 
 pub mod sound;
@@ -77,13 +77,15 @@ impl Audio {
             .expect("No audio output device available.");
         let mut supported_configs_range = device.supported_output_configs().unwrap();
 
-        let supported_config = supported_configs_range.find(|config| {
-            if config.sample_format() == cpal::SampleFormat::F32 && config.channels() == 2 {
-                true
-            } else {
-                false
-            }
-        }).expect("Failed to find a suitable audio format");
+        let supported_config = supported_configs_range
+            .find(|config| {
+                if config.sample_format() == cpal::SampleFormat::F32 && config.channels() == 2 {
+                    true
+                } else {
+                    false
+                }
+            })
+            .expect("Failed to find a suitable audio format");
         let supported_config = supported_config.with_sample_rate(44100);
 
         // let supported_config = supported_configs_range
@@ -141,7 +143,6 @@ impl Audio {
                         last_time = t;
 
                         // let value = t % 10000.0;
-                        
                         // noise
                         let value = wang_hash(t.to_bits() as u32) as f64 / u32::MAX as f64;
 
