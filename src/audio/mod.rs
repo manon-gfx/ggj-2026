@@ -4,6 +4,7 @@ use std::sync::{
     mpsc::{Receiver, Sender, channel},
 };
 
+pub mod notes;
 pub mod sound;
 use sound::sine;
 
@@ -100,7 +101,7 @@ impl Audio {
 
         assert!(sample_format == cpal::SampleFormat::F32);
 
-        let settings = AudioSettings::default();
+        let settings: AudioSettings = AudioSettings::default();
         let (settings_sender, settings_recv) = channel();
 
         let (shit_sender, shit_recv) = channel();
