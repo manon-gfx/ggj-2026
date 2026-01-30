@@ -1,5 +1,6 @@
 pub(crate) mod bitmap;
 pub(crate) mod game;
+pub mod audio;
 
 use ash::{
     Entry,
