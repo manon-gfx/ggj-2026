@@ -217,7 +217,7 @@ fn main() {
         .map(|_| {
             let create_info = vk::ImageCreateInfo::default()
                 .image_type(vk::ImageType::TYPE_2D)
-                .format(vk::Format::B8G8R8A8_SRGB)
+                .format(vk::Format::B8G8R8A8_UNORM)
                 .extent(
                     vk::Extent3D::default()
                         .width(render_width as u32)
