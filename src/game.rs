@@ -38,6 +38,7 @@ impl TileMap {
                         target,
                         (x * self.tile_size) as i32 - camera.x as i32,
                         (y * self.tile_size) as i32 - camera.y as i32,
+                        crate::bitmap::WHITE,
                     );
                 }
             }
@@ -79,6 +80,31 @@ fn wang_hash(seed: u32) -> u32 {
 
 impl Game {
     pub fn new() -> Self {
+
+        // Read level file
+        let level_layout_file= std::fs::read_to_string("assets/level1.txt").expect("Could not load level file :(");
+        let mut accumulator = String::new();
+        let mut row_content: Vec<u32> = Vec::new();
+        let mut layout: Vec<Vec<u32>> = Vec::new();
+        for char in level_layout_file.chars() {
+            if char == ',' {
+                dbg!(&accumulator);
+                let tile_index: u32 = accumulator
+                    .parse::<u32>()
+                    .expect(&format!("Could not parse! :({})", &accumulator));
+                row_content.push(tile_index);
+                accumulator = String::new();
+            } else if char == '\r' {
+                continue;
+            }
+            else if char == '\n' {
+                layout.push(row_content.clone());
+                row_content.clear();
+            } else {
+                accumulator.push(char);
+            }
+        }
+
         let mut tile = Bitmap::new(16, 16);
         tile.clear(0xffff7fff);
 
