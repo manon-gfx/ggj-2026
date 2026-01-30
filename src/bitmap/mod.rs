@@ -2,6 +2,7 @@
 
 pub mod font;
 pub use font::Font;
+pub use u32 as ColorChannel;
 
 #[derive(Debug)]
 pub enum BitmapData {
@@ -31,7 +32,17 @@ pub struct Bitmap {
     pub height: usize,
     pub stride: usize,
     pub pixels: BitmapData,
+    pub color_mask: ColorChannel,
 }
+
+// ColorChannels
+pub const RED: ColorChannel = 0xffff0000;
+pub const GREEN: ColorChannel = 0xff00ff00;
+pub const BLUE: ColorChannel = 0xff0000ff;
+pub const WHITE: ColorChannel = RED | GREEN | BLUE;
+
+// Starting mask
+const DEFAULT_COLOR_MASK: ColorChannel = RED;
 
 impl Bitmap {
     pub(crate) fn new(width: usize, height: usize) -> Self {
@@ -40,6 +51,7 @@ impl Bitmap {
             height,
             stride: width,
             pixels: BitmapData::Owned(vec![0; width * height]),
+            color_mask: DEFAULT_COLOR_MASK,
         }
     }
 
@@ -54,6 +66,7 @@ impl Bitmap {
             height,
             stride,
             pixels: BitmapData::Pointer(pointer, height * stride),
+            color_mask: DEFAULT_COLOR_MASK,
         }
     }
 
@@ -86,6 +99,7 @@ impl Bitmap {
             stride: image.width,
 
             pixels: BitmapData::Owned(pixels),
+            color_mask: DEFAULT_COLOR_MASK,
         }
     }
 
@@ -102,7 +116,7 @@ impl Bitmap {
         self.pixels_mut().fill(color);
     }
 
-    pub fn draw_on(&self, target: &mut Self, x: i32, y: i32) {
+    pub fn draw_on(&self, target: &mut Self, x: i32, y: i32, color_mask: ColorChannel) {
         let mut sw = self.width as i32;
         let mut sh = self.height as i32;
 
@@ -128,10 +142,11 @@ impl Bitmap {
             for x in 0..sw {
                 unsafe {
                     let c = *self.pixels().get_unchecked((line1 + sx + x) as usize);
-                    if (c & 0xff000000) != 0 {
+                    if (c & 0xff000000) != 0 { // alpha
+                        let masked_c = c & color_mask; 
                         *target
                             .pixels_mut()
-                            .get_unchecked_mut((line0 + tx + x) as usize) = c;
+                            .get_unchecked_mut((line0 + tx + x) as usize) = masked_c;
                     }
                 }
             }
