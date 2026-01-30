@@ -6,7 +6,7 @@ use std::sync::{
 
 pub mod notes;
 pub mod sound;
-use sound::sine;
+use sound::audio;
 
 #[derive(Clone)]
 struct AudioSettings {
@@ -149,7 +149,7 @@ impl Audio {
 
                         // let b = dbg!((440. * t) % 1.0);
                         // let value = (440. * t) % 1.0;
-                        let value = sine(t);
+                        let value = audio(t);
 
                         let value = value as f32;
                         let value = value * settings.volume * 0.5;
