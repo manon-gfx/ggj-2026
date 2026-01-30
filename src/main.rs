@@ -341,8 +341,7 @@ fn main() {
     // Mouse state to keep track of
     let mut mouse_x = 0.0;
     let mut mouse_y = 0.0;
-    let mut mouse_down_left = false;
-    let mut mouse_down_right = false;
+    let mut mouse_state = [false; game::MouseButton::Count as usize];
 
     let mut prev_t = std::time::Instant::now();
 
@@ -364,20 +363,22 @@ fn main() {
             game.on_mouse_moved(mouse_x, mouse_y);
         }
 
-        let now_left_down = window.get_mouse_down(minifb::MouseButton::Left);
-        let now_right_down = window.get_mouse_down(minifb::MouseButton::Right);
+        let mut handle_mouse_events = |minifb_button, button| {
+            let old_state = mouse_state[button as usize];
+            let new_state = window.get_mouse_down(minifb_button);
 
-        if now_left_down && !mouse_down_left {
-            game.on_mouse_button_down(MouseButton::Left, mouse_x, mouse_y);
-        } else if !now_left_down && mouse_down_left {
-            game.on_mouse_button_up(MouseButton::Left, mouse_x, mouse_y);
-        }
-
-        if now_right_down && !mouse_down_right {
-            game.on_mouse_button_down(MouseButton::Right, mouse_x, mouse_y);
-        } else if !now_right_down && mouse_down_right {
-            game.on_mouse_button_up(MouseButton::Right, mouse_x, mouse_y);
-        }
+            if new_state != old_state {
+                if new_state {
+                    game.on_mouse_button_down(button, mouse_x, mouse_y);
+                } else {
+                    game.on_mouse_button_up(button, mouse_x, mouse_y);
+                }
+                mouse_state[button as usize] = new_state;
+            }
+        };
+        handle_mouse_events(minifb::MouseButton::Left, game::MouseButton::Left);
+        handle_mouse_events(minifb::MouseButton::Middle, game::MouseButton::Middle);
+        handle_mouse_events(minifb::MouseButton::Right, game::MouseButton::Right);
 
         if window.is_key_pressed(minifb::Key::Escape, minifb::KeyRepeat::No) {
             return;
@@ -398,9 +399,8 @@ fn main() {
         handle_key_events(minifb::Key::Z, game::Key::A);
         handle_key_events(minifb::Key::X, game::Key::B);
         handle_key_events(minifb::Key::Space, game::Key::Space);
-
-        mouse_down_left = now_left_down;
-        mouse_down_right = now_left_down;
+        handle_key_events(minifb::Key::LeftBracket, game::Key::LeftBracket);
+        handle_key_events(minifb::Key::RightBracket, game::Key::RightBracket);
 
         // Wait for any previous work on the GPU to finish
         let fence = fences[swap_index];

@@ -12,7 +12,18 @@ pub enum Key {
     A,
     B,
     Space,
+    LeftBracket,
+    RightBracket,
 
+    Count,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[repr(usize)]
+pub enum MouseButton {
+    Left,
+    Middle,
+    Right,
     Count,
 }
 
@@ -80,6 +91,15 @@ impl TileMap {
     }
 }
 
+struct EditorState {
+    selected_tile: u32,
+}
+impl Default for EditorState {
+    fn default() -> Self {
+        Self { selected_tile: 0 }
+    }
+}
+
 pub struct Game {
     audio: Option<Audio>,
     font: Font,
@@ -90,6 +110,13 @@ pub struct Game {
     camera: Vec2,
 
     key_state: [bool; Key::Count as usize],
+    key_pressed: [bool; Key::Count as usize],
+    key_released: [bool; Key::Count as usize],
+    mouse_state: [bool; MouseButton::Count as usize], // is mouse currently pressed
+    mouse_pressed: [bool; MouseButton::Count as usize], // was mouse just pressed
+    mouse_released: [bool; MouseButton::Count as usize], // was mouse just release
+
+    editor_state: EditorState,
 
     test_sprite: Bitmap,
 
@@ -184,6 +211,14 @@ impl Game {
 
             camera: vec2(0.0, 0.0),
             key_state: [false; Key::Count as usize],
+            key_pressed: [false; Key::Count as usize],
+            key_released: [false; Key::Count as usize],
+
+            editor_state: EditorState::default(),
+
+            mouse_state: [false; MouseButton::Count as usize],
+            mouse_pressed: [false; MouseButton::Count as usize],
+            mouse_released: [false; MouseButton::Count as usize],
 
             tile_set,
             tile_map,
@@ -205,10 +240,17 @@ impl Game {
         self.mouse_x = x;
         self.mouse_y = y;
     }
-    pub(crate) fn on_mouse_button_down(&mut self, _button: super::MouseButton, _x: f32, _y: f32) {}
-    pub(crate) fn on_mouse_button_up(&mut self, _button: super::MouseButton, _x: f32, _y: f32) {}
+    pub(crate) fn on_mouse_button_down(&mut self, button: MouseButton, _x: f32, _y: f32) {
+        self.mouse_state[button as usize] = true;
+        self.mouse_pressed[button as usize] = true;
+    }
+    pub(crate) fn on_mouse_button_up(&mut self, button: MouseButton, _x: f32, _y: f32) {
+        self.mouse_state[button as usize] = false;
+        self.mouse_released[button as usize] = true;
+    }
     pub(crate) fn on_key_down(&mut self, key: Key) {
         self.key_state[key as usize] = true;
+        self.key_pressed[key as usize] = true;
 
         match key {
             Key::Up => self.player_y -= 10,
@@ -223,6 +265,7 @@ impl Game {
     }
     pub(crate) fn on_key_up(&mut self, key: Key) {
         self.key_state[key as usize] = false;
+        self.key_released[key as usize] = true;
     }
 
     pub fn set_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
@@ -256,7 +299,34 @@ impl Game {
                 self.camera.y += delta_time * 50.0;
             }
 
+            if self.key_pressed[Key::LeftBracket as usize] {
+                if self.editor_state.selected_tile > 0 {
+                    self.editor_state.selected_tile -= 1;
+                }
+            }
+            if self.key_pressed[Key::RightBracket as usize] {
+                if self.editor_state.selected_tile < (self.tile_set.tiles.len() - 1) as u32 {
+                    self.editor_state.selected_tile += 1;
+                }
+            }
+
             screen.plot(self.mouse_x as i32, self.mouse_y as i32, 0xff00ff);
+
+            if self.mouse_state[MouseButton::Left as usize] {
+                let screen_size = vec2(screen.width as f32, screen.height as f32);
+                let mouse_ws = self.camera - screen_size * 0.5 + vec2(self.mouse_x, self.mouse_y);
+                let mouse_ws = mouse_ws.as_uvec2();
+                let mouse_ts = mouse_ws / self.tile_map.tile_size;
+                self.tile_map.tiles[(mouse_ts.x + mouse_ts.y * self.tile_map.width) as usize] =
+                    self.editor_state.selected_tile + 1;
+            }
+            if self.mouse_state[MouseButton::Right as usize] {
+                let screen_size = vec2(screen.width as f32, screen.height as f32);
+                let mouse_ws = self.camera - screen_size * 0.5 + vec2(self.mouse_x, self.mouse_y);
+                let mouse_ws = mouse_ws.as_uvec2();
+                let mouse_ts = mouse_ws / self.tile_map.tile_size;
+                self.tile_map.tiles[(mouse_ts.x + mouse_ts.y * self.tile_map.width) as usize] = 0;
+            }
         } else {
             // do game things here
         }
@@ -296,6 +366,12 @@ impl Game {
             10,
             40,
             0xffff00,
-        )
+        );
+
+        // reset state
+        self.mouse_pressed.fill(false);
+        self.mouse_released.fill(false);
+        self.key_pressed.fill(false);
+        self.key_released.fill(false);
     }
 }
