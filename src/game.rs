@@ -2,6 +2,7 @@ use crate::bitmap::{Bitmap, Font};
 use kira::{
     AudioManager, AudioManagerSettings, DefaultBackend, sound::static_sound::StaticSoundData,
 };
+use glam::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Key {

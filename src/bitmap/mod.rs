@@ -123,8 +123,8 @@ impl Bitmap {
         sh = sh.min(target.height as i32 - ty);
 
         for y in 0..sh {
-            let line0 = (ty + y) * (target.width as i32);
-            let line1 = (sy + y) * (self.width as i32);
+            let line0 = (ty + y) * (target.stride as i32);
+            let line1 = (sy + y) * (self.stride as i32);
             for x in 0..sw {
                 unsafe {
                     let c = *self.pixels().get_unchecked((line1 + sx + x) as usize);
