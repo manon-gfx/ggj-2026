@@ -116,9 +116,9 @@ fn wang_hash(seed: u32) -> u32 {
 
 impl Game {
     pub fn new() -> Self {
-
         // Read level file
-        let level_layout_file= std::fs::read_to_string("assets/level1.txt").expect("Could not load level file :(");
+        let level_layout_file =
+            std::fs::read_to_string("assets/level1.txt").expect("Could not load level file :(");
         let mut accumulator = String::new();
         let mut row_content: Vec<u32> = Vec::new();
         let mut layout: Vec<Vec<u32>> = Vec::new();
@@ -132,8 +132,7 @@ impl Game {
                 accumulator = String::new();
             } else if char == '\r' {
                 continue;
-            }
-            else if char == '\n' {
+            } else if char == '\n' {
                 layout.push(row_content.clone());
                 if row_content.len() > largest_row {
                     largest_row = row_content.len();
@@ -149,7 +148,8 @@ impl Game {
         for mut row in layout {
             let row_size = row.len();
             if (row_size < largest_row) {
-                for i in 0..(largest_row-row_size) { // pad for equal size
+                for i in 0..(largest_row - row_size) {
+                    // pad for equal size
                     row.push(0);
                 }
             }
