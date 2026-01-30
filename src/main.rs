@@ -339,8 +339,8 @@ fn main() {
     );
 
     // Mouse state to keep track of
-    let mut mouse_x = 0;
-    let mut mouse_y = 0;
+    let mut mouse_x = 0.0;
+    let mut mouse_y = 0.0;
     let mut mouse_down_left = false;
     let mut mouse_down_right = false;
 
@@ -349,9 +349,19 @@ fn main() {
     let mut swap_index = 0;
     while window.is_open() {
         if let Some((x, y)) = window.get_mouse_pos(minifb::MouseMode::Clamp) {
-            mouse_x = x as i32;
-            mouse_y = y as i32;
-            game.on_mouse_moved(x as i32, y as i32);
+            let scale_x = window_width as f32 / render_width as f32;
+            let scale_y = window_height as f32 / render_height as f32;
+            let scale = scale_x.min(scale_y);
+
+            let blit_width = (render_width as f32 * scale) as i32;
+            let blit_height = (render_height as f32 * scale) as i32;
+
+            let blit_x = (window_width as i32 - blit_width) / 2;
+            let blit_y = (window_height as i32 - blit_height) / 2;
+
+            mouse_x = (x - blit_x as f32) / scale;
+            mouse_y = (y - blit_y as f32) / scale;
+            game.on_mouse_moved(mouse_x, mouse_y);
         }
 
         let now_left_down = window.get_mouse_down(minifb::MouseButton::Left);
