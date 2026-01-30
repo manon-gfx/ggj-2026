@@ -48,7 +48,6 @@ struct Aabb {
 impl TileMap {
     fn draw(&self, tile_set: &TileSet, target: &mut Bitmap, camera: Vec2) {
         let screen_size = vec2(target.width as f32, target.height as f32);
-        let camera = camera - screen_size * 0.5;
         let bounds = Aabb {
             min: camera,
             max: camera + screen_size,
@@ -139,6 +138,13 @@ fn wang_hash(seed: u32) -> u32 {
     let seed = seed ^ (seed >> 4);
     let seed = seed.wrapping_mul(0x27d4eb2d);
     seed ^ (seed >> 15)
+}
+
+fn screen_to_world_space(pos_on_screen: Vec2, camera_pos: Vec2) -> Vec2 {
+    pos_on_screen + camera_pos
+}
+fn world_space_to_screen_space(pos_on_screen: Vec2, camera_pos: Vec2) -> Vec2 {
+    pos_on_screen + camera_pos
 }
 
 impl Game {
@@ -313,16 +319,14 @@ impl Game {
             screen.plot(self.mouse_x as i32, self.mouse_y as i32, 0xff00ff);
 
             if self.mouse_state[MouseButton::Left as usize] {
-                let screen_size = vec2(screen.width as f32, screen.height as f32);
-                let mouse_ws = self.camera - screen_size * 0.5 + vec2(self.mouse_x, self.mouse_y);
+                let mouse_ws = screen_to_world_space(vec2(self.mouse_x, self.mouse_y), self.camera);
                 let mouse_ws = mouse_ws.as_uvec2();
                 let mouse_ts = mouse_ws / self.tile_map.tile_size;
                 self.tile_map.tiles[(mouse_ts.x + mouse_ts.y * self.tile_map.width) as usize] =
                     self.editor_state.selected_tile + 1;
             }
             if self.mouse_state[MouseButton::Right as usize] {
-                let screen_size = vec2(screen.width as f32, screen.height as f32);
-                let mouse_ws = self.camera - screen_size * 0.5 + vec2(self.mouse_x, self.mouse_y);
+                let mouse_ws = screen_to_world_space(vec2(self.mouse_x, self.mouse_y), self.camera);
                 let mouse_ws = mouse_ws.as_uvec2();
                 let mouse_ts = mouse_ws / self.tile_map.tile_size;
                 self.tile_map.tiles[(mouse_ts.x + mouse_ts.y * self.tile_map.width) as usize] = 0;
