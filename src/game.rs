@@ -2,6 +2,9 @@ use crate::audio::Audio;
 use crate::bitmap::{Bitmap, Font};
 use glam::*;
 
+const FALLING_SPEED: f32 = 800.0;
+const MOVEMENT_SPEED_X: f32 = 100.0;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(usize)]
 pub enum Key {
@@ -122,8 +125,9 @@ pub struct Game {
     mouse_x: f32,
     mouse_y: f32,
 
-    player_x: i32,
-    player_y: i32,
+    player_pos: Vec2,
+    player_speed: Vec2,
+    player_on_ground: bool,
 
     time: f32,
 
@@ -232,8 +236,9 @@ impl Game {
             mouse_x: 0.0,
             mouse_y: 0.0,
 
-            player_x: 200,
-            player_y: 200,
+            player_pos: vec2(200.0, 0.0),
+            player_speed: glam::vec2(0.0, 0.0),
+            player_on_ground: true,
 
             time: 0.0,
 
@@ -259,10 +264,14 @@ impl Game {
         self.key_pressed[key as usize] = true;
 
         match key {
-            Key::Up => self.player_y -= 10,
-            Key::Down => self.player_y += 10,
-            Key::Left => self.player_x -= 10,
-            Key::Right => self.player_x += 10,
+            Key::Up => {
+                if self.player_on_ground {
+                    self.player_speed.y = -0.5 * FALLING_SPEED
+                }
+            }
+            // Key::Down => self.player_y += 10,
+            Key::Left => self.player_speed.x -= MOVEMENT_SPEED_X,
+            Key::Right => self.player_speed.x += MOVEMENT_SPEED_X,
             Key::A => {}
             Key::B => {}
             Key::Space => self.editor_mode = !self.editor_mode,
@@ -336,8 +345,45 @@ impl Game {
         }
 
         self.tile_map.draw(&self.tile_set, screen, self.camera);
-        self.test_sprite
-            .draw_on(screen, self.player_x, self.player_y, self.color_mask);
+
+        let pixel_lower_left = screen.load_pixel(
+            self.player_pos.x as i32,
+            self.player_pos.y as i32 + self.test_sprite.height as i32,
+        );
+        let pixel_lower_right = screen.load_pixel(
+            self.player_pos.x as i32 + self.test_sprite.width as i32,
+            self.player_pos.y as i32 + self.test_sprite.height as i32,
+        );
+        let pixel_upper_left =
+            screen.load_pixel(self.player_pos.x as i32, self.player_pos.y as i32);
+        let pixel_upper_right = screen.load_pixel(
+            self.player_pos.x as i32 + self.test_sprite.width as i32,
+            self.player_pos.y as i32,
+        );
+        let background = 0;
+        self.player_on_ground = true;
+        if pixel_lower_left == background || pixel_lower_right == background {
+            self.player_speed.y += FALLING_SPEED * delta_time;
+            self.player_on_ground = false;
+        } else {
+            // we are on ground
+            if self.player_speed.y > 0.0 {
+                self.player_speed.y = 0.0;
+            }
+        }
+
+        self.player_pos.x += delta_time * self.player_speed.x;
+        if self.player_on_ground {
+            self.player_speed.x = 0.0; // auto stop if we are on ground
+        }
+        self.player_pos.y += delta_time * self.player_speed.y;
+
+        self.test_sprite.draw_on(
+            screen,
+            self.player_pos.x as i32,
+            self.player_pos.y as i32,
+            self.color_mask,
+        );
 
         screen.draw_str(
             &self.font,
@@ -346,6 +392,16 @@ impl Game {
             10,
             0xffff00,
         );
+
+        screen.draw_str(
+            &self.font,
+            // &format!("player on ground: {}", self.player_on_ground),
+            &format!("player speed: {}", self.player_speed),
+            10,
+            30,
+            0xffff00,
+        );
+
         screen.draw_str(
             &self.font,
             &format!("delta time: {:.5} s", delta_time),
@@ -356,9 +412,12 @@ impl Game {
 
         screen.draw_str(
             &self.font,
-            &format!("camera: {:?}", self.camera),
+            &format!(
+                "editor_mode: {}",
+                if self.editor_mode { "true" } else { "false" }
+            ),
             10,
-            30,
+            40,
             0xffff00,
         );
         screen.draw_str(
