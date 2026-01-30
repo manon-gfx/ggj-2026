@@ -38,7 +38,6 @@ impl TileMap {
                         target,
                         (x * self.tile_size) as i32 - camera.x as i32,
                         (y * self.tile_size) as i32 - camera.y as i32,
-                        crate::bitmap::WHITE,
                     );
                 }
             }
