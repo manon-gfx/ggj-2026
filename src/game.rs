@@ -297,9 +297,9 @@ impl Game {
             player_on_ground: true,
             player_aabb: Aabb {
                 min: vec2(0.0, 0.0),
-                max: vec2(sprite_width, sprite_height), 
+                max: vec2(sprite_width, sprite_height),
             },
-            player_inventory: Vec::new(), 
+            player_inventory: Vec::new(),
 
             // Add game objects
             mask_game_objects: vec![white_mask],
@@ -466,9 +466,9 @@ impl Game {
         for mask in self.mask_game_objects.iter_mut() {
             if mask.visible {
                 mask.sprite.draw_on(
-                    screen, 
+                    screen,
                     mask.position.x as i32,
-                    mask.position.y as i32, 
+                    mask.position.y as i32,
                     crate::bitmap::WHITE,
                 );
 
