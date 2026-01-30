@@ -1,8 +1,8 @@
 use crate::bitmap::{Bitmap, Font};
+use glam::*;
 use kira::{
     AudioManager, AudioManagerSettings, DefaultBackend, sound::static_sound::StaticSoundData,
 };
-use glam::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Key {
@@ -14,10 +14,43 @@ pub enum Key {
     B,
 }
 
+struct TileSet {
+    tiles: Vec<Bitmap>,
+}
+
+struct TileMap {
+    tile_size: u32,
+
+    width: u32,
+    height: u32,
+    tiles: Vec<u32>,
+}
+
+impl TileMap {
+    fn draw(&self, tile_set: &TileSet, target: &mut Bitmap) {
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let tile_index = self.tiles[(y * self.width + x) as usize];
+                if tile_index != 0 {
+                    let tile = &tile_set.tiles[(tile_index - 1) as usize];
+                    tile.draw_on(
+                        target,
+                        (x * self.tile_size) as i32,
+                        (y * self.tile_size) as i32,
+                    );
+                }
+            }
+        }
+    }
+}
+
 pub struct Game {
     audio_manager: AudioManager<DefaultBackend>,
 
     font: Font,
+
+    tile_set: TileSet,
+    tile_map: TileMap,
 
     test_sprite: Bitmap,
     test_sound: StaticSoundData,
@@ -31,6 +64,14 @@ pub struct Game {
     time: f32,
 }
 
+fn wang_hash(seed: u32) -> u32 {
+    let seed = (seed ^ 61) ^ (seed >> 16);
+    let seed = seed.wrapping_mul(9);
+    let seed = seed ^ (seed >> 4);
+    let seed = seed.wrapping_mul(0x27d4eb2d);
+    seed ^ (seed >> 15)
+}
+
 impl Game {
     pub fn new() -> Self {
         let audio_manager = AudioManager::<DefaultBackend>::new(AudioManagerSettings::default())
@@ -38,12 +79,34 @@ impl Game {
         let test_sound =
             StaticSoundData::from_file("assets/test_sound.wav").expect("Failed to load sound");
 
+        let mut tile = Bitmap::new(16, 16);
+        tile.clear(0xffff7fff);
+
+        let tile_set = TileSet { tiles: vec![tile] };
+
+        let tile_count_x = 512;
+        let tile_count_y = 512;
+
+        let tiles = (0..tile_count_x * tile_count_y)
+            .map(|i| wang_hash(i) & 1)
+            .collect::<Vec<_>>();
+
+        let tile_map = TileMap {
+            tile_size: 16,
+            width: tile_count_x,
+            height: tile_count_y,
+            tiles,
+        };
+
         Self {
             audio_manager,
             font: Font::new_default(),
 
             test_sprite: Bitmap::load("assets/test_sprite.png"),
             test_sound,
+
+            tile_set,
+            tile_map,
 
             mouse_x: 0,
             mouse_y: 0,
@@ -81,6 +144,8 @@ impl Game {
         self.time += delta_time;
 
         screen.clear(0);
+
+        self.tile_map.draw(&self.tile_set, screen);
 
         self.test_sprite
             .draw_on(screen, self.player_x, self.player_y);
