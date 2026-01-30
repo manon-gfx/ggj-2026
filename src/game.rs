@@ -122,9 +122,9 @@ impl Game {
         let mut accumulator = String::new();
         let mut row_content: Vec<u32> = Vec::new();
         let mut layout: Vec<Vec<u32>> = Vec::new();
+        let mut largest_row = 0;
         for char in level_layout_file.chars() {
             if char == ',' {
-                dbg!(&accumulator);
                 let tile_index: u32 = accumulator
                     .parse::<u32>()
                     .expect(&format!("Could not parse! :({})", &accumulator));
@@ -135,10 +135,25 @@ impl Game {
             }
             else if char == '\n' {
                 layout.push(row_content.clone());
+                if row_content.len() > largest_row {
+                    largest_row = row_content.len();
+                }
                 row_content.clear();
             } else {
                 accumulator.push(char);
             }
+        }
+
+        // Create flat tile vector
+        let mut tile_indices: Vec<u32> = Vec::new();
+        for mut row in layout {
+            let row_size = row.len();
+            if (row_size < largest_row) {
+                for i in 0..(largest_row-row_size) { // pad for equal size
+                    row.push(0);
+                }
+            }
+            tile_indices.append(&mut row);
         }
 
         let mut tile = Bitmap::new(16, 16);
