@@ -93,8 +93,8 @@ pub struct Game {
 
     test_sprite: Bitmap,
 
-    mouse_x: i32,
-    mouse_y: i32,
+    mouse_x: f32,
+    mouse_y: f32,
 
     player_x: i32,
     player_y: i32,
@@ -173,8 +173,8 @@ impl Game {
             tile_set,
             tile_map,
 
-            mouse_x: 0,
-            mouse_y: 0,
+            mouse_x: 0.0,
+            mouse_y: 0.0,
 
             player_x: 200,
             player_y: 200,
@@ -186,12 +186,12 @@ impl Game {
         }
     }
 
-    pub(crate) fn on_mouse_moved(&mut self, x: i32, y: i32) {
+    pub(crate) fn on_mouse_moved(&mut self, x: f32, y: f32) {
         self.mouse_x = x;
         self.mouse_y = y;
     }
-    pub(crate) fn on_mouse_button_down(&mut self, _button: super::MouseButton, _x: i32, _y: i32) {}
-    pub(crate) fn on_mouse_button_up(&mut self, _button: super::MouseButton, _x: i32, _y: i32) {}
+    pub(crate) fn on_mouse_button_down(&mut self, _button: super::MouseButton, _x: f32, _y: f32) {}
+    pub(crate) fn on_mouse_button_up(&mut self, _button: super::MouseButton, _x: f32, _y: f32) {}
     pub(crate) fn on_key_down(&mut self, key: Key) {
         self.key_state[key as usize] = true;
 
@@ -240,6 +240,8 @@ impl Game {
             if self.key_state[Key::Down as usize] {
                 self.camera.y += delta_time * 50.0;
             }
+
+            screen.plot(self.mouse_x as i32, self.mouse_y as i32, 0xff00ff);
         } else {
             // do game things here
         }
