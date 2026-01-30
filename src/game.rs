@@ -65,6 +65,8 @@ pub struct Game {
     player_y: i32,
 
     time: f32,
+
+    color_mask: crate::bitmap::ColorChannel,
 }
 
 fn wang_hash(seed: u32) -> u32 {
@@ -116,6 +118,8 @@ impl Game {
             player_y: 200,
 
             time: 0.0,
+
+            color_mask: crate::bitmap::RED,
         }
     }
 
@@ -142,6 +146,18 @@ impl Game {
         self.key_state[key as usize] = false;
     }
 
+    pub fn set_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
+        self.color_mask = color_channel;
+    }
+
+    pub fn add_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
+        self.color_mask |= color_channel;
+    }
+
+    pub fn remove_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
+        self.color_mask ^= color_channel;
+    }
+
     pub fn tick(&mut self, delta_time: f32, screen: &mut Bitmap) {
         self.time += delta_time;
 
@@ -163,7 +179,7 @@ impl Game {
         self.tile_map.draw(&self.tile_set, screen, self.camera);
 
         self.test_sprite
-            .draw_on(screen, self.player_x, self.player_y);
+            .draw_on(screen, self.player_x, self.player_y, self.color_mask);
 
         screen.draw_str(
             &self.font,
