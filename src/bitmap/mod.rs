@@ -135,8 +135,9 @@ impl Bitmap {
             for x in 0..sw {
                 unsafe {
                     let c = *self.pixels().get_unchecked((line1 + sx + x) as usize);
-                    if (c & 0xff000000) != 0 { // alpha
-                        let masked_c = c & color_mask; 
+                    if (c & 0xff000000) != 0 {
+                        // alpha
+                        let masked_c = c & color_mask;
                         *target
                             .pixels_mut()
                             .get_unchecked_mut((line0 + tx + x) as usize) = masked_c;
