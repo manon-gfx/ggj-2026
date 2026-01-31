@@ -634,7 +634,6 @@ impl Game {
             }
         } else {
             // do game things here
-            // self.player.velocity.x = 0.0;
             if self.input_state.is_key_down(Key::Left) {
                 self.player.velocity.x = self.player.velocity.x.min(0.0);
                 self.player.velocity.x -= MOVEMENT_ACCELERATION * delta_time;
