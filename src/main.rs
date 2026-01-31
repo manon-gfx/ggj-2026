@@ -26,12 +26,6 @@ const ENABLE_VALIDATION_LAYER: bool = false;
 // Set to 1 for single buffering or to 3 for triple buffering
 const IN_FLIGHT_COUNT: u32 = 2;
 
-#[derive(PartialEq, Eq)]
-pub(crate) enum MouseButton {
-    Left,
-    Right,
-}
-
 fn main() {
     // Tell Windows not to apply unnecessary DPI scaling to this application
     #[cfg(target_os = "windows")]
@@ -398,6 +392,7 @@ fn main() {
         handle_key_events(minifb::Key::Right, game::Key::Right);
         handle_key_events(minifb::Key::Z, game::Key::A);
         handle_key_events(minifb::Key::X, game::Key::B);
+        handle_key_events(minifb::Key::S, game::Key::S);
         handle_key_events(minifb::Key::Space, game::Key::Space);
         handle_key_events(minifb::Key::LeftBracket, game::Key::LeftBracket);
         handle_key_events(minifb::Key::RightBracket, game::Key::RightBracket);
