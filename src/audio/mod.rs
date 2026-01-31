@@ -145,14 +145,10 @@ impl Audio {
 
                         // let value = t % 10000.0;
                         // noise
-                        let value = wang_hash(t.to_bits() as u32) as f64 / u32::MAX as f64;
-
-                        // let b = dbg!((440. * t) % 1.0);
-                        // let value = (440. * t) % 1.0;
                         let value = audio(t);
 
                         let value = value as f32;
-                        let value = value * settings.volume * 0.5;
+                        let value = value * settings.volume * 0.25;
 
                         // left and right channel
                         frame[0] = value; // * (1.0 - settings.panning).min(0.5) * 2.0;
