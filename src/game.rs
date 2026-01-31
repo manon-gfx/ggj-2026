@@ -632,13 +632,7 @@ impl Game {
     }
 
     pub fn set_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
-        // if its a new mask, set new mask
-        if (self.color_mask != color_channel) {
-            self.color_mask = color_channel;
-        } else {
-            // else wear no mask
-            self.color_mask = bitmap::BLACK;
-        }
+        self.color_mask = color_channel;
     }
 
     pub fn toggle_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
