@@ -734,28 +734,47 @@ impl Game {
 
         // draw inventory on top
         // TODO: Could make inventory-overlay its own bitmap and draw items on that and then draw the inventory on the screen
-        screen.draw_rectangle(
-            self.player_inventory.position_on_screen.x as i32,
-            self.player_inventory.position_on_screen.y as i32,
-            self.player_inventory.position_on_screen.x as i32 + self.player_inventory.width,
-            self.player_inventory.position_on_screen.y as i32 + self.player_inventory.height,
-            true,
-            self.player_inventory.background_color,
-        );
-        self.player_inventory.bag_sprite.draw_on(
-            screen,
-            self.player_inventory.position_on_screen.x as i32,
-            self.player_inventory.position_on_screen.y as i32,
-            bitmap::WHITE,
-        );
-        for i in 0..self.player_inventory.masks.len() {
-            self.player_inventory.masks[i].sprite_inventory.draw_on(
+
+        if self.editor_mode {
+            screen.draw_rectangle(0, 192, 255, 207, false, 0xffffffff);
+
+            for (i, tile) in self.tile_set.tiles.iter().take(24).enumerate() {
+                if i == self.editor_state.selected_tile as usize {
+                    screen.draw_rectangle(
+                        7 + i as i32 * 10,
+                        192 + 3,
+                        16 + i as i32 * 10,
+                        192 + 12,
+                        false,
+                        0xffffff,
+                    );
+                }
+                tile.draw_on(screen, 8 + i as i32 * 10, 192 + 4, 0xffffffff);
+            }
+        } else {
+            screen.draw_rectangle(
+                self.player_inventory.position_on_screen.x as i32,
+                self.player_inventory.position_on_screen.y as i32,
+                self.player_inventory.position_on_screen.x as i32 + self.player_inventory.width,
+                self.player_inventory.position_on_screen.y as i32 + self.player_inventory.height,
+                true,
+                self.player_inventory.background_color,
+            );
+            self.player_inventory.bag_sprite.draw_on(
                 screen,
-                self.player_inventory.position_on_screen.x as i32
-                    + (i as i32 + 2) * self.player_inventory.tile_size,
+                self.player_inventory.position_on_screen.x as i32,
                 self.player_inventory.position_on_screen.y as i32,
                 bitmap::WHITE,
             );
+            for i in 0..self.player_inventory.masks.len() {
+                self.player_inventory.masks[i].sprite_inventory.draw_on(
+                    screen,
+                    self.player_inventory.position_on_screen.x as i32
+                        + (i as i32 + 2) * self.player_inventory.tile_size,
+                    self.player_inventory.position_on_screen.y as i32,
+                    bitmap::WHITE,
+                );
+            }
         }
 
         // reset state
