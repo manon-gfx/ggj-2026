@@ -252,6 +252,47 @@ impl Player {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct InputState {
+    pub key_state: [bool; Key::Count as usize],
+    pub key_pressed: [bool; Key::Count as usize],
+    pub key_released: [bool; Key::Count as usize],
+
+    pub mouse_state: [bool; MouseButton::Count as usize], // is mouse currently pressed
+    pub mouse_pressed: [bool; MouseButton::Count as usize], // was mouse just pressed
+    pub mouse_released: [bool; MouseButton::Count as usize], // was mouse just release
+}
+impl InputState {
+    fn is_key_down(&self, key: Key) -> bool {
+        self.key_state[key as usize]
+    }
+    fn is_key_pressed(&self, key: Key) -> bool {
+        self.key_pressed[key as usize]
+    }
+    fn is_key_released(&self, key: Key) -> bool {
+        self.key_released[key as usize]
+    }
+
+    fn is_mouse_down(&self, button: MouseButton) -> bool {
+        self.mouse_state[button as usize]
+    }
+    fn is_mouse_pressed(&self, button: MouseButton) -> bool {
+        self.mouse_pressed[button as usize]
+    }
+    fn is_mouse_released(&self, button: MouseButton) -> bool {
+        self.mouse_released[button as usize]
+    }
+
+    // Call at the end of every frame
+    fn reset(&mut self) {
+        self.key_pressed.fill(false);
+        self.key_released.fill(false);
+
+        self.mouse_pressed.fill(false);
+        self.mouse_released.fill(false);
+    }
+}
+
 pub struct Game {
     audio: Option<Audio>,
     music_mode: bool,
@@ -263,12 +304,7 @@ pub struct Game {
 
     camera: Vec2,
 
-    key_state: [bool; Key::Count as usize],
-    key_pressed: [bool; Key::Count as usize],
-    key_released: [bool; Key::Count as usize],
-    mouse_state: [bool; MouseButton::Count as usize], // is mouse currently pressed
-    mouse_pressed: [bool; MouseButton::Count as usize], // was mouse just pressed
-    mouse_released: [bool; MouseButton::Count as usize], // was mouse just release
+    input_state: InputState,
 
     editor_state: EditorState,
 
@@ -433,15 +469,10 @@ impl Game {
             test_sprite: player_sprite,
 
             camera: vec2(0.0, 0.0),
-            key_state: [false; Key::Count as usize],
-            key_pressed: [false; Key::Count as usize],
-            key_released: [false; Key::Count as usize],
+
+            input_state: InputState::default(),
 
             editor_state: EditorState::default(),
-
-            mouse_state: [false; MouseButton::Count as usize],
-            mouse_pressed: [false; MouseButton::Count as usize],
-            mouse_released: [false; MouseButton::Count as usize],
 
             tile_set,
             tile_map,
@@ -483,16 +514,16 @@ impl Game {
         self.mouse_y = y;
     }
     pub(crate) fn on_mouse_button_down(&mut self, button: MouseButton, _x: f32, _y: f32) {
-        self.mouse_state[button as usize] = true;
-        self.mouse_pressed[button as usize] = true;
+        self.input_state.mouse_state[button as usize] = true;
+        self.input_state.mouse_pressed[button as usize] = true;
     }
     pub(crate) fn on_mouse_button_up(&mut self, button: MouseButton, _x: f32, _y: f32) {
-        self.mouse_state[button as usize] = false;
-        self.mouse_released[button as usize] = true;
+        self.input_state.mouse_state[button as usize] = false;
+        self.input_state.mouse_released[button as usize] = true;
     }
     pub(crate) fn on_key_down(&mut self, key: Key) {
-        self.key_state[key as usize] = true;
-        self.key_pressed[key as usize] = true;
+        self.input_state.key_state[key as usize] = true;
+        self.input_state.key_pressed[key as usize] = true;
 
         if self.music_mode {
             if let Some(audio) = &self.audio {
@@ -507,8 +538,8 @@ impl Game {
         }
     }
     pub(crate) fn on_key_up(&mut self, key: Key) {
-        self.key_state[key as usize] = false;
-        self.key_released[key as usize] = true;
+        self.input_state.key_state[key as usize] = false;
+        self.input_state.key_released[key as usize] = true;
 
         if self.music_mode {
             if let Some(audio) = &self.audio {
@@ -546,29 +577,29 @@ impl Game {
             .draw(&self.tile_set, screen, self.camera, self.color_mask);
 
         if self.editor_mode {
-            if self.key_pressed[Key::S as usize] {
+            if self.input_state.is_key_pressed(Key::S) {
                 self.tile_map.store_to_file("assets/level0.txt");
             }
 
-            if self.key_state[Key::Left as usize] {
+            if self.input_state.is_key_down(Key::Left) {
                 self.camera.x -= delta_time * 150.0;
             }
-            if self.key_state[Key::Right as usize] {
+            if self.input_state.is_key_down(Key::Right) {
                 self.camera.x += delta_time * 150.0;
             }
-            if self.key_state[Key::Up as usize] {
+            if self.input_state.is_key_down(Key::Up) {
                 self.camera.y -= delta_time * 150.0;
             }
-            if self.key_state[Key::Down as usize] {
+            if self.input_state.is_key_down(Key::Down) {
                 self.camera.y += delta_time * 150.0;
             }
 
-            if self.key_pressed[Key::LeftBracket as usize] {
+            if self.input_state.is_key_pressed(Key::LeftBracket) {
                 if self.editor_state.selected_tile > 0 {
                     self.editor_state.selected_tile -= 1;
                 }
             }
-            if self.key_pressed[Key::RightBracket as usize] {
+            if self.input_state.is_key_pressed(Key::RightBracket) {
                 if self.editor_state.selected_tile < (self.tile_set.tiles.len() - 1) as u32 {
                     self.editor_state.selected_tile += 1;
                 }
@@ -577,7 +608,7 @@ impl Game {
             screen.plot(self.mouse_x as i32, self.mouse_y as i32, 0xff00ff);
 
             if self.mouse_y < 192.0 {
-                if self.mouse_state[MouseButton::Left as usize] {
+                if self.input_state.is_mouse_down(MouseButton::Left) {
                     let mouse_ws =
                         screen_to_world_space(vec2(self.mouse_x, self.mouse_y), self.camera);
                     let mouse_ws = mouse_ws.as_uvec2();
@@ -585,7 +616,7 @@ impl Game {
                     self.tile_map.tiles[(mouse_ts.x + mouse_ts.y * self.tile_map.width) as usize] =
                         self.editor_state.selected_tile + 1;
                 }
-                if self.mouse_state[MouseButton::Right as usize] {
+                if self.input_state.is_mouse_down(MouseButton::Right) {
                     let mouse_ws =
                         screen_to_world_space(vec2(self.mouse_x, self.mouse_y), self.camera);
                     let mouse_ws = mouse_ws.as_uvec2();
@@ -597,18 +628,18 @@ impl Game {
         } else {
             // do game things here
             self.player.velocity.x = 0.0;
-            if self.key_state[Key::Left as usize] {
+            if self.input_state.is_key_down(Key::Left) {
                 self.player.velocity.x -= MOVEMENT_SPEED_X;
             }
-            if self.key_state[Key::Right as usize] {
+            if self.input_state.is_key_down(Key::Right) {
                 self.player.velocity.x += MOVEMENT_SPEED_X;
             }
-            if self.key_pressed[Key::A as usize] {
+            if self.input_state.is_key_pressed(Key::A) {
                 self.player.velocity.y = -100.0;
             }
 
             // toggle mask activation
-            if self.key_released[Key::R as usize] {
+            if self.input_state.is_key_released(Key::R) {
                 if let Some(red_mask) = self
                     .player_inventory
                     .masks
@@ -618,7 +649,7 @@ impl Game {
                     self.toggle_color_mask(red_mask.color);
                 };
             }
-            if self.key_released[Key::G as usize] {
+            if self.input_state.is_key_released(Key::G) {
                 if let Some(green_mask) = self
                     .player_inventory
                     .masks
@@ -628,7 +659,7 @@ impl Game {
                     self.toggle_color_mask(green_mask.color);
                 };
             }
-            if self.key_released[Key::B as usize] {
+            if self.input_state.is_key_released(Key::B) {
                 if let Some(blue_mask) = self
                     .player_inventory
                     .masks
@@ -827,7 +858,8 @@ impl Game {
                 if i == self.editor_state.selected_tile as usize {
                     draw_aabb(screen, &aabb, Vec2::ZERO, 0xffffff);
                 }
-                if self.mouse_pressed[MouseButton::Left as usize]
+
+                if self.input_state.is_mouse_pressed(MouseButton::Left)
                     && aabb.point_intersects(vec2(self.mouse_x, self.mouse_y))
                 {
                     self.editor_state.selected_tile = i as u32;
@@ -861,9 +893,6 @@ impl Game {
         }
 
         // reset state
-        self.mouse_pressed.fill(false);
-        self.mouse_released.fill(false);
-        self.key_pressed.fill(false);
-        self.key_released.fill(false);
+        self.input_state.reset();
     }
 }
