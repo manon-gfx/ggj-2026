@@ -581,7 +581,7 @@ impl Game {
         // Game objects for masks
         pub const MASK_SPRITE_SIZE: f32 = 16.0;
         let red_mask = MaskObject {
-            position: vec2(2693.0, 1992.0),
+            position: vec2(2652.0, 2168.0),
             aabb: Aabb {
                 min: Vec2::ZERO,
                 max: vec2(MASK_SPRITE_SIZE, MASK_SPRITE_SIZE),
@@ -607,7 +607,7 @@ impl Game {
         };
 
         let blue_mask = MaskObject {
-            position: vec2(2200.0, 2110.0),
+            position: vec2(0.0, 0.0),
             aabb: Aabb {
                 min: Vec2::ZERO,
                 max: vec2(MASK_SPRITE_SIZE, MASK_SPRITE_SIZE),
