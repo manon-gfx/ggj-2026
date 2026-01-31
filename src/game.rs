@@ -242,15 +242,23 @@ impl TileMap {
 
                 let tile_index = self.tiles[(ty * self.width + tx) as usize];
                 if tile_index != 0 {
+                    // leave white tiles white
                     let tile = &tile_set.tiles[(tile_index - 1) as usize];
                     let color = &tile_set.tile_colors[(tile_index - 1) as usize];
                     let color_mask_rgb = color_mask & 0xffffff;
                     let color_rgb = color & 0xffffff;
+
+                    let is_white_tile = (tile_index == 1) | (tile_index == 8);
+                    let mut color_mask = color_mask;
+                    if is_white_tile {
+                        color_mask = &bitmap::WHITE;
+                    }
+
                     tile.draw_tile(
                         target,
                         sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
                         sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
-                        tile_index != 1 && tile_index != 8 && (color_rgb & color_mask_rgb == 0),
+                        !is_white_tile && (color_rgb & color_mask_rgb == 0),
                         &color_mask,
                     );
                 }
