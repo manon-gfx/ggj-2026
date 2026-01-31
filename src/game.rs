@@ -496,7 +496,7 @@ impl Game {
             tiles: tile_indices,
         };
 
-        let player_start_pos = vec2(200.0, 0.0);
+        let player_start_pos = vec2(2200.0, 2110.0);
         let player_sprite = Bitmap::load("assets/test_sprite.png");
         let sprite_width = player_sprite.width as f32;
         let sprite_height = player_sprite.height as f32;
@@ -507,7 +507,7 @@ impl Game {
         // Game objects for masks
         pub const MASK_SPRITE_SIZE: f32 = 16.0;
         let red_mask = MaskObject {
-            position: vec2(50.0, 0.0),
+            position: vec2(2693.0, 1992.0),
             aabb: Aabb {
                 min: Vec2::ZERO,
                 max: vec2(MASK_SPRITE_SIZE, MASK_SPRITE_SIZE),
@@ -533,7 +533,7 @@ impl Game {
         };
 
         let blue_mask = MaskObject {
-            position: vec2(150.0, 0.0),
+            position: vec2(2200.0, 2110.0),
             aabb: Aabb {
                 min: Vec2::ZERO,
                 max: vec2(MASK_SPRITE_SIZE, MASK_SPRITE_SIZE),
@@ -586,7 +586,7 @@ impl Game {
 
             test_sprite: player_sprite,
 
-            camera: vec2(0.0, 0.0),
+            camera: vec2(2000.0, 2000.0),
 
             input_state: InputState::default(),
 
