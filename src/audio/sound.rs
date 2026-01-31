@@ -144,10 +144,10 @@ impl SoundEffects {
         let death = Sound {
             wave: square_wave,
             start: 0.,
-            duration: 4.,
+            duration: 2.,
+            interval: 0.0,
             melody: &[
-                D2, D2, REST, A1, A1, REST, C2, C2, REST, G1, G1, REST, GS1, GS1, REST, F1, F1,
-                REST, G1, G1, REST, REST, D1, REST, D1, D1, D1, D1, REST, REST, REST, REST,
+                D2, A1, REST, C2, G1, REST, A1, F1, REST, REST, D1, REST, D1, D1, D1, REST,
             ],
             volume: 0.5,
         };
