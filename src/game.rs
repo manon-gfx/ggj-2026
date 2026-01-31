@@ -14,6 +14,7 @@ const MOVEMENT_SPEED_X: f32 = 100.0;
 const FRICTION: f32 = 1500.0;
 
 const DEBUG_MASKS: bool = true;
+const DEBUG_MODE: bool = true;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(usize)]
@@ -879,24 +880,25 @@ impl Game {
             },
         );
 
-        // TODO: Don't die in Edit-mode
-        // If we are death, play fixed death sequence and restart the game
-        if self.player.is_dead {
-            // just died
-            if !self.death_sequence_is_playing {
-                self.player.velocity.y = -2.0 * JUMP_IMPULSE;
-                self.death_sequence_is_playing = true;
+        if !DEBUG_MODE {
+            // If we are death, play fixed death sequence and restart the game
+            if self.player.is_dead {
+                // just died
+                if !self.death_sequence_is_playing {
+                    self.player.velocity.y = -2.0 * JUMP_IMPULSE;
+                    self.death_sequence_is_playing = true;
+                }
+                self.death_sequence_duration -= delta_time;
+                if self.death_sequence_duration < 0.0 {
+                    self.reset_game();
+                } else {
+                    self.player.velocity.y += GRAVITY * delta_time;
+                    self.player.position.x += self.player.velocity.x * delta_time;
+                    self.player.position.y += self.player.velocity.y * delta_time;
+                    self.player.draw(screen, self.camera);
+                }
+                return;
             }
-            self.death_sequence_duration -= delta_time;
-            if self.death_sequence_duration < 0.0 {
-                self.reset_game();
-            } else {
-                self.player.velocity.y += GRAVITY * delta_time;
-                self.player.position.x += self.player.velocity.x * delta_time;
-                self.player.position.y += self.player.velocity.y * delta_time;
-                self.player.draw(screen, self.camera);
-            }
-            return;
         }
 
         // Some things we only need to do if we aren't dead
