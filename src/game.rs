@@ -223,7 +223,7 @@ impl TileMap {
                         target,
                         sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
                         sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
-                        color_mask,
+                        *color_mask,
                     );
                 }
             }
@@ -1072,7 +1072,7 @@ impl Game {
                 {
                     self.editor_state.selected_tile = i as u32;
                 }
-                tile.draw_on(screen, 8 + i as i32 * 10, 192 + 4, &0xffffffff);
+                tile.draw_on(screen, 8 + i as i32 * 10, 192 + 4, 0xffffffff);
             }
         } else {
             screen.draw_rectangle(
@@ -1087,7 +1087,7 @@ impl Game {
                 screen,
                 self.player_inventory.position_on_screen.x as i32,
                 self.player_inventory.position_on_screen.y as i32,
-                &bitmap::WHITE,
+                bitmap::WHITE,
             );
             for i in 0..self.player_inventory.masks.len() {
                 self.player_inventory.masks[i].sprite_inventory.draw_on(
@@ -1095,7 +1095,7 @@ impl Game {
                     self.player_inventory.position_on_screen.x as i32
                         + (i as i32 + 2) * self.player_inventory.tile_size,
                     self.player_inventory.position_on_screen.y as i32,
-                    &bitmap::WHITE,
+                    bitmap::WHITE,
                 );
             }
         }
