@@ -48,6 +48,21 @@ struct Aabb {
     max: Vec2,
 }
 
+impl Aabb {
+    fn on_overlap(&self, other: &Aabb) -> bool {
+        true
+    }
+}
+
+#[derive(Debug)]
+struct MaskObject {
+    position: Vec2,
+    aabb: Aabb,
+    color: crate::bitmap::ColorChannel,
+    sprite: Bitmap,
+    visible: bool,
+}
+
 impl TileMap {
     fn draw(&self, tile_set: &TileSet, target: &mut Bitmap, camera: Vec2) {
         let screen_size = vec2(target.width as f32, target.height as f32);
@@ -128,6 +143,9 @@ pub struct Game {
     player_pos: Vec2,
     player_speed: Vec2,
     player_on_ground: bool,
+    player_aabb: Aabb,
+
+    game_objects: Vec<MaskObject>,
 
     time: f32,
 
@@ -212,12 +230,35 @@ impl Game {
             tiles,
         };
 
+        let player_start_pos = vec2(200.0, 0.0);
+        let player_sprite = Bitmap::load("assets/test_sprite.png");
+        let sprite_width = player_sprite.width as f32;
+        let sprite_height = player_sprite.height as f32;
+
+        // Game objects
+        let white_mask_pos = vec2(100.0, 0.0);
+        let white_mask_sprite = Bitmap::load("assets/test_mask.png");
+        let white_mask_sprite_width = white_mask_sprite.width as f32;
+        let white_mask_sprite_height = white_mask_sprite.height as f32;
+
+        // TODO: Fix sytax
+                    let white_mask = MaskObject {
+                position: white_mask_pos,
+                aabb: Aabb {
+                    min: white_mask_pos,
+                    max: vec2(white_mask_pos.x + white_mask_sprite_width, white_mask_pos.y + white_mask_sprite_height),
+                },
+                color: crate::bitmap::WHITE,
+                sprite: white_mask_sprite,
+                visible: true,
+            };
+
         Self {
             // audio: Some(Audio::new()),
             audio: None,
             font: Font::new_default(),
 
-            test_sprite: Bitmap::load("assets/test_sprite.png"),
+            test_sprite: player_sprite,
 
             camera: vec2(0.0, 0.0),
             key_state: [false; Key::Count as usize],
@@ -236,9 +277,17 @@ impl Game {
             mouse_x: 0.0,
             mouse_y: 0.0,
 
-            player_pos: vec2(200.0, 0.0),
+            player_pos: player_start_pos,
             player_speed: glam::vec2(0.0, 0.0),
             player_on_ground: true,
+            player_aabb: Aabb {
+                min: vec2(0.0, 0.0),
+                max: vec2(sprite_width, sprite_height), 
+            },            
+
+            // Add game objects
+            game_objects: vec![white_mask],
+
 
             time: 0.0,
 
@@ -340,6 +389,9 @@ impl Game {
                 let mouse_ts = mouse_ws / self.tile_map.tile_size;
                 self.tile_map.tiles[(mouse_ts.x + mouse_ts.y * self.tile_map.width) as usize] = 0;
             }
+
+            // Place masks
+
         } else {
             // do game things here
         }
@@ -378,12 +430,26 @@ impl Game {
         }
         self.player_pos.y += delta_time * self.player_speed.y;
 
+        // Update player's aabb
+        self.player_aabb.min += self.player_pos;
+        self.player_aabb.max += self.player_pos;
+
+
         self.test_sprite.draw_on(
             screen,
             self.player_pos.x as i32,
             self.player_pos.y as i32,
             self.color_mask,
         );
+
+        // TODO: Put all game objects in an array
+        // if self.white_mask.visible {
+        //     self.white_mask.sprite.draw_on(screen,
+        //         self.white_mask.position.x as i32, 
+        //         self.white_mask.position.y as i32, 
+        //         crate::bitmap::WHITE);
+        //     // TODO: Check for collision with player
+        // }
 
         screen.draw_str(
             &self.font,
