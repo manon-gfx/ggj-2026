@@ -14,6 +14,7 @@ const MOVEMENT_SPEED_X: f32 = 100.0;
 const FRICTION: f32 = 1500.0;
 
 const DEBUG_MASKS: bool = true;
+const DEBUG_MODE: bool = true;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(usize)]
@@ -431,6 +432,9 @@ pub struct Game {
     player_inventory: PlayerInventory,
     time: f32,
 
+    death_sequence_is_playing: bool,
+    death_sequence_duration: f32,
+
     editor_mode: bool,
 
     color_mask: crate::bitmap::ColorChannel,
@@ -467,6 +471,9 @@ fn build_frame_list(
 }
 
 impl Game {
+    // consts
+    const PLAYER_START_POS: Vec2 = vec2(2200.0, 2110.0);
+
     pub fn new() -> Self {
         // Read level file
         let level_layout_file =
@@ -624,7 +631,6 @@ impl Game {
             tiles: tile_indices,
         };
 
-        let player_start_pos = vec2(2200.0, 2110.0);
         let player_sprite = Bitmap::load("assets/test_sprite.png");
         let sprite_width = player_sprite.width as f32;
         let sprite_height = player_sprite.height as f32;
@@ -740,7 +746,7 @@ impl Game {
                 walk_sprite,
                 jump_sprite,
                 death_sprite,
-                position: player_start_pos,
+                position: Self::PLAYER_START_POS,
                 velocity: Vec2::ZERO,
                 aabb: Aabb {
                     min: vec2(3.0, 5.0),
@@ -761,9 +767,32 @@ impl Game {
             },
             time: 0.0,
 
+            death_sequence_duration: 1.5,
+            death_sequence_is_playing: false,
+
             color_mask: crate::bitmap::BLUE,
             editor_mode: false,
         }
+    }
+
+    pub fn reset_game(&mut self) {
+        // Reset player
+        self.player.position = Self::PLAYER_START_POS;
+        self.player.on_ground = false;
+        self.player.is_jumping = false;
+        self.player.is_dead = false;
+
+        // Reset inventory
+        self.player_inventory.masks.clear();
+
+        // Reset game objects
+        for mask in self.mask_game_objects.iter_mut() {
+            mask.visible = true;
+        }
+
+        // Reset death sequence
+        self.death_sequence_duration = 3.0;
+        self.death_sequence_is_playing = false;
     }
 
     pub(crate) fn on_mouse_moved(&mut self, x: f32, y: f32) {
@@ -836,7 +865,7 @@ impl Game {
 
         screen.clear(0);
 
-        if !self.editor_mode {
+        if !self.editor_mode && !self.player.is_dead {
             self.camera = self.player.position - vec2(132.0, 128.0);
         }
 
@@ -851,6 +880,28 @@ impl Game {
             },
         );
 
+        if !DEBUG_MODE {
+            // If we are death, play fixed death sequence and restart the game
+            if self.player.is_dead {
+                // just died
+                if !self.death_sequence_is_playing {
+                    self.player.velocity.y = -2.0 * JUMP_IMPULSE;
+                    self.death_sequence_is_playing = true;
+                }
+                self.death_sequence_duration -= delta_time;
+                if self.death_sequence_duration < 0.0 {
+                    self.reset_game();
+                } else {
+                    self.player.velocity.y += GRAVITY * delta_time;
+                    self.player.position.x += self.player.velocity.x * delta_time;
+                    self.player.position.y += self.player.velocity.y * delta_time;
+                    self.player.draw(screen, self.camera);
+                }
+                return;
+            }
+        }
+
+        // Some things we only need to do if we aren't dead
         if self.editor_mode {
             if self.input_state.is_key_pressed(Key::S) {
                 self.tile_map.store_to_file("assets/level0.txt");
@@ -1220,7 +1271,6 @@ impl Game {
 
         // draw inventory on top
         // TODO: Could make inventory-overlay its own bitmap and draw items on that and then draw the inventory on the screen
-
         if self.editor_mode {
             screen.draw_str(&self.font, "editor_mode", 191, 10, 0xffff00);
 
