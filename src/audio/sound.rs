@@ -18,6 +18,13 @@ pub struct Track {
     pub volume: f64,
 }
 
+pub struct Sound{
+    pub wave: WaveFn,
+    pub duration: f64, // duration in milliseconds
+    pub melody: &'static [f64],
+    pub volume: f64,
+}
+
 pub struct Music {
     pub tracks: Vec<Track>,
     pub track_mask: Vec<bool>,
@@ -100,7 +107,50 @@ impl Music {
     }
 }
 
-pub fn signal(t: f64, music: &mut Music) -> f64 {
+pub enum Sounds {
+    FootstepSound,
+    JumpSound,
+    DeathSound,
+}
+
+pub struct SoundEffects {
+    pub footstep: Sound,
+    pub jump: Sound,
+    pub death: Sound,
+}
+
+impl SoundEffects {
+    pub fn new() -> Self {
+        let footstep = Sound{
+            wave : white_noise,
+            duration : 100.,
+            melody : &[C3],
+            volume : 0.5,
+        };
+
+        let jump = Sound{
+            wave : white_noise,
+            duration : 100.,
+            melody : &[C3],
+            volume : 0.5,
+        };
+
+        let death = Sound{
+            wave : white_noise,
+            duration : 100.,
+            melody : &[C3],
+            volume : 0.5,
+        };
+
+        Self {
+            footstep: footstep,
+            jump: jump,
+            death: death,
+        }
+    }
+}
+
+pub fn signal(t: f64, music: &mut Music, soundeffects: &mut SoundEffects) -> f64 {
     let mut signal = 0.0;
 
     let beat_in_game = (t * MusicSettings::TEMPO); // total beats since start of game

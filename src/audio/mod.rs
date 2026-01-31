@@ -8,7 +8,8 @@ pub mod notes;
 pub mod sound;
 use sound::signal;
 
-use crate::audio::sound::{sawtooth_wave, sine_wave, square_wave, triangle_wave, white_noise};
+use crate::audio::sound::{SoundEffects, sawtooth_wave, sine_wave, square_wave, triangle_wave, white_noise};
+use crate::audio::sound::Sounds;
 use crate::game::Key;
 
 #[derive(Clone)]
@@ -63,6 +64,7 @@ pub(crate) struct Audio {
     pub shit_recv: Receiver<Vec<f32>>,
 
     pub key_sender: Sender<(Key, bool)>,
+    pub sfx_sender: Sender<Sounds>,
 }
 
 impl Audio {
@@ -104,6 +106,7 @@ impl Audio {
 
         let (shit_sender, shit_recv) = channel();
         let (key_sender, key_recv) = channel();
+        let (sfx_sender, sfx_recv) = channel();
 
         struct StreamContext {
             settings: AudioSettings,
@@ -122,6 +125,8 @@ impl Audio {
 
         let mut music = sound::Music::new();
         music.track_mask[0] = true;
+
+        let mut soundeffects = sound::SoundEffects::new();
 
         let stream = device
             .build_output_stream(
@@ -150,6 +155,15 @@ impl Audio {
                         }
                     }
 
+                    while let Ok(sfx_event) = sfx_recv.try_recv() {
+                        match sfx_event {
+                            Sounds::FootstepSound => println!("play footstep!"),
+                            Sounds::JumpSound => println!("play jump sound!"),
+                            Sounds::DeathSound => println!("play death sound!"),
+                            _ => {}
+                        }
+                    }
+
                     let sample_duration = 1.0 / sample_rate as f64;
                     let chunk_time = (data.len() / channels as usize) as f64 / sample_rate as f64;
 
@@ -171,7 +185,7 @@ impl Audio {
                         }
                         last_time = t;
 
-                        let mut value = signal(t, &mut music);
+                        let mut value = signal(t, &mut music, &mut soundeffects);
 
                         for (i, note_played ) in piano_notes.iter().enumerate(){
                             if *note_played {
@@ -232,6 +246,7 @@ impl Audio {
             settings_sender,
             shit_recv,
             key_sender,
+            sfx_sender,
         }
     }
 }

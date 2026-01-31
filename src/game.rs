@@ -3,6 +3,7 @@ pub mod sprite;
 pub mod tilemap;
 
 use crate::audio::Audio;
+use crate::audio::sound::Sounds;
 use crate::bitmap::{self, Bitmap, Font};
 use crate::game::sprite::Sprite;
 use editor::EditorState;
@@ -833,6 +834,10 @@ impl Game {
             if self.input_state.is_key_pressed(Key::A) && self.player.on_ground {
                 self.player.velocity.y = -JUMP_IMPULSE;
                 self.player.is_jumping = true;
+
+                if let Some(audio) = &self.audio {
+                    audio.sfx_sender.send(Sounds::JumpSound).unwrap();
+                }
             }
             if self.input_state.is_key_down(Key::A) {
                 if self.player.is_jumping {
