@@ -16,6 +16,12 @@ bitflags! {
     }
 }
 
+impl TileFlags {
+    fn is_colored(&self) -> bool {
+        self.intersects(Self::WHITE)
+    }
+}
+
 pub struct TileSet {
     pub tiles: Vec<Bitmap>,
     pub tile_colors: Vec<bitmap::ColorChannel>,
@@ -94,6 +100,7 @@ impl TileMap {
     pub fn sample_world_pos(
         &self,
         position: Vec2,
+        tile_flags: &Vec<TileFlags>,
         tile_colors: &Vec<bitmap::ColorChannel>,
         color_mask: &bitmap::ColorChannel,
     ) -> u32 {
@@ -108,8 +115,10 @@ impl TileMap {
         } else {
             let tile_index = self.tiles[(tile_pos.x + tile_pos.y * self.width as i32) as usize];
             //  If the tile is non-empty and non-white, and this color is masked out, treat as if there is no tile here
-            if tile_index != 0 && tile_index != 1 && tile_index != 8 {
-                if tile_colors[(tile_index - 1) as usize] & color_mask == 0 {
+            if tile_index != 0 {
+                if tile_flags[(tile_index - 1) as usize].is_colored()
+                    && tile_colors[(tile_index - 1) as usize] & color_mask == 0
+                {
                     0
                 } else {
                     tile_index
@@ -127,7 +136,7 @@ impl TileMap {
         tile_colors: &Vec<bitmap::ColorChannel>,
         color_mask: &bitmap::ColorChannel,
     ) -> TileFlags {
-        let tile_index = self.sample_world_pos(position, tile_colors, &color_mask);
+        let tile_index = self.sample_world_pos(position, tile_flags, tile_colors, &color_mask);
         if tile_index == 0 {
             TileFlags::empty()
         } else {
