@@ -306,6 +306,7 @@ fn build_frame_list(
 impl Game {
     // consts
     const PLAYER_START_POS: Vec2 = vec2(2200.0, 2110.0);
+    const START_COLOR_MASK: bitmap::ColorChannel = bitmap::BLACK;
 
     pub fn new() -> Self {
         let tile_sheet = Bitmap::load("assets/level_tiles_8x8.png");
@@ -558,7 +559,7 @@ impl Game {
             death_sequence_duration: 1.5,
             death_sequence_is_playing: false,
 
-            color_mask: crate::bitmap::BLUE,
+            color_mask: Self::START_COLOR_MASK,
             editor_mode: false,
             lerp_color_mask: Vec3::ZERO,
         }
@@ -578,9 +579,10 @@ impl Game {
         for mask in self.mask_game_objects.iter_mut() {
             mask.visible = true;
         }
+        self.color_mask = Self::START_COLOR_MASK;
 
         // Reset death sequence
-        self.death_sequence_duration = 3.0;
+        self.death_sequence_duration = 1.5;
         self.death_sequence_is_playing = false;
     }
 
@@ -737,11 +739,12 @@ impl Game {
                     self.death_sequence_is_playing = true;
                 }
                 self.death_sequence_duration -= delta_time;
+                screen.draw_str(&self.font, "U DIED :(", 100, 50, bitmap::RED);
+
                 if self.death_sequence_duration < 0.0 {
                     self.reset_game();
                 } else {
                     self.player.velocity.y += GRAVITY * delta_time;
-                    self.player.position.x += self.player.velocity.x * delta_time;
                     self.player.position.y += self.player.velocity.y * delta_time;
                     self.player.draw(screen, self.camera);
                 }
@@ -1101,21 +1104,23 @@ impl Game {
             }
         }
 
-        screen.draw_str(
-            &self.font,
-            &format!("delta time: {:.5} s", delta_time),
-            10,
-            10,
-            0xffff00,
-        );
+        if DEBUG_MODE {
+            screen.draw_str(
+                &self.font,
+                &format!("delta time: {:.5} s", delta_time),
+                10,
+                10,
+                0xffff00,
+            );
 
-        screen.draw_str(
-            &self.font,
-            &format!("player position: {}", self.player.position),
-            10,
-            20,
-            0xffff00,
-        );
+            screen.draw_str(
+                &self.font,
+                &format!("player position: {}", self.player.position),
+                10,
+                20,
+                0xffff00,
+            );
+        }
 
         // reset state
         self.input_state.reset();
