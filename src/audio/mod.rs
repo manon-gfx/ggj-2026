@@ -102,7 +102,9 @@ impl Audio {
         dbg!(sample_format);
         let sample_rate = supported_config.sample_rate();
         let channels = supported_config.channels();
-        let config = supported_config.clone().into();
+
+        let mut config: cpal::StreamConfig = supported_config.clone().into();
+        config.buffer_size = cpal::BufferSize::Fixed(512); // ~11.6ms latency at 44.1kHz
 
         assert!(sample_format == cpal::SampleFormat::F32);
 
@@ -110,7 +112,6 @@ impl Audio {
         let (settings_sender, settings_recv) = channel();
 
         let (shit_sender, shit_recv) = channel();
-
         let (key_sender, key_recv) = channel();
 
         struct StreamContext {
