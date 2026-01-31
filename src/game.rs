@@ -259,7 +259,6 @@ impl TileMap {
                         sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
                         sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
                         !is_white_tile && (color_rgb & color_mask_rgb == 0),
-                        &color_mask,
                     );
                 }
             }

@@ -232,7 +232,6 @@ impl Bitmap {
         x: i32,
         y: i32,
         masked_out: bool,
-        color_mask: &ColorChannel,
     ) {
         let mut sw = self.width as i32;
         let mut sh = self.height as i32;
@@ -266,10 +265,7 @@ impl Bitmap {
                         if masked_out {
                             let blended_rgb = blend(c, BLACK, 0xc0);
                             masked_c = blended_rgb;
-                        } else {
-                            let color_mask_rgb = color_mask & 0xffffff;
-                            masked_c = c & color_mask_rgb;
-                        }
+                        } 
 
                         *target
                             .pixels_mut()
