@@ -157,7 +157,7 @@ impl TileMap {
         }
     }
 
-    fn draw(&self, tile_set: &TileSet, target: &mut Bitmap, camera: Vec2) {
+    fn draw(&self, tile_set: &TileSet, target: &mut Bitmap, camera: Vec2, color_mask: crate::bitmap::ColorChannel) {
         let screen_size = vec2(target.width as f32, target.height as f32);
         let bounds = Aabb {
             min: camera,
@@ -193,7 +193,7 @@ impl TileMap {
                         target,
                         sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
                         sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
-                        crate::bitmap::WHITE,
+                        color_mask,
                     );
                 }
             }
@@ -536,7 +536,7 @@ impl Game {
 
         screen.clear(0);
 
-        self.tile_map.draw(&self.tile_set, screen, self.camera);
+        self.tile_map.draw(&self.tile_set, screen, self.camera, self.color_mask);
 
         if self.editor_mode {
             if self.key_pressed[Key::S as usize] {
