@@ -165,8 +165,8 @@ impl TileMap {
             0
         } else {
             let tile_index = self.tiles[(tile_pos.x + tile_pos.y * self.width as i32) as usize];
-            //  If the tile is colored, and this color is masked out, treat as if there is no tile here
-            if tile_index > 1 {
+            //  If the tile is non-empty and non-white, and this color is masked out, treat as if there is no tile here
+            if tile_index != 0 && tile_index != 1 && tile_index != 8 {
                 if tile_colors[(tile_index - 1) as usize] & color_mask == 0 {
                     0
                 } else {
