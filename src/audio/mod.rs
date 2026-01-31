@@ -118,6 +118,7 @@ impl Audio {
         let mut last_time = 0.0;
         let mut time = 0.0;
         let mut piano_notes: [bool; 17] = [false; 17];
+        let mut max_value: f32 = 0.0;
 
         let stream = device
             .build_output_stream(
@@ -171,12 +172,17 @@ impl Audio {
 
                         for (i, note_played ) in piano_notes.iter().enumerate(){
                             if *note_played {
-                                value += 0.5 * triangle_wave(t, 440. * 1.05946309436_f64.powi(i as i32 - 9));
+                               value += 0.5 * triangle_wave(t, 440. * 1.05946309436_f64.powi(i as i32 - 9));
                             }
                         }
 
                         let value = value as f32;
-                        let value = value * settings.volume;
+
+                        // normalize output
+                        if value.abs() > max_value {
+                            max_value = value.abs()
+                        }
+                        let value = value / max_value * settings.volume;
 
                         // left and right channel
                         frame[0] = value; // * (1.0 - settings.panning).min(0.5) * 2.0;

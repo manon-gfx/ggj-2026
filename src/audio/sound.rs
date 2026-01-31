@@ -22,12 +22,22 @@ struct Music {
     pub tracks: &'static [Track],
 }
 
-const CHORD_TRACK: Track = Track {
+const MELODY_TRACK: Track = Track {
     wave: triangle_wave,
     length: 8 * MusicSettings::BAR_LENGTH,
     melody: &[
         D4, D4, D4, A3, C4, C4, C4, A3, G3, G3, G3, F3, A3, A3, A3, REST, D4, D4, D4, A3, C4, C4,
         C4, A3, G3, G3, G3, F3, D3, D3, D3, REST,
+    ],
+    volume: 0.5,
+};
+
+const CONTRAMELODY_TRACK: Track = Track {
+    wave: sine_wave,
+    length: 8 * MusicSettings::BAR_LENGTH,
+    melody: &[
+        A4, A4, A4, F4, G4, G4, G4, D4, F4, F4, F4, CS4, E4, E4, E4, REST, A4, A4, A4, F4, G4, G4,
+        G4, D4, F4, F4, F4, G4, A4, A4, A4, REST,
     ],
     volume: 0.5,
 };
@@ -49,7 +59,7 @@ const BASS_TRACK: Track = Track {
 };
 
 const ACCENT_TRACK: Track = Track {
-    wave: sine_wave,
+    wave: triangle_wave,
     length: 4 * MusicSettings::BAR_LENGTH,
     melody: &[
         REST, REST, D5, REST, D5, REST, C5, A4, REST, REST, REST, REST, REST, REST, REST, REST,
@@ -73,7 +83,13 @@ const SNARE_TRACK: Track = Track {
 };
 
 const MUSIC: Music = Music {
-    tracks: &[BASS_TRACK, CHORD_TRACK, ACCENT_TRACK, SNARE_TRACK],
+    tracks: &[
+        BASS_TRACK,
+        MELODY_TRACK,
+        CONTRAMELODY_TRACK,
+        ACCENT_TRACK,
+        SNARE_TRACK,
+    ],
 };
 
 pub fn signal(t: f64) -> f64 {
