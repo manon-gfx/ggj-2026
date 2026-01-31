@@ -525,8 +525,7 @@ impl Game {
         background_part.draw_on(&mut background, 8, 8);
 
         Self {
-            // audio: Some(Audio::new()),
-            audio: None,
+            audio: Some(Audio::new()),
             music_mode: false,
             font: Font::new_default(),
 
