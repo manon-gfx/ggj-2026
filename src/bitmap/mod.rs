@@ -250,6 +250,99 @@ impl Bitmap {
         }
     }
 
+    pub fn draw_background(
+        &self,
+        target: &mut Self,
+        x: i32,
+        y: i32,
+        scale_x: f32,
+        scale_y: f32,
+        color_mask: ColorChannel,
+        aura_low: &Bitmap,
+        aura: &Bitmap,
+    ) {
+        if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
+            return;
+        }
+
+        let rmask = (color_mask >> 16) & 0xff;
+        let gmask = (color_mask >> 8) & 0xff;
+        let bmask = color_mask & 0xff;
+
+        let mute = 0x0f;
+
+        let swf = self.width as f32 * scale_x;
+        let shf = self.height as f32 * scale_y;
+
+        let du = ((1.0 / swf) * 65535.0) as i32 * self.width as i32;
+        let dv = ((1.0 / shf) * 65535.0) as i32 * self.height as i32;
+
+        let mut sw = swf.abs() as i32;
+        let mut sh = shf.abs() as i32;
+
+        let (sx, tx) = if x < 0 {
+            sw += x;
+            (x.abs(), 0)
+        } else {
+            (0, x)
+        };
+
+        let (sy, ty) = if y < 0 {
+            sh += y;
+            (y.abs(), 0)
+        } else {
+            (0, y)
+        };
+
+        sw = (sw as i32).min(target.width as i32 - tx);
+        sh = (sh as i32).min(target.height as i32 - ty);
+
+        let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * du };
+
+        let srcline = self.pixels.as_ptr();
+        let mut dstline = unsafe {
+            target
+                .pixels
+                .as_mut_ptr()
+                .add((ty * target.width as i32 + tx) as usize)
+        };
+
+        for y in 0..sh {
+            let mut u = if du < 0 { (sw - 1) * -du } else { sx * du };
+            for x in 0..sw {
+                let low_brightness = (aura_low.load_pixel(tx + x, ty + y) & 0xffff) >> 2;
+                let brightness = (aura.load_pixel(tx + x, ty + y) & 0xffff) >> 2;
+
+                unsafe {
+                    let color: u32 =
+                        *srcline.add(((v >> 16) * self.width as i32 + (u >> 16)) as usize);
+                    if (color & 0xff000000) != 0 {
+                        let r = (color >> 16) & 0xff;
+                        let g = (color >> 8) & 0xff;
+                        let b = color & 0xff;
+
+                        let mute = (low_brightness).max(mute);
+
+                        let r_scale = ((brightness * rmask) >> 8).max(mute);
+                        let g_scale = ((brightness * gmask) >> 8).max(mute);
+                        let b_scale = ((brightness * bmask) >> 8).max(mute);
+
+                        let r = ((r * r_scale) >> 8).min(0xff);
+                        let g = ((g * g_scale) >> 8).min(0xff);
+                        let b = ((b * b_scale) >> 8).min(0xff);
+
+                        let color = (r << 16) | (g << 8) | b;
+
+                        *dstline.add(x as usize) = color;
+                    }
+                }
+                u += du;
+            }
+            v += dv;
+            dstline = unsafe { dstline.add(target.width as usize) };
+        }
+    }
+
     // With color masks
     pub fn draw_tile(
         &self,
