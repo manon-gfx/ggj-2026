@@ -6,7 +6,10 @@ use std::sync::{
 
 pub mod notes;
 pub mod sound;
-use sound::audio;
+use sound::signal;
+
+use crate::audio::sound::triangle_wave;
+use crate::game::Key;
 
 #[derive(Clone)]
 struct AudioSettings {
@@ -67,6 +70,8 @@ pub(crate) struct Audio {
     settings_sender: Sender<AudioSettings>,
 
     pub shit_recv: Receiver<Vec<f32>>,
+
+    pub key_sender: Sender<(Key, bool)>,
 }
 
 impl Audio {
@@ -106,6 +111,8 @@ impl Audio {
 
         let (shit_sender, shit_recv) = channel();
 
+        let (key_sender, key_recv) = channel();
+
         struct StreamContext {
             settings: AudioSettings,
             settings_recv: Receiver<AudioSettings>,
@@ -118,10 +125,35 @@ impl Audio {
 
         let mut last_time = 0.0;
         let mut time = 0.0;
+        let mut piano_notes: [bool; 17] = [false; 17];
+
         let stream = device
             .build_output_stream(
                 &config,
                 move |data: &mut [f32], _info: &cpal::OutputCallbackInfo| {
+                    while let Ok((key, down)) = key_recv.try_recv() {
+                        match key {
+                            Key::MusicC3 => piano_notes[0] = down,
+                            Key::MusicCs3 => piano_notes[1] = down,
+                            Key::S => piano_notes[2] = down,
+                            Key::MusicDs3 => piano_notes[3] = down,
+                            Key::MusicE3 => piano_notes[4] = down,
+                            Key::MusicF3 => piano_notes[5] = down,
+                            Key::MusicFs3 => piano_notes[6] = down,
+                            Key::MusicG3 => piano_notes[7] = down,
+                            Key::MusicGs3 => piano_notes[8] = down,
+                            Key::MusicA3 => piano_notes[9] = down,
+                            Key::MusicAs3 => piano_notes[10] = down,
+                            Key::MusicB3 => piano_notes[11] = down,
+                            Key::MusicC4 => piano_notes[12] = down,
+                            Key::MusicCs4 => piano_notes[13] = down,
+                            Key::MusicD4 => piano_notes[14] = down,
+                            Key::MusicDs4 => piano_notes[15] = down,
+                            Key::MusicE4 => piano_notes[16] = down,
+                            _ => {}
+                        }
+                    }
+
                     let sample_duration = 1.0 / sample_rate as f64;
                     let chunk_time = (data.len() / channels as usize) as f64 / sample_rate as f64;
 
@@ -143,9 +175,13 @@ impl Audio {
                         }
                         last_time = t;
 
-                        // let value = t % 10000.0;
-                        // noise
-                        let value = audio(t);
+                        let mut value = signal(t);
+
+                        for (i, note_played ) in piano_notes.iter().enumerate(){
+                            if *note_played {
+                                value += 0.5 * triangle_wave(t, 440. * 1.05946309436_f64.powi(i as i32 - 9));
+                            }
+                        }
 
                         let value = value as f32;
                         let value = value * settings.volume * 0.25;
@@ -184,6 +220,7 @@ impl Audio {
 
             settings_sender,
             shit_recv,
+            key_sender,
         }
     }
 }

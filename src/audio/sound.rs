@@ -1,4 +1,4 @@
-use crate::audio::notes::*;
+use crate::{audio::notes::*, game::Key};
 
 struct MusicSettings;
 
@@ -16,7 +16,7 @@ pub const MELODY2: [f64; 32] = [
     REST, C4, REST, G4, REST, REST, A4, REST, REST, E4, REST, REST, REST, REST, REST,
 ];
 
-pub fn audio(t: f64) -> f64 {
+pub fn signal(t: f64) -> f64 {
     let mut signal = 0.0;
 
     let n = (t * MusicSettings::TEMPO) as u32;
