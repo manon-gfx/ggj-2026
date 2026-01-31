@@ -18,6 +18,15 @@ pub struct Track {
     pub volume: f64,
 }
 
+pub struct Sound {
+    pub wave: WaveFn,
+    pub start: f64,    // start time
+    pub duration: f64, // duration in seconds
+    pub interval: f64, // interval in seconds
+    pub melody: &'static [f64],
+    pub volume: f64,
+}
+
 pub struct Music {
     pub tracks: Vec<Track>,
     pub track_mask: Vec<bool>,
@@ -100,7 +109,58 @@ impl Music {
     }
 }
 
-pub fn signal(t: f64, music: &mut Music) -> f64 {
+pub enum SoundTypes {
+    FootstepSound,
+    JumpSound,
+    DeathSound,
+}
+
+pub struct SoundEffects {
+    pub footstep: Sound,
+    pub jump: Sound,
+    pub death: Sound,
+}
+
+impl SoundEffects {
+    pub fn new() -> Self {
+        let footstep = Sound {
+            wave: triangle_wave,
+            start: 0.,
+            duration: 0.15,
+            interval: 0.3,
+            melody: &[D2],
+            volume: 0.2,
+        };
+
+        let jump = Sound {
+            wave: sawtooth_wave,
+            start: 0.,
+            duration: 0.1,
+            interval: 0.0,
+            melody: &[C4, E4, G4, C5],
+            volume: 0.5,
+        };
+
+        let death = Sound {
+            wave: square_wave,
+            start: 0.,
+            duration: 2.,
+            interval: 0.0,
+            melody: &[
+                D2, A1, REST, C2, G1, REST, A1, F1, REST, REST, D1, REST, D1, D1, D1, REST,
+            ],
+            volume: 0.5,
+        };
+
+        Self {
+            footstep: footstep,
+            jump: jump,
+            death: death,
+        }
+    }
+}
+
+pub fn play_music(t: f64, music: &mut Music) -> f64 {
     let mut signal = 0.0;
 
     let beat_in_game = (t * MusicSettings::TEMPO); // total beats since start of game
@@ -125,6 +185,22 @@ pub fn signal(t: f64, music: &mut Music) -> f64 {
     }
 
     signal
+}
+
+pub fn play_sfx(t: f64, t0: f64, sound: &Sound) -> f64 {
+    let dt = if sound.interval == 0.0 {
+        t - t0
+    } else {
+        (t - t0) % sound.interval
+    };
+
+    if sound.duration > dt {
+        let idx_in_melody = (dt / sound.duration * sound.melody.len() as f64) as usize;
+        let note = sound.melody[idx_in_melody];
+        sound.volume * (sound.wave)(t, note)
+    } else {
+        0.0
+    }
 }
 
 pub fn triangle_wave(t: f64, freq: f64) -> f64 {

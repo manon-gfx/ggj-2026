@@ -6,9 +6,12 @@ use std::sync::{
 
 pub mod notes;
 pub mod sound;
-use sound::signal;
+use sound::{play_music, play_sfx};
 
-use crate::audio::sound::{sawtooth_wave, sine_wave, square_wave, triangle_wave, white_noise};
+use crate::audio::sound::SoundTypes;
+use crate::audio::sound::{
+    SoundEffects, sawtooth_wave, sine_wave, square_wave, triangle_wave, white_noise,
+};
 use crate::game::Key;
 
 #[derive(Clone)]
@@ -63,6 +66,7 @@ pub(crate) struct Audio {
     pub shit_recv: Receiver<Vec<f32>>,
 
     pub key_sender: Sender<(Key, bool)>,
+    pub sfx_sender: Sender<(SoundTypes, bool)>,
 }
 
 impl Audio {
@@ -104,6 +108,7 @@ impl Audio {
 
         let (shit_sender, shit_recv) = channel();
         let (key_sender, key_recv) = channel();
+        let (sfx_sender, sfx_recv) = channel();
 
         struct StreamContext {
             settings: AudioSettings,
@@ -121,7 +126,19 @@ impl Audio {
         let mut max_value: f32 = 0.0;
 
         let mut music = sound::Music::new();
-        music.track_mask[0] = true;
+        music.track_mask[0] = false;
+
+        let mut soundeffects = sound::SoundEffects::new();
+        let mut start_jump_sound: bool = false;
+        let mut start_death_sound: bool = false;
+        let mut start_footstep_sound: bool = false;
+        let mut stop_footstep_sound: bool = false;
+        let mut play_jump_sound: bool = false;
+        let mut play_death_sound: bool = false;
+        let mut play_footstep_sound: bool = false;
+        let mut t0_jump_sound: f64 = 0.0;
+        let mut t0_death_sound: f64 = 0.0;
+        let mut t0_footstep_sound: f64 = 0.0;
 
         let stream = device
             .build_output_stream(
@@ -150,6 +167,25 @@ impl Audio {
                         }
                     }
 
+                    while let Ok((sfx_event, play)) = sfx_recv.try_recv() {
+                        match sfx_event {
+                            SoundTypes::FootstepSound => {
+                                if play {
+                                    start_footstep_sound = true;
+                                } else {
+                                    stop_footstep_sound = true;
+                                }
+                            }
+                            SoundTypes::JumpSound => {
+                                start_jump_sound = play;
+                            }
+                            SoundTypes::DeathSound => {
+                                start_death_sound = play;
+                            }
+                            _ => {}
+                        }
+                    }
+
                     let sample_duration = 1.0 / sample_rate as f64;
                     let chunk_time = (data.len() / channels as usize) as f64 / sample_rate as f64;
 
@@ -171,11 +207,46 @@ impl Audio {
                         }
                         last_time = t;
 
-                        let mut value = signal(t, &mut music);
+                        let mut value = play_music(t, &mut music);
+
+                        if start_jump_sound {
+                            start_jump_sound = false;
+                            play_jump_sound = true;
+                            t0_jump_sound = t;
+                        }
+
+                        if play_jump_sound {
+                            value += 0.5 * play_sfx(t ,t0_jump_sound, &soundeffects.jump)
+                        }
+
+                        if start_death_sound {
+                            start_death_sound = false;
+                            play_death_sound = true;
+                            t0_death_sound = t;
+                        }
+
+                        if play_death_sound {
+                            value += 0.5 * play_sfx(t ,t0_death_sound, &soundeffects.death)
+                        }
+
+                        if start_footstep_sound {
+                            start_footstep_sound = false;
+                            play_footstep_sound = true;
+                            t0_footstep_sound = t;
+                        }
+
+                        if stop_footstep_sound {
+                            stop_footstep_sound = false;
+                            play_footstep_sound = false;
+                        }
+
+                        if play_footstep_sound {
+                            value += 0.5 * play_sfx(t ,t0_footstep_sound, &soundeffects.footstep)
+                        }
 
                         for (i, note_played ) in piano_notes.iter().enumerate(){
                             if *note_played {
-                               value += 0.5 * triangle_wave(t, 440. * 1.05946309436_f64.powi(i as i32 - 9));
+                               value += 0.5 * square_wave(t, 55. * 1.05946309436_f64.powi(i as i32 - 9));
                             }
                         }
 
@@ -232,6 +303,7 @@ impl Audio {
             settings_sender,
             shit_recv,
             key_sender,
+            sfx_sender,
         }
     }
 }
