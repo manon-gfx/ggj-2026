@@ -2,9 +2,12 @@ use crate::audio::Audio;
 use crate::bitmap::{self, Bitmap, Font};
 use glam::*;
 
-const GRAVITY: f32 = 400.0;
-const FALLING_SPEED: f32 = 800.0;
+const GRAVITY: f32 = 600.0;
+const JUMP_IMPULSE: f32 = 150.0;
+const JUMP_SUSTAIN: f32 = 350.0;
+const MOVEMENT_ACCELERATION: f32 = 1500.0;
 const MOVEMENT_SPEED_X: f32 = 100.0;
+const FRICTION: f32 = 1500.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(usize)]
@@ -235,6 +238,8 @@ struct Player {
     position: Vec2,
     velocity: Vec2,
     aabb: Aabb,
+    on_ground: bool,
+    is_jumping: bool,
 }
 
 impl Player {
@@ -491,6 +496,8 @@ impl Game {
                     min: vec2(3.0, 5.0),
                     max: vec2(12.0, 15.0),
                 },
+                on_ground: false,
+                is_jumping: false,
             },
             player_inventory: PlayerInventory {
                 tile_size: 16,
@@ -627,15 +634,40 @@ impl Game {
             }
         } else {
             // do game things here
-            self.player.velocity.x = 0.0;
             if self.input_state.is_key_down(Key::Left) {
-                self.player.velocity.x -= MOVEMENT_SPEED_X;
+                self.player.velocity.x = self.player.velocity.x.min(0.0);
+                self.player.velocity.x -= MOVEMENT_ACCELERATION * delta_time;
             }
             if self.input_state.is_key_down(Key::Right) {
-                self.player.velocity.x += MOVEMENT_SPEED_X;
+                self.player.velocity.x = self.player.velocity.x.max(0.0);
+                self.player.velocity.x += MOVEMENT_ACCELERATION * delta_time;
             }
-            if self.input_state.is_key_pressed(Key::A) {
-                self.player.velocity.y = -100.0;
+
+            if !self.input_state.is_key_down(Key::Left) && !self.input_state.is_key_down(Key::Right)
+            {
+                if self.player.velocity.x > 0.0 {
+                    self.player.velocity.x -= self.player.velocity.x.min(FRICTION * delta_time);
+                }
+                if self.player.velocity.x < 0.0 {
+                    self.player.velocity.x -= (-self.player.velocity.x).min(-FRICTION * delta_time);
+                }
+            }
+            self.player.velocity.x = self
+                .player
+                .velocity
+                .x
+                .clamp(-MOVEMENT_SPEED_X, MOVEMENT_SPEED_X);
+
+            if self.input_state.is_key_pressed(Key::A) && self.player.on_ground {
+                self.player.velocity.y = -JUMP_IMPULSE;
+                self.player.is_jumping = true;
+            }
+            if self.input_state.is_key_down(Key::A) {
+                if self.player.is_jumping {
+                    self.player.velocity.y -= JUMP_SUSTAIN * delta_time;
+                }
+            } else {
+                self.player.is_jumping = false;
             }
 
             // toggle mask activation
@@ -765,9 +797,10 @@ impl Game {
                         (self.player.aabb_world_space().min.y / tile_size).ceil() * tile_size;
                     let offset = -self.player.aabb.min.y;
                     self.player.position.y = self.player.position.y.max(offset + limit);
+
+                    self.player.is_jumping = false;
                 }
                 if tile_below {
-                    // debug_value = true;
                     self.player.velocity.y = self.player.velocity.y.min(0.0);
 
                     let tile_size = self.tile_map.tile_size as f32;
@@ -775,10 +808,12 @@ impl Game {
                         .floor()
                         * tile_size;
                     let offset = -self.player.aabb.max.y - 1.0;
-                    // dbg!((limit, offset, offset+limit));
 
                     self.player.position.y = self.player.position.y.min(offset + limit);
+
+                    self.player.is_jumping = false;
                 }
+                self.player.on_ground = tile_below;
             }
         }
 
