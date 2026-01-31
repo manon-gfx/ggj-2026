@@ -431,6 +431,8 @@ pub struct Game {
     player_inventory: PlayerInventory,
     time: f32,
 
+    is_playing_death_animation: bool,
+
     editor_mode: bool,
 
     color_mask: crate::bitmap::ColorChannel,
@@ -467,6 +469,9 @@ fn build_frame_list(
 }
 
 impl Game {
+    // consts
+    const PLAYER_START_POS: Vec2 = vec2(2200.0, 2110.0);
+
     pub fn new() -> Self {
         // Read level file
         let level_layout_file =
@@ -624,7 +629,6 @@ impl Game {
             tiles: tile_indices,
         };
 
-        let player_start_pos = vec2(2200.0, 2110.0);
         let player_sprite = Bitmap::load("assets/test_sprite.png");
         let sprite_width = player_sprite.width as f32;
         let sprite_height = player_sprite.height as f32;
@@ -740,7 +744,7 @@ impl Game {
                 walk_sprite,
                 jump_sprite,
                 death_sprite,
-                position: player_start_pos,
+                position: Self::PLAYER_START_POS,
                 velocity: Vec2::ZERO,
                 aabb: Aabb {
                     min: vec2(3.0, 5.0),
@@ -761,9 +765,30 @@ impl Game {
             },
             time: 0.0,
 
+            is_playing_death_animation: false,
+
             color_mask: crate::bitmap::BLUE,
             editor_mode: false,
         }
+    }
+
+    pub fn reset_game(&mut self) {
+        // Reset player
+        self.player.position = Self::PLAYER_START_POS;
+        self.player.on_ground = false;
+        self.player.is_jumping = false;
+        self.player.is_dead = false;
+
+        // Reset inventory
+        self.player_inventory.masks.clear();
+
+        // Reset game objects
+        for mask in self.mask_game_objects.iter_mut() {
+            mask.visible = true;
+        }
+
+        // Play anim
+        self.is_playing_death_animation = true;
     }
 
     pub(crate) fn on_mouse_moved(&mut self, x: f32, y: f32) {
@@ -850,6 +875,13 @@ impl Game {
                 self.color_mask
             },
         );
+
+        // If we are death, play fixed death sequence and resetart the game
+        if self.player.is_dead {
+            self.reset_game();
+            // TODO: Start playing death sequence
+            return;
+        }
 
         if self.editor_mode {
             if self.input_state.is_key_pressed(Key::S) {
