@@ -1,9 +1,11 @@
+pub mod editor;
 pub mod sprite;
 pub mod tilemap;
 
 use crate::audio::Audio;
 use crate::bitmap::{self, Bitmap, Font};
 use crate::game::sprite::Sprite;
+use editor::EditorState;
 use glam::*;
 
 use tilemap::{TileFlags, TileMap, TileSet};
@@ -133,15 +135,6 @@ impl MaskObject {
     }
 }
 
-struct EditorState {
-    selected_tile: u32,
-}
-impl Default for EditorState {
-    fn default() -> Self {
-        Self { selected_tile: 0 }
-    }
-}
-
 #[derive(Debug)]
 struct Player {
     idle_sprite: Sprite,
@@ -199,6 +192,8 @@ impl Player {
 
 #[derive(Debug, Default)]
 pub struct InputState {
+    mouse: Vec2,
+
     pub key_state: [bool; Key::Count as usize],
     pub key_pressed: [bool; Key::Count as usize],
     pub key_released: [bool; Key::Count as usize],
@@ -587,6 +582,7 @@ impl Game {
     }
 
     pub(crate) fn on_mouse_moved(&mut self, x: f32, y: f32) {
+        self.input_state.mouse = vec2(x, y);
         self.mouse_x = x;
         self.mouse_y = y;
     }
@@ -687,33 +683,14 @@ impl Game {
         // TODO: Could make inventory-overlay its own bitmap and draw items on that and then draw the inventory on the screen
         if self.editor_mode {
             screen.draw_str(&self.font, "editor_mode", 191, 10, 0xffff00);
-
-            let aabb = Aabb {
-                min: vec2(-1.0, -1.0),
-                max: vec2(self.tile_map.width as f32, self.tile_map.height as f32)
-                    * self.tile_map.tile_size as f32,
-            };
-            draw_aabb(screen, &aabb, self.camera, 0x00ff00);
-
-            screen.draw_rectangle(0, 192, 255, 207, true, 0x0);
-            screen.draw_rectangle(0, 192, 255, 207, false, 0xffffffff);
-
-            for (i, tile) in self.tile_set.tiles.iter().take(24).enumerate() {
-                let aabb = Aabb {
-                    min: vec2(7.0 + i as f32 * 10.0, 192.0 + 3.0),
-                    max: vec2(16.0 + i as f32 * 10.0, 192.0 + 12.0),
-                };
-                if i == self.editor_state.selected_tile as usize {
-                    draw_aabb(screen, &aabb, Vec2::ZERO, 0xffffff);
-                }
-
-                if self.input_state.is_mouse_pressed(MouseButton::Left)
-                    && aabb.point_intersects(vec2(self.mouse_x, self.mouse_y))
-                {
-                    self.editor_state.selected_tile = i as u32;
-                }
-                tile.draw_on(screen, 8 + i as i32 * 10, 192 + 4);
-            }
+            self.editor_state.tick(
+                delta_time,
+                screen,
+                &mut self.tile_map,
+                &self.tile_set,
+                &mut self.camera,
+                &self.input_state,
+            );
         } else {
             self.player_inventory.bag_sprite.draw_on(
                 screen,
@@ -753,57 +730,7 @@ impl Game {
         }
 
         // Some things we only need to do if we aren't dead
-        if self.editor_mode {
-            if self.input_state.is_key_pressed(Key::S) {
-                self.tile_map.store_to_file("assets/level0.txt");
-                println!("Level Saved!");
-            }
-
-            if self.input_state.is_key_down(Key::Left) {
-                self.camera.x -= delta_time * 150.0;
-            }
-            if self.input_state.is_key_down(Key::Right) {
-                self.camera.x += delta_time * 150.0;
-            }
-            if self.input_state.is_key_down(Key::Up) {
-                self.camera.y -= delta_time * 150.0;
-            }
-            if self.input_state.is_key_down(Key::Down) {
-                self.camera.y += delta_time * 150.0;
-            }
-
-            if self.input_state.is_key_pressed(Key::LeftBracket) {
-                if self.editor_state.selected_tile > 0 {
-                    self.editor_state.selected_tile -= 1;
-                }
-            }
-            if self.input_state.is_key_pressed(Key::RightBracket) {
-                if self.editor_state.selected_tile < (self.tile_set.tiles.len() - 1) as u32 {
-                    self.editor_state.selected_tile += 1;
-                }
-            }
-
-            screen.plot(self.mouse_x as i32, self.mouse_y as i32, 0xff00ff);
-
-            if self.mouse_y < 192.0 {
-                if self.input_state.is_mouse_down(MouseButton::Left) {
-                    let mouse_ws =
-                        screen_to_world_space(vec2(self.mouse_x, self.mouse_y), self.camera);
-                    let mouse_ws = mouse_ws.as_uvec2();
-                    let mouse_ts = mouse_ws / self.tile_map.tile_size;
-                    self.tile_map.tiles[(mouse_ts.x + mouse_ts.y * self.tile_map.width) as usize] =
-                        self.editor_state.selected_tile + 1;
-                }
-                if self.input_state.is_mouse_down(MouseButton::Right) {
-                    let mouse_ws =
-                        screen_to_world_space(vec2(self.mouse_x, self.mouse_y), self.camera);
-                    let mouse_ws = mouse_ws.as_uvec2();
-                    let mouse_ts = mouse_ws / self.tile_map.tile_size;
-                    self.tile_map.tiles[(mouse_ts.x + mouse_ts.y * self.tile_map.width) as usize] =
-                        0;
-                }
-            }
-        } else {
+        if !self.editor_mode {
             // do game things here
             if self.input_state.is_key_down(Key::Left) {
                 self.player.velocity.x = self.player.velocity.x.min(0.0);
