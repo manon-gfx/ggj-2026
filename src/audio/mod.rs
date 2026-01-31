@@ -120,6 +120,9 @@ impl Audio {
         let mut piano_notes: [bool; 17] = [false; 17];
         let mut max_value: f32 = 0.0;
 
+        let mut music = sound::Music::new();
+        music.track_mask[0] = true;
+
         let stream = device
             .build_output_stream(
                 &config,
@@ -168,7 +171,7 @@ impl Audio {
                         }
                         last_time = t;
 
-                        let mut value = signal(t);
+                        let mut value = signal(t, &mut music);
 
                         for (i, note_played ) in piano_notes.iter().enumerate(){
                             if *note_played {
