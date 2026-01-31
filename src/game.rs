@@ -1,5 +1,8 @@
+pub mod sprite;
+
 use crate::audio::Audio;
 use crate::bitmap::{self, Bitmap, Font};
+use crate::game::sprite::Sprite;
 use glam::*;
 
 const GRAVITY: f32 = 600.0;
@@ -154,7 +157,6 @@ impl TileMap {
         tile_colors: &Vec<bitmap::ColorChannel>,
         color_mask: &bitmap::ColorChannel,
     ) -> u32 {
-
         let color_mask = color_mask & 0xffffff;
         let tile_pos = self.world_to_tile_index(position);
         if tile_pos.x < 0
@@ -252,7 +254,9 @@ impl Default for EditorState {
 
 #[derive(Debug)]
 struct Player {
-    sprite: Bitmap,
+    idle_sprite: Sprite,
+    walk_sprite: Sprite,
+    jump_sprite: Sprite,
 
     position: Vec2,
     velocity: Vec2,
@@ -269,14 +273,24 @@ impl Player {
         }
     }
 
+    fn tick(&mut self, delta_time: f32) {
+        self.walk_sprite.tick(delta_time);
+        self.jump_sprite.tick(delta_time);
+    }
+
     fn draw(&self, screen: &mut Bitmap, camera: Vec2) {
+        let scale = vec2(if self.velocity.x < 0.0 { -1.0 } else { 1.0 }, 1.0);
+
         let screen_pos = world_space_to_screen_space(self.position, camera);
-        self.sprite.draw_on(
-            screen,
-            screen_pos.x as i32,
-            screen_pos.y as i32,
-            &bitmap::WHITE,
-        );
+        if !self.on_ground {
+            self.jump_sprite.draw(screen, screen_pos, scale);
+        } else {
+            if self.velocity.x.abs() < 0.001 {
+                self.idle_sprite.draw(screen, screen_pos, scale);
+            } else {
+                self.walk_sprite.draw(screen, screen_pos, scale);
+            }
+        }
     }
 }
 
@@ -367,6 +381,21 @@ fn world_space_to_screen_space(pos_in_world: Vec2, camera_pos: Vec2) -> Vec2 {
     pos_in_world - camera_pos
 }
 
+fn build_frame_list(
+    sprite_sheet: &Bitmap,
+    coords: &[(i32, i32)],
+    size: (usize, usize),
+) -> Vec<Bitmap> {
+    coords
+        .iter()
+        .map(|(x, y)| {
+            let mut bmp = Bitmap::new(size.0, size.1);
+            sprite_sheet.draw_on(&mut bmp, -x, -y, 0xffffffff);
+            bmp
+        })
+        .collect::<Vec<_>>()
+}
+
 impl Game {
     pub fn new() -> Self {
         // Read level file
@@ -408,7 +437,7 @@ impl Game {
             tile_indices.append(&mut row);
         }
 
-        let sprite_sheet = Bitmap::load("assets/level_tiles_8x8.png");
+        let tile_sheet = Bitmap::load("assets/level_tiles_8x8.png");
         let coords = [
             // Terrain Blocks
             (32, 0),
@@ -456,14 +485,7 @@ impl Game {
             bitmap::PURPLE,
         ];
 
-        let tiles = coords
-            .iter()
-            .map(|(x, y)| {
-                let mut bmp = Bitmap::new(8, 8);
-                sprite_sheet.draw_on(&mut bmp, -x, -y, &bitmap::WHITE);
-                bmp
-            })
-            .collect::<Vec<_>>();
+        let tiles = build_frame_list(&tile_sheet, &coords, (8, 8));
 
         let tile_set = TileSet { tiles, tile_colors };
 
@@ -523,6 +545,39 @@ impl Game {
             activation_key: Key::B,
         };
 
+        let player_sprite_sheet = Bitmap::load("assets/sprite/spritesheet_animation.png");
+
+        let walk_frames = [
+            (0, 16),
+            (16, 16),
+            (32, 16),
+            (48, 16),
+            (64, 16),
+            (80, 16),
+            (96, 16),
+            (112, 16),
+        ];
+        let jump_frames = [(0, 80), (16, 80)];
+
+        let idle_sprite = Sprite {
+            frames: build_frame_list(&player_sprite_sheet, &[(0, 0)], (16, 16)),
+            frame_index: 0,
+            t: 0.0,
+            seconds_per_frame: 1.0 / 24.0,
+        };
+        let walk_sprite = Sprite {
+            frames: build_frame_list(&player_sprite_sheet, &walk_frames, (16, 16)),
+            frame_index: 0,
+            t: 0.0,
+            seconds_per_frame: 1.0 / 24.0,
+        };
+        let jump_sprite = Sprite {
+            frames: build_frame_list(&player_sprite_sheet, &jump_frames, (16, 16)),
+            frame_index: 0,
+            t: 0.0,
+            seconds_per_frame: 1.0 / 4.0,
+        };
+
         Self {
             // audio: Some(Audio::new()),
             audio: None,
@@ -547,7 +602,9 @@ impl Game {
             mask_game_objects: vec![red_mask, green_mask, blue_mask],
 
             player: Player {
-                sprite: Bitmap::load("assets/sprite/sprite_front.png"),
+                idle_sprite,
+                walk_sprite,
+                jump_sprite,
                 position: player_start_pos,
                 velocity: Vec2::ZERO,
                 aabb: Aabb {
@@ -626,7 +683,7 @@ impl Game {
     }
 
     pub fn add_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
-        self.color_mask |= color_channel;        
+        self.color_mask |= color_channel;
     }
 
     pub fn remove_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
@@ -933,6 +990,7 @@ impl Game {
                 }
                 self.player.on_ground = tile_below;
             }
+            self.player.tick(delta_time);
         }
 
         draw_aabb(
@@ -947,12 +1005,8 @@ impl Game {
         for mask in self.mask_game_objects.iter_mut() {
             if mask.visible {
                 let pos = world_space_to_screen_space(mask.position, self.camera);
-                mask.sprite_scene.draw_on(
-                    screen,
-                    pos.x as i32,
-                    pos.y as i32,
-                    &crate::bitmap::WHITE,
-                );
+                mask.sprite_scene
+                    .draw_on(screen, pos.x as i32, pos.y as i32, crate::bitmap::WHITE);
 
                 // Add to collection
                 if mask
