@@ -8,7 +8,7 @@ pub mod notes;
 pub mod sound;
 use sound::signal;
 
-use crate::audio::sound::triangle_wave;
+use crate::audio::sound::{sawtooth_wave, sine_wave, square_wave, triangle_wave};
 use crate::game::Key;
 
 #[derive(Clone)]
