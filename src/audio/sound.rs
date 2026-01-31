@@ -24,7 +24,7 @@ struct Music {
 
 const TRACK1: Track = Track {
     wave: triangle_wave,
-    length: 8,
+    length: 8 * MusicSettings::BAR_LENGTH,
     melody: &[
         D4, D4, D4, A3, C4, C4, C4, A3, G3, G3, G3, F3, A3, A3, A3, REST, D4, D4, D4, A3, C4, C4,
         C4, A3, G3, G3, G3, F3, D3, D3, D3, REST,
@@ -34,7 +34,7 @@ const TRACK1: Track = Track {
 
 const TRACK2: Track = Track {
     wave: square_wave,
-    length: 8,
+    length: 8 * MusicSettings::BAR_LENGTH,
     melody: &[
         REST, REST, D2, D2, REST, D2, D2, REST, D2, D2, REST, REST, REST, REST, REST, REST, REST,
         REST, E2, E2, REST, E2, E2, REST, E2, E2, REST, REST, REST, REST, REST, REST, REST, REST,
@@ -48,10 +48,23 @@ const TRACK2: Track = Track {
     volume: 0.25,
 };
 
+const TRACK3: Track = Track {
+    wave: sine_wave,
+    length: 4 * MusicSettings::BAR_LENGTH,
+    melody: &[
+        REST, REST, D5, REST, D5, REST, C5, A4, REST, REST, REST, REST, REST, REST, REST, REST,
+        REST, REST, A4, REST, A4, REST, C5, D5, REST, REST, REST, REST, REST, REST, REST, REST,
+        REST, REST, D5, REST, D5, REST, F5, D5, REST, REST, REST, REST, REST, REST, REST, REST,
+        REST, REST, C5, REST, C5, REST, B4, A4, REST, REST, REST, REST, REST, REST, REST, REST,
+    ],
+    volume: 0.5,
+};
+
 const MUSIC: Music = Music{
     tracks: &[
         TRACK1,
         TRACK2,
+        TRACK3,
     ]
 };
 
@@ -62,12 +75,9 @@ pub fn signal(t: f64) -> f64 {
     let beat_in_loop =
         beat_in_game % (MusicSettings::BAR_LENGTH * MusicSettings::LOOP_LENGTH) as f64; // current beat in the loop
 
-    for track in MUSIC.tracks {
-        let beat_in_track = beat_in_loop / (MusicSettings::LOOP_LENGTH / track.length) as f64;
-        let idx_in_track = (beat_in_track
-            * (track.melody.len() / (track.length * MusicSettings::BAR_LENGTH)) as f64)
-            as usize
-            % track.melody.len();
+    for track in MUSIC.tracks.iter() {
+        let beat_in_track = beat_in_loop % track.length as f64;
+        let idx_in_track = (beat_in_track as f64 / track.length as f64 * track.melody.len() as f64).floor() as usize;
         let note = track.melody[idx_in_track];
         signal += track.volume * (track.wave)(t, note);
     }
