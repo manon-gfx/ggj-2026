@@ -662,6 +662,7 @@ impl Game {
     }
 
     pub fn tick(&mut self, delta_time: f32, screen: &mut Bitmap) {
+        let delta_time = delta_time.min(1.0 / 30.0);
         self.time += delta_time;
 
         screen.clear(0);
