@@ -100,7 +100,7 @@ impl TileMap {
         (tile_index * self.tile_size as i32).as_vec2()
     }
     fn round_world_coord_to_tile(&self, position: Vec2) -> Vec2 {
-        (position / self.tile_size as f32).floor()
+        (position / self.tile_size as f32).floor() * self.tile_size as f32
     }
 
     fn sample_world_pos(&self, position: Vec2) -> u32 {
@@ -471,55 +471,6 @@ impl Game {
             // let player_center = self.player.aabb_world_space().center();
             let aabb_ws = self.player.aabb_world_space();
 
-            let samples_positions_below = [
-                vec2(aabb_ws.min.x, aabb_ws.max.y + 1.0),
-                vec2(aabb_ws.center().x, aabb_ws.max.y + 1.0),
-                vec2(aabb_ws.max.x, aabb_ws.max.y + 1.0),
-            ];
-            let tiles_below = [
-                self.tile_map.sample_world_pos(samples_positions_below[0]),
-                self.tile_map.sample_world_pos(samples_positions_below[1]),
-                self.tile_map.sample_world_pos(samples_positions_below[2]),
-            ];
-
-            let samples_positions_above = [
-                vec2(aabb_ws.min.x, aabb_ws.min.y - 1.0),
-                vec2(aabb_ws.center().x, aabb_ws.min.y - 1.0),
-                vec2(aabb_ws.max.x, aabb_ws.min.y - 1.0),
-            ];
-            let tiles_above = [
-                self.tile_map.sample_world_pos(samples_positions_above[0]),
-                self.tile_map.sample_world_pos(samples_positions_above[1]),
-                self.tile_map.sample_world_pos(samples_positions_above[2]),
-            ];
-
-            let samples_positions_left = [
-                vec2(aabb_ws.min.x - 1.0, aabb_ws.min.y),
-                vec2(aabb_ws.min.x - 1.0, aabb_ws.center().y),
-                vec2(aabb_ws.min.x - 1.0, aabb_ws.max.y),
-            ];
-            let tiles_left = [
-                self.tile_map.sample_world_pos(samples_positions_left[0]),
-                self.tile_map.sample_world_pos(samples_positions_left[1]),
-                self.tile_map.sample_world_pos(samples_positions_left[2]),
-            ];
-
-            let samples_positions_right = [
-                vec2(aabb_ws.max.x + 1.0, aabb_ws.min.y),
-                vec2(aabb_ws.max.x + 1.0, aabb_ws.center().y),
-                vec2(aabb_ws.max.x + 1.0, aabb_ws.max.y),
-            ];
-            let tiles_right = [
-                self.tile_map.sample_world_pos(samples_positions_right[0]),
-                self.tile_map.sample_world_pos(samples_positions_right[1]),
-                self.tile_map.sample_world_pos(samples_positions_right[2]),
-            ];
-
-            let tile_below = tiles_below.iter().any(|a| *a != 0);
-            let tile_above = tiles_above.iter().any(|a| *a != 0);
-            let tile_left = tiles_left.iter().any(|a| *a != 0);
-            let tile_right = tiles_right.iter().any(|a| *a != 0);
-
             self.player.velocity.x = 0.0;
             if self.key_state[Key::Left as usize] {
                 self.player.velocity.x -= MOVEMENT_SPEED_X;
@@ -531,27 +482,103 @@ impl Game {
                 self.player.velocity.y = -100.0;
             }
 
-            if tile_left {
-                self.player.velocity.x = self.player.velocity.x.max(0.0);
-            }
-            if tile_right {
-                self.player.velocity.x = self.player.velocity.x.min(0.0);
-            }
-            if tile_above {
-                self.player.velocity.y = self.player.velocity.y.max(0.0);
-            }
-            if !tile_below {
-                self.player.velocity.y += GRAVITY * delta_time;
-            } else {
-                self.player.velocity.y = self.player.velocity.y.min(0.0);
-            }
+            self.player.velocity.y += GRAVITY * delta_time;
 
-            // self.player.velocity = self
-            //     .player
-            //     .velocity
-            //     .clamp(vec2(-500.0, -500.0), vec2(500.0, 500.0));
+            // Speed limit!
+            self.player.velocity = self
+                .player
+                .velocity
+                .clamp(vec2(-500.0, -500.0), vec2(500.0, 500.0));
 
             self.player.position += self.player.velocity * delta_time;
+
+            // Move player out of tile map
+            {
+                let samples_positions_below = [
+                    vec2(aabb_ws.min.x, aabb_ws.max.y + 1.0),
+                    vec2(aabb_ws.center().x, aabb_ws.max.y + 1.0),
+                    vec2(aabb_ws.max.x, aabb_ws.max.y + 1.0),
+                ];
+                let tiles_below = [
+                    self.tile_map.sample_world_pos(samples_positions_below[0]),
+                    self.tile_map.sample_world_pos(samples_positions_below[1]),
+                    self.tile_map.sample_world_pos(samples_positions_below[2]),
+                ];
+
+                let samples_positions_above = [
+                    vec2(aabb_ws.min.x, aabb_ws.min.y - 1.0),
+                    vec2(aabb_ws.center().x, aabb_ws.min.y - 1.0),
+                    vec2(aabb_ws.max.x, aabb_ws.min.y - 1.0),
+                ];
+                let tiles_above = [
+                    self.tile_map.sample_world_pos(samples_positions_above[0]),
+                    self.tile_map.sample_world_pos(samples_positions_above[1]),
+                    self.tile_map.sample_world_pos(samples_positions_above[2]),
+                ];
+
+                let samples_positions_left = [
+                    vec2(aabb_ws.min.x - 1.0, aabb_ws.min.y),
+                    vec2(aabb_ws.min.x - 1.0, aabb_ws.center().y),
+                    vec2(aabb_ws.min.x - 1.0, aabb_ws.max.y),
+                ];
+                let tiles_left = [
+                    self.tile_map.sample_world_pos(samples_positions_left[0]),
+                    self.tile_map.sample_world_pos(samples_positions_left[1]),
+                    self.tile_map.sample_world_pos(samples_positions_left[2]),
+                ];
+
+                let samples_positions_right = [
+                    vec2(aabb_ws.max.x + 1.0, aabb_ws.min.y),
+                    vec2(aabb_ws.max.x + 1.0, aabb_ws.center().y),
+                    vec2(aabb_ws.max.x + 1.0, aabb_ws.max.y),
+                ];
+                let tiles_right = [
+                    self.tile_map.sample_world_pos(samples_positions_right[0]),
+                    self.tile_map.sample_world_pos(samples_positions_right[1]),
+                    self.tile_map.sample_world_pos(samples_positions_right[2]),
+                ];
+
+                let tile_below = tiles_below.iter().any(|a| *a != 0);
+                let tile_above = tiles_above.iter().any(|a| *a != 0);
+                let tile_left = tiles_left.iter().any(|a| *a != 0);
+                let tile_right = tiles_right.iter().any(|a| *a != 0);
+
+                if tile_left {
+                    self.player.velocity.x = self.player.velocity.x.max(0.0);
+                    let tile_size = self.tile_map.tile_size as f32;
+                    let limit =
+                        (self.player.aabb_world_space().min.x / tile_size).round() * tile_size;
+                    let offset = -self.player.aabb.min.x;
+                    self.player.position.x = self.player.position.x.max(offset + limit);
+                }
+                if tile_right {
+                    self.player.velocity.x = self.player.velocity.x.min(0.0);
+
+                    let tile_size = self.tile_map.tile_size as f32;
+                    let limit =
+                        (self.player.aabb_world_space().max.x / tile_size).round() * tile_size;
+                    let offset = -self.player.aabb.max.x - 1.0;
+                    self.player.position.x = self.player.position.x.min(offset + limit);
+                }
+                if tile_above {
+                    self.player.velocity.y = self.player.velocity.y.max(0.0);
+
+                    let tile_size = self.tile_map.tile_size as f32;
+                    let limit =
+                        (self.player.aabb_world_space().min.y / tile_size).round() * tile_size;
+                    let offset = -self.player.aabb.min.y;
+                    self.player.position.y = self.player.position.y.max(offset + limit);
+                }
+                if tile_below {
+                    self.player.velocity.y = self.player.velocity.y.min(0.0);
+
+                    let tile_size = self.tile_map.tile_size as f32;
+                    let limit =
+                        (self.player.aabb_world_space().max.y / tile_size).round() * tile_size;
+                    let offset = -self.player.aabb.max.y - 1.0;
+                    self.player.position.y = self.player.position.y.min(offset + limit);
+                }
+            }
         }
 
         // let player_rel_pos = world_space_to_screen_space(self.player.position, self.camera);
@@ -586,12 +613,20 @@ impl Game {
 
         screen.draw_str(
             &self.font,
-            &format!("time: {:.5} s", self.time),
+            &format!("delta time: {:.5} s", delta_time),
             10,
             10,
             0xffff00,
         );
 
+        screen.draw_str(
+            &self.font,
+            // &format!("player on ground: {}", self.player_on_ground),
+            &format!("player position: {}", self.player.position),
+            10,
+            20,
+            0xffff00,
+        );
         screen.draw_str(
             &self.font,
             // &format!("player on ground: {}", self.player_on_ground),
@@ -601,24 +636,6 @@ impl Game {
             0xffff00,
         );
 
-        screen.draw_str(
-            &self.font,
-            &format!("delta time: {:.5} s", delta_time),
-            10,
-            20,
-            0xffff00,
-        );
-
-        screen.draw_str(
-            &self.font,
-            &format!(
-                "editor_mode: {}",
-                if self.editor_mode { "true" } else { "false" }
-            ),
-            10,
-            40,
-            0xffff00,
-        );
         screen.draw_str(
             &self.font,
             &format!(
