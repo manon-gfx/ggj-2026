@@ -431,6 +431,7 @@ pub struct Game {
     player_inventory: PlayerInventory,
     time: f32,
 
+    death_sequence_is_playing: bool,
     death_sequence_duration: f32,
 
     editor_mode: bool,
@@ -765,7 +766,8 @@ impl Game {
             },
             time: 0.0,
 
-            death_sequence_duration: 2.5,
+            death_sequence_duration: 1.5,
+            death_sequence_is_playing: false,
 
             color_mask: crate::bitmap::BLUE,
             editor_mode: false,
@@ -787,8 +789,9 @@ impl Game {
             mask.visible = true;
         }
 
-        // Play anim
+        // Reset death sequence
         self.death_sequence_duration = 3.0;
+        self.death_sequence_is_playing = false;
     }
 
     pub(crate) fn on_mouse_moved(&mut self, x: f32, y: f32) {
@@ -861,7 +864,7 @@ impl Game {
 
         screen.clear(0);
 
-        if !self.editor_mode {
+        if !self.editor_mode && !self.player.is_dead {
             self.camera = self.player.position - vec2(132.0, 128.0);
         }
 
@@ -876,12 +879,21 @@ impl Game {
             },
         );
 
+        // TODO: Don't die in Edit-mode
         // If we are death, play fixed death sequence and restart the game
         if self.player.is_dead {
+            // just died
+            if !self.death_sequence_is_playing {
+                self.player.velocity.y = -2.0 * JUMP_IMPULSE;
+                self.death_sequence_is_playing = true;
+            }
             self.death_sequence_duration -= delta_time;
             if self.death_sequence_duration < 0.0 {
                 self.reset_game();
             } else {
+                self.player.velocity.y += GRAVITY * delta_time;
+                self.player.position.x += self.player.velocity.x * delta_time;
+                self.player.position.y += self.player.velocity.y * delta_time;
                 self.player.draw(screen, self.camera);
             }
             return;
