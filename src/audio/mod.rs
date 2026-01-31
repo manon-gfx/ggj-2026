@@ -6,7 +6,7 @@ use std::sync::{
 
 pub mod notes;
 pub mod sound;
-use sound::signal;
+use sound::{play_music, play_sfx};
 
 use crate::audio::sound::{SoundEffects, sawtooth_wave, sine_wave, square_wave, triangle_wave, white_noise};
 use crate::audio::sound::SoundTypes;
@@ -127,6 +127,9 @@ impl Audio {
         music.track_mask[0] = true;
 
         let mut soundeffects = sound::SoundEffects::new();
+        let mut start_jump_sound: bool = false;
+        let mut play_jump_sound: bool = false;
+        let mut t0_jump_sound: f64 = 0.0;
 
         let stream = device
             .build_output_stream(
@@ -158,7 +161,10 @@ impl Audio {
                     while let Ok(sfx_event) = sfx_recv.try_recv() {
                         match sfx_event {
                             SoundTypes::FootstepSound => println!("play footstep!"),
-                            SoundTypes::JumpSound => println!("play jump sound!"),
+                            SoundTypes::JumpSound => {
+                                println!("play jump sound!");
+                                start_jump_sound = true;
+                            }
                             SoundTypes::DeathSound => println!("play death sound!"),
                             _ => {}
                         }
@@ -185,8 +191,18 @@ impl Audio {
                         }
                         last_time = t;
 
-                        let mut value = signal(t, &mut music, &mut soundeffects);
+                        let mut value = play_music(t, &mut music);
 
+                        if start_jump_sound {
+                            start_jump_sound = false;
+                            play_jump_sound = true;
+                            t0_jump_sound = t;
+                        }
+                        
+                        if play_jump_sound {
+                            value += 0.5 * play_sfx(t ,t0_jump_sound, &soundeffects.jump)
+                        }
+                        
                         for (i, note_played ) in piano_notes.iter().enumerate(){
                             if *note_played {
                                value += 0.5 * triangle_wave(t, 440. * 1.05946309436_f64.powi(i as i32 - 9));

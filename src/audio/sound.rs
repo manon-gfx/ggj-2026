@@ -20,7 +20,8 @@ pub struct Track {
 
 pub struct Sound{
     pub wave: WaveFn,
-    pub duration: f64, // duration in milliseconds
+    pub start: f64, // start time
+    pub duration: f64, // duration in seconds
     pub melody: &'static [f64],
     pub volume: f64,
 }
@@ -123,21 +124,24 @@ impl SoundEffects {
     pub fn new() -> Self {
         let footstep = Sound{
             wave : white_noise,
-            duration : 100.,
+            start : 0.,
+            duration : 0.1,
             melody : &[C3],
             volume : 0.5,
         };
 
         let jump = Sound{
-            wave : white_noise,
-            duration : 100.,
-            melody : &[C3],
+            wave : sawtooth_wave,
+            start : 0.,
+            duration : 0.1,
+            melody : &[C4, E4, G4, C5],
             volume : 0.5,
         };
 
         let death = Sound{
             wave : white_noise,
-            duration : 100.,
+            start : 0.,
+            duration : 0.1,
             melody : &[C3],
             volume : 0.5,
         };
@@ -150,7 +154,7 @@ impl SoundEffects {
     }
 }
 
-pub fn signal(t: f64, music: &mut Music, soundeffects: &mut SoundEffects) -> f64 {
+pub fn play_music(t: f64, music: &mut Music) -> f64 {
     let mut signal = 0.0;
 
     let beat_in_game = (t * MusicSettings::TEMPO); // total beats since start of game
@@ -175,6 +179,16 @@ pub fn signal(t: f64, music: &mut Music, soundeffects: &mut SoundEffects) -> f64
     }
 
     signal
+}
+
+pub fn play_sfx(t: f64, t0: f64, sound: &Sound) -> f64 {
+    if t < t0 + sound.duration {
+        let idx_in_melody = ((t - t0) / sound.duration * sound.melody.len() as f64) as usize;
+        let note = sound.melody[idx_in_melody];
+        (sound.wave)(t, note)
+    } else {
+        0.0
+    }
 }
 
 pub fn triangle_wave(t: f64, freq: f64) -> f64 {
