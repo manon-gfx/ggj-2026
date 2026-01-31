@@ -27,4 +27,34 @@ impl Sprite {
             scale.y,
         );
     }
+
+    pub fn draw_player(&self, target: &mut Bitmap, position: Vec2, scale: Vec2, color_mask: u32) {
+        let components = uvec3(
+            (color_mask >> 16) & 0xff,
+            (color_mask >> 8) & 0xff,
+            color_mask & 0xff,
+        );
+
+        let color_index = if (color_mask & 0xffffff) == 0 {
+            0
+        } else {
+            if components.x > components.y {
+                if components.x > components.z { 1 } else { 3 }
+            } else if components.y > components.z {
+                2
+            } else {
+                3
+            }
+        };
+
+        let bitmap = &self.frames[self.frame_index];
+        bitmap.draw_on_scaled_player(
+            target,
+            position.x as i32,
+            position.y as i32,
+            scale.x,
+            scale.y,
+            color_index,
+        );
+    }
 }

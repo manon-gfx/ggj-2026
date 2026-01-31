@@ -174,19 +174,23 @@ impl Player {
         }
     }
 
-    fn draw(&self, screen: &mut Bitmap, camera: Vec2) {
+    fn draw(&self, screen: &mut Bitmap, camera: Vec2, color_mask: u32) {
         let scale = vec2(if self.velocity.x < 0.0 { -1.0 } else { 1.0 }, 1.0);
         let screen_pos = world_space_to_screen_space(self.position, camera);
 
         if self.is_dead {
-            self.death_sprite.draw(screen, screen_pos, scale);
+            self.death_sprite
+                .draw_player(screen, screen_pos, scale, color_mask);
         } else if !self.on_ground {
-            self.jump_sprite.draw(screen, screen_pos, scale);
+            self.jump_sprite
+                .draw_player(screen, screen_pos, scale, color_mask);
         } else {
             if self.velocity.x.abs() < 0.001 {
-                self.idle_sprite.draw(screen, screen_pos, scale);
+                self.idle_sprite
+                    .draw_player(screen, screen_pos, scale, color_mask);
             } else {
-                self.walk_sprite.draw(screen, screen_pos, scale);
+                self.walk_sprite
+                    .draw_player(screen, screen_pos, scale, color_mask);
             }
         }
     }
@@ -802,7 +806,7 @@ impl Game {
                 } else {
                     self.player.velocity.y += GRAVITY * delta_time;
                     self.player.position.y += self.player.velocity.y * delta_time;
-                    self.player.draw(screen, self.camera);
+                    self.player.draw(screen, self.camera, self.color_mask);
                 }
                 return;
             }
@@ -1128,7 +1132,7 @@ impl Game {
             self.was_player_walking = self.is_player_walking;
         }
 
-        self.player.draw(screen, self.camera);
+        self.player.draw(screen, self.camera, self.color_mask);
 
         // Loop over masks
         for mask in self.mask_game_objects.iter_mut() {

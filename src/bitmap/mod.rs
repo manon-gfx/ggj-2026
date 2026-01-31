@@ -250,6 +250,92 @@ impl Bitmap {
         }
     }
 
+    pub fn draw_on_scaled_player(
+        &self,
+        target: &mut Self,
+        x: i32,
+        y: i32,
+        scale_x: f32,
+        scale_y: f32,
+        color_index: u32,
+    ) {
+        if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
+            return;
+        }
+
+        let key_color0 = 0xffdcb9;
+        let key_color1 = 0xe9be93;
+
+        let color_table = [
+            ((0xffdcb9 >> 2) & 0x3f3f3f, (0xe9be93 >> 2) & 0x3f3f3f), //start
+            (0xba1102, 0x681102),                                     // red
+            (0x096509, 0x224202),                                     // green
+            (0x2211B7, 0x221168),                                     // blue
+        ];
+        let color_set = color_table[color_index as usize];
+
+        let swf = self.width as f32 * scale_x;
+        let shf = self.height as f32 * scale_y;
+
+        let du = ((1.0 / swf) * 65535.0) as i32 * self.width as i32;
+        let dv = ((1.0 / shf) * 65535.0) as i32 * self.height as i32;
+
+        let mut sw = swf.abs() as i32;
+        let mut sh = shf.abs() as i32;
+
+        let (sx, tx) = if x < 0 {
+            sw += x;
+            (x.abs(), 0)
+        } else {
+            (0, x)
+        };
+
+        let (sy, ty) = if y < 0 {
+            sh += y;
+            (y.abs(), 0)
+        } else {
+            (0, y)
+        };
+
+        sw = (sw as i32).min(target.width as i32 - tx);
+        sh = (sh as i32).min(target.height as i32 - ty);
+
+        let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * du };
+
+        let srcline = self.pixels.as_ptr();
+        let mut dstline = unsafe {
+            target
+                .pixels
+                .as_mut_ptr()
+                .add((ty * target.width as i32 + tx) as usize)
+        };
+
+        for _ in 0..sh {
+            let mut u = if du < 0 { (sw - 1) * -du } else { sx * du };
+            for x in 0..sw {
+                unsafe {
+                    let color: u32 =
+                        *srcline.add(((v >> 16) * self.width as i32 + (u >> 16)) as usize);
+                    if (color & 0xff000000) != 0 {
+                        let rgb = color & 0xffffff;
+                        let rgb = if rgb == key_color0 {
+                            color_set.0
+                        } else if rgb == key_color1 {
+                            color_set.1
+                        } else {
+                            rgb
+                        };
+
+                        *dstline.add(x as usize) = rgb;
+                    }
+                }
+                u += du;
+            }
+            v += dv;
+            dstline = unsafe { dstline.add(target.width as usize) };
+        }
+    }
+
     pub fn draw_background(
         &self,
         target: &mut Self,
