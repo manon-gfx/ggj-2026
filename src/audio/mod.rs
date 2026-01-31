@@ -9,7 +9,7 @@ pub mod sound;
 use sound::signal;
 
 use crate::audio::sound::{SoundEffects, sawtooth_wave, sine_wave, square_wave, triangle_wave, white_noise};
-use crate::audio::sound::Sounds;
+use crate::audio::sound::SoundTypes;
 use crate::game::Key;
 
 #[derive(Clone)]
@@ -64,7 +64,7 @@ pub(crate) struct Audio {
     pub shit_recv: Receiver<Vec<f32>>,
 
     pub key_sender: Sender<(Key, bool)>,
-    pub sfx_sender: Sender<Sounds>,
+    pub sfx_sender: Sender<SoundTypes>,
 }
 
 impl Audio {
@@ -157,9 +157,9 @@ impl Audio {
 
                     while let Ok(sfx_event) = sfx_recv.try_recv() {
                         match sfx_event {
-                            Sounds::FootstepSound => println!("play footstep!"),
-                            Sounds::JumpSound => println!("play jump sound!"),
-                            Sounds::DeathSound => println!("play death sound!"),
+                            SoundTypes::FootstepSound => println!("play footstep!"),
+                            SoundTypes::JumpSound => println!("play jump sound!"),
+                            SoundTypes::DeathSound => println!("play death sound!"),
                             _ => {}
                         }
                     }

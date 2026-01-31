@@ -107,7 +107,7 @@ impl Music {
     }
 }
 
-pub enum Sounds {
+pub enum SoundTypes {
     FootstepSound,
     JumpSound,
     DeathSound,
