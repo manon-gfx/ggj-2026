@@ -444,6 +444,16 @@ impl Game {
             bitmap::GREY,
             bitmap::ORANGE,
             bitmap::PURPLE,
+            bitmap::BLACK,
+            bitmap::RED,
+            bitmap::BLUE,
+            bitmap::GREEN,
+            bitmap::YELLOW,
+            bitmap::CYAN,
+            bitmap::MAGENTA,
+            bitmap::GREY,
+            bitmap::ORANGE,
+            bitmap::PURPLE,
         ];
 
         let tiles = coords
