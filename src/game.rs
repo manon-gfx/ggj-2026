@@ -213,6 +213,8 @@ impl Default for EditorState {
 
 #[derive(Debug)]
 struct Player {
+    sprite: Bitmap,
+
     position: Vec2,
     velocity: Vec2,
     aabb: Aabb,
@@ -224,6 +226,12 @@ impl Player {
             min: self.aabb.min + self.position,
             max: self.aabb.max + self.position,
         }
+    }
+
+    fn draw(&self, screen: &mut Bitmap, camera: Vec2) {
+        let screen_pos = world_space_to_screen_space(self.position, camera);
+        self.sprite
+            .draw_on(screen, screen_pos.x as i32, screen_pos.y as i32, 0xffffffff);
     }
 }
 
@@ -275,7 +283,7 @@ fn screen_to_world_space(pos_on_screen: Vec2, camera_pos: Vec2) -> Vec2 {
     pos_on_screen + camera_pos
 }
 fn world_space_to_screen_space(pos_in_world: Vec2, camera_pos: Vec2) -> Vec2 {
-    pos_in_world + camera_pos
+    pos_in_world - camera_pos
 }
 
 impl Game {
@@ -416,11 +424,12 @@ impl Game {
             mask_game_objects: vec![red_mask, green_mask, blue_mask],
 
             player: Player {
+                sprite: Bitmap::load("assets/sprite/sprite_front.png"),
                 position: player_start_pos,
                 velocity: Vec2::ZERO,
                 aabb: Aabb {
-                    min: vec2(1.0, 2.0),
-                    max: vec2(15.0, 16.0),
+                    min: vec2(3.0, 5.0),
+                    max: vec2(12.0, 15.0),
                 },
             },
             player_inventory: PlayerInventory {
@@ -674,6 +683,7 @@ impl Game {
         //     self.color_mask,
         // );
         draw_aabb(screen, &self.player.aabb_world_space(), self.camera);
+        self.player.draw(screen, self.camera);
 
         // Loop over masks
         for mask in self.mask_game_objects.iter_mut() {
