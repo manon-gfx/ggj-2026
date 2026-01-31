@@ -1,4 +1,4 @@
-use crate::{audio::notes::*, game::Key};
+use crate::audio::notes::*;
 use interp::{InterpMode, interp};
 
 struct MusicSettings;
