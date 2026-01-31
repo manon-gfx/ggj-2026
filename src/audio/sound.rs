@@ -1,33 +1,75 @@
-use crate::{audio::notes::*, game::Key};
+use crate::audio::notes::*;
 use interp::{InterpMode, interp};
 
 struct MusicSettings;
 
 impl MusicSettings {
-    pub const TEMPO: f64 = 560. / 60.; // beats per second
+    pub const TEMPO: f64 = 120. / 60.; // beats per second
+    pub const BAR_LENGTH: usize = 4; // beats per bar
+    pub const LOOP_LENGTH: usize = 8; // bars per loop
 }
 
-pub const MELODY1: [f64; 32] = [
-    A1, A1, REST, A1, A1, REST, A1, A1, REST, REST, C2, C2, REST, REST, REST, REST, F1, F1, REST,
-    F1, F1, REST, F1, F1, REST, REST, G1, G1, REST, REST, REST, REST,
-];
+type WaveFn = fn(f64, f64) -> f64;
 
-pub const MELODY2: [f64; 32] = [
-    REST, REST, E4, REST, C4, REST, REST, D4, REST, REST, A4, REST, REST, REST, REST, REST, REST,
-    REST, C4, REST, G4, REST, REST, A4, REST, REST, E4, REST, REST, REST, REST, REST,
-];
+struct Track {
+    pub wave: WaveFn,
+    pub length: usize, // number of bars per track
+    pub melody: &'static [f64],
+    pub volume: f64,
+}
+
+struct Music {
+    pub tracks: &'static [Track],
+}
+
+const TRACK1: Track = Track {
+    wave: triangle_wave,
+    length: 8,
+    melody: &[
+        D4, D4, D4, A3, C4, C4, C4, A3, G3, G3, G3, F3, A3, A3, A3, REST, D4, D4, D4, A3, C4, C4,
+        C4, A3, G3, G3, G3, F3, D3, D3, D3, REST,
+    ],
+    volume: 0.5,
+};
+
+const TRACK2: Track = Track {
+    wave: square_wave,
+    length: 8,
+    melody: &[
+        REST, REST, D2, D2, REST, D2, D2, REST, D2, D2, REST, REST, REST, REST, REST, REST, REST,
+        REST, E2, E2, REST, E2, E2, REST, E2, E2, REST, REST, REST, REST, REST, REST, REST, REST,
+        G2, G2, REST, G2, G2, REST, G2, G2, REST, REST, REST, REST, REST, REST, REST, REST, A2, A2,
+        REST, A2, A2, REST, A2, A2, REST, REST, G2, G2, G2, REST, REST, REST, D2, D2, REST, D2, D2,
+        REST, D2, D2, REST, REST, REST, REST, REST, REST, REST, REST, E2, E2, REST, E2, E2, REST,
+        E2, E2, REST, REST, REST, REST, REST, REST, REST, REST, G2, G2, REST, G2, G2, REST, G2, G2,
+        REST, REST, CS2, CS2, CS2, REST, D2, D2, REST, D2, D2, REST, D2, D2, D2, REST, REST, REST,
+        REST, REST, REST, REST,
+    ],
+    volume: 0.25,
+};
+
+const MUSIC: Music = Music{
+    tracks: &[
+        TRACK1,
+        TRACK2,
+    ]
+};
 
 pub fn signal(t: f64) -> f64 {
     let mut signal = 0.0;
 
-    let n = (t * MusicSettings::TEMPO) as u32;
-    let note1 = MELODY1[(n % MELODY1.len() as u32) as usize];
-    if note1 != REST {
-        signal += 0.5 * square_wave(t, note1);
-    }
-    let note2 = MELODY2[(n % MELODY2.len() as u32) as usize];
-    if note2 != REST {
-        signal += triangle_wave(t, note2);
+    let beat_in_game = (t * MusicSettings::TEMPO); // total beats since start of game
+    let beat_in_loop =
+        beat_in_game % (MusicSettings::BAR_LENGTH * MusicSettings::LOOP_LENGTH) as f64; // current beat in the loop
+
+    for track in MUSIC.tracks {
+        let beat_in_track = beat_in_loop / (MusicSettings::LOOP_LENGTH / track.length) as f64;
+        let idx_in_track = (beat_in_track
+            * (track.melody.len() / (track.length * MusicSettings::BAR_LENGTH)) as f64)
+            as usize
+            % track.melody.len();
+        let note = track.melody[idx_in_track];
+        signal += track.volume * (track.wave)(t, note);
     }
 
     signal
