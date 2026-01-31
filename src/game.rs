@@ -789,6 +789,10 @@ impl Game {
                 if !self.death_sequence_is_playing {
                     self.player.velocity.y = -2.0 * JUMP_IMPULSE;
                     self.death_sequence_is_playing = true;
+
+                    if let Some(audio) = &self.audio {
+                        audio.sfx_sender.send(SoundTypes::DeathSound).unwrap();
+                    }
                 }
                 self.death_sequence_duration -= delta_time;
                 screen.draw_str(&self.font, "U DIED :(", 100, 50, bitmap::RED);
