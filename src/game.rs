@@ -577,7 +577,7 @@ impl Game {
             .draw(&self.tile_set, screen, self.camera, self.color_mask);
 
         if self.editor_mode {
-            if self.input_state.is_key_down(Key::S) {
+            if self.input_state.is_key_pressed(Key::S) {
                 self.tile_map.store_to_file("assets/level0.txt");
             }
 
@@ -634,7 +634,7 @@ impl Game {
             if self.input_state.is_key_down(Key::Right) {
                 self.player.velocity.x += MOVEMENT_SPEED_X;
             }
-            if self.input_state.is_key_down(Key::A) {
+            if self.input_state.is_key_pressed(Key::A) {
                 self.player.velocity.y = -100.0;
             }
 
