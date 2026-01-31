@@ -14,6 +14,7 @@ pub enum Key {
     Right,
     A,
     B,
+    S,
     Space,
     LeftBracket,
     RightBracket,
@@ -91,6 +92,18 @@ impl TileMap {
             }
         }
     }
+
+    fn store_to_file(&self, path: &str) {
+        let mut data = String::default();
+        for y in 0..self.height {
+            for x in 0..self.width {
+                data += &format!("{},", self.tiles[(y * self.width + x) as usize]);
+            }
+            data.pop();
+            data.push('\n');
+        }
+        std::fs::write(path, data).unwrap();
+    }
 }
 
 struct EditorState {
@@ -155,11 +168,11 @@ impl Game {
     pub fn new() -> Self {
         // Read level file
         let level_layout_file =
-            std::fs::read_to_string("assets/level1.txt").expect("Could not load level file :(");
+            std::fs::read_to_string("assets/level0.txt").expect("Could not load level file :(");
         let mut accumulator = String::new();
         let mut row_content: Vec<u32> = Vec::new();
         let mut layout: Vec<Vec<u32>> = Vec::new();
-        let mut largest_row = 0;
+        let mut tile_count_x = 0;
         for char in level_layout_file.chars() {
             if char == ',' {
                 let tile_index: u32 = accumulator
@@ -171,9 +184,7 @@ impl Game {
                 continue;
             } else if char == '\n' {
                 layout.push(row_content.clone());
-                if row_content.len() > largest_row {
-                    largest_row = row_content.len();
-                }
+                tile_count_x = tile_count_x.max(row_content.len() as u32);
                 row_content.clear();
             } else {
                 accumulator.push(char);
@@ -182,10 +193,11 @@ impl Game {
 
         // Create flat tile vector
         let mut tile_indices: Vec<u32> = Vec::new();
+        let tile_count_y = layout.len() as u32;
         for mut row in layout {
             let row_size = row.len();
-            if (row_size < largest_row) {
-                for i in 0..(largest_row - row_size) {
+            if row_size < tile_count_x as usize {
+                for i in 0..(tile_count_x as usize - row_size) {
                     // pad for equal size
                     row.push(0);
                 }
@@ -193,23 +205,26 @@ impl Game {
             tile_indices.append(&mut row);
         }
 
-        let mut tile = Bitmap::new(16, 16);
-        tile.clear(0xffff7fff);
+        let colors = [
+            0xffff0000, 0xff00ff00, 0xff0000ff, 0xffffff00, 0xffff00ff, 0xff00ffff,
+        ];
 
-        let tile_set = TileSet { tiles: vec![tile] };
-
-        let tile_count_x = 512;
-        let tile_count_y = 512;
-
-        let tiles = (0..tile_count_x * tile_count_y)
-            .map(|i| wang_hash(i) & 1)
+        let tiles = colors
+            .iter()
+            .map(|&color| {
+                let mut tile = Bitmap::new(8, 8);
+                tile.clear(color);
+                tile
+            })
             .collect::<Vec<_>>();
 
+        let tile_set = TileSet { tiles };
+
         let tile_map = TileMap {
-            tile_size: 16,
+            tile_size: 8,
             width: tile_count_x,
             height: tile_count_y,
-            tiles,
+            tiles: tile_indices,
         };
 
         Self {
@@ -301,6 +316,10 @@ impl Game {
         screen.clear(0);
 
         if self.editor_mode {
+            if self.key_pressed[Key::S as usize] {
+                self.tile_map.store_to_file("assets/level0.txt");
+            }
+
             if self.key_state[Key::Left as usize] {
                 self.camera.x -= delta_time * 50.0;
             }
