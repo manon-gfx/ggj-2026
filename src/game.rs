@@ -306,6 +306,7 @@ fn build_frame_list(
 impl Game {
     // consts
     const PLAYER_START_POS: Vec2 = vec2(2200.0, 2110.0);
+    const START_COLOR_MASK: bitmap::ColorChannel = bitmap::BLACK;
 
     pub fn new() -> Self {
         let tile_sheet = Bitmap::load("assets/level_tiles_8x8.png");
@@ -558,7 +559,7 @@ impl Game {
             death_sequence_duration: 1.5,
             death_sequence_is_playing: false,
 
-            color_mask: crate::bitmap::BLUE,
+            color_mask: Self::START_COLOR_MASK,
             editor_mode: false,
             lerp_color_mask: Vec3::ZERO,
         }
@@ -578,6 +579,7 @@ impl Game {
         for mask in self.mask_game_objects.iter_mut() {
             mask.visible = true;
         }
+        self.color_mask = Self::START_COLOR_MASK;
 
         // Reset death sequence
         self.death_sequence_duration = 1.5;
