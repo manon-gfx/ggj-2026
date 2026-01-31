@@ -80,14 +80,17 @@ impl Audio {
 
         let supported_config = supported_configs_range
             .find(|config| {
-                if config.sample_format() == cpal::SampleFormat::F32 && config.channels() == 2 {
+                if config.sample_format() == cpal::SampleFormat::F32
+                    && config.channels() == 2
+                    && config.min_sample_rate() >= 22050
+                {
                     true
                 } else {
                     false
                 }
             })
             .expect("Failed to find a suitable audio format");
-        let supported_config = supported_config.with_sample_rate(44100);
+        let supported_config = supported_config.with_max_sample_rate();
 
         // let supported_config = supported_configs_range
         //     .next()
