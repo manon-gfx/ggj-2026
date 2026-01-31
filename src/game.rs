@@ -14,7 +14,7 @@ const MOVEMENT_SPEED_X: f32 = 100.0;
 const FRICTION: f32 = 1500.0;
 
 const DEBUG_MASKS: bool = false;
-const DEBUG_MODE: bool = true;
+const DEBUG_MODE: bool = false;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(usize)]
@@ -877,6 +877,53 @@ impl Game {
             lerped_color_mask,
         );
 
+        // draw inventory on top
+        // TODO: Could make inventory-overlay its own bitmap and draw items on that and then draw the inventory on the screen
+        if self.editor_mode {
+            screen.draw_str(&self.font, "editor_mode", 191, 10, 0xffff00);
+
+            let aabb = Aabb {
+                min: vec2(-1.0, -1.0),
+                max: vec2(self.tile_map.width as f32, self.tile_map.height as f32)
+                    * self.tile_map.tile_size as f32,
+            };
+            draw_aabb(screen, &aabb, self.camera, 0x00ff00);
+
+            screen.draw_rectangle(0, 192, 255, 207, true, 0x0);
+            screen.draw_rectangle(0, 192, 255, 207, false, 0xffffffff);
+
+            for (i, tile) in self.tile_set.tiles.iter().take(24).enumerate() {
+                let aabb = Aabb {
+                    min: vec2(7.0 + i as f32 * 10.0, 192.0 + 3.0),
+                    max: vec2(16.0 + i as f32 * 10.0, 192.0 + 12.0),
+                };
+                if i == self.editor_state.selected_tile as usize {
+                    draw_aabb(screen, &aabb, Vec2::ZERO, 0xffffff);
+                }
+
+                if self.input_state.is_mouse_pressed(MouseButton::Left)
+                    && aabb.point_intersects(vec2(self.mouse_x, self.mouse_y))
+                {
+                    self.editor_state.selected_tile = i as u32;
+                }
+                tile.draw_on(screen, 8 + i as i32 * 10, 192 + 4);
+            }
+        } else {
+            self.player_inventory.bag_sprite.draw_on(
+                screen,
+                self.player_inventory.position_on_screen.x as i32,
+                self.player_inventory.position_on_screen.y as i32,
+            );
+            for i in 0..self.player_inventory.masks.len() {
+                self.player_inventory.masks[i].sprite_inventory.draw_on(
+                    screen,
+                    self.player_inventory.position_on_screen.x as i32
+                        + (i as i32 + 2) * self.player_inventory.tile_size,
+                    self.player_inventory.position_on_screen.y as i32,
+                );
+            }
+        }
+
         if !DEBUG_MODE {
             // If we are death, play fixed death sequence and restart the game
             if self.player.is_dead {
@@ -1272,61 +1319,6 @@ impl Game {
             20,
             0xffff00,
         );
-
-        // draw inventory on top
-        // TODO: Could make inventory-overlay its own bitmap and draw items on that and then draw the inventory on the screen
-        if self.editor_mode {
-            screen.draw_str(&self.font, "editor_mode", 191, 10, 0xffff00);
-
-            let aabb = Aabb {
-                min: vec2(-1.0, -1.0),
-                max: vec2(self.tile_map.width as f32, self.tile_map.height as f32)
-                    * self.tile_map.tile_size as f32,
-            };
-            draw_aabb(screen, &aabb, self.camera, 0x00ff00);
-
-            screen.draw_rectangle(0, 192, 255, 207, true, 0x0);
-            screen.draw_rectangle(0, 192, 255, 207, false, 0xffffffff);
-
-            for (i, tile) in self.tile_set.tiles.iter().take(24).enumerate() {
-                let aabb = Aabb {
-                    min: vec2(7.0 + i as f32 * 10.0, 192.0 + 3.0),
-                    max: vec2(16.0 + i as f32 * 10.0, 192.0 + 12.0),
-                };
-                if i == self.editor_state.selected_tile as usize {
-                    draw_aabb(screen, &aabb, Vec2::ZERO, 0xffffff);
-                }
-
-                if self.input_state.is_mouse_pressed(MouseButton::Left)
-                    && aabb.point_intersects(vec2(self.mouse_x, self.mouse_y))
-                {
-                    self.editor_state.selected_tile = i as u32;
-                }
-                tile.draw_on(screen, 8 + i as i32 * 10, 192 + 4);
-            }
-        } else {
-            screen.draw_rectangle(
-                self.player_inventory.position_on_screen.x as i32,
-                self.player_inventory.position_on_screen.y as i32,
-                self.player_inventory.position_on_screen.x as i32 + self.player_inventory.width,
-                self.player_inventory.position_on_screen.y as i32 + self.player_inventory.height,
-                true,
-                self.player_inventory.background_color,
-            );
-            self.player_inventory.bag_sprite.draw_on(
-                screen,
-                self.player_inventory.position_on_screen.x as i32,
-                self.player_inventory.position_on_screen.y as i32,
-            );
-            for i in 0..self.player_inventory.masks.len() {
-                self.player_inventory.masks[i].sprite_inventory.draw_on(
-                    screen,
-                    self.player_inventory.position_on_screen.x as i32
-                        + (i as i32 + 2) * self.player_inventory.tile_size,
-                    self.player_inventory.position_on_screen.y as i32,
-                );
-            }
-        }
 
         // reset state
         self.input_state.reset();
