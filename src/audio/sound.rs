@@ -14,9 +14,22 @@ pub const MELODY: [f64; 32] = [
 pub fn audio(t: f64) -> f64 {
     let n = (t * MusicSettings::TEMPO) as u32;
     let note = MELODY[(n % MELODY.len() as u32) as usize];
-    if note != REST { sawtooth(t, note) } else { 0.0 }
+    if note != REST {
+        triangle_wave(t, note)
+    } else {
+        0.0
+    }
 }
 
-pub fn sawtooth(t: f64, freq: f64) -> f64 {
-    (freq * t) % 1.0
+pub fn triangle_wave(t: f64, freq: f64) -> f64 {
+    let up = 2. * sawtooth_wave(t, freq);
+    if up > 1. { 2. - up } else { up }
+}
+
+pub fn square_wave(t: f64, freq: f64) -> f64 {
+    (((freq * t * 2.) as i32) % 2) as f64
+}
+
+pub fn sawtooth_wave(t: f64, freq: f64) -> f64 {
+    (freq * t) % 1.
 }
