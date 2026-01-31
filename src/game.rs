@@ -14,11 +14,15 @@ pub enum Key {
     Left,
     Right,
     A,
-    B,
     S,
     Space,
     LeftBracket,
     RightBracket,
+
+    // Mask activation/desactivation
+    R,
+    G,
+    B,
 
     M,
     MusicC3,
@@ -112,6 +116,7 @@ struct MaskObject {
     sprite_scene: Bitmap,
     sprite_inventory: Bitmap,
     visible: bool,
+    activation_key: Key,
 }
 impl MaskObject {
     fn aabb_world_space(&self) -> Aabb {
@@ -361,6 +366,7 @@ impl Game {
             sprite_scene: Bitmap::load("assets/sprites/red_mask_in_scene.png"),
             sprite_inventory: Bitmap::load("assets/sprites/red_mask_in_bag.png"),
             visible: true,
+            activation_key: Key::R,
         };
 
         let green_mask = MaskObject {
@@ -373,6 +379,7 @@ impl Game {
             sprite_scene: Bitmap::load("assets/sprites/green_mask_in_scene.png"),
             sprite_inventory: Bitmap::load("assets/sprites/green_mask_in_bag.png"),
             visible: true,
+            activation_key: Key::G,
         };
 
         let blue_mask = MaskObject {
@@ -385,6 +392,7 @@ impl Game {
             sprite_scene: Bitmap::load("assets/sprites/blue_mask_in_scene.png"),
             sprite_inventory: Bitmap::load("assets/sprites/blue_mask_in_bag.png"),
             visible: true,
+            activation_key: Key::B,
         };
 
         Self {
@@ -483,6 +491,14 @@ impl Game {
         self.color_mask = color_channel;
     }
 
+    pub fn toggle_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
+        if self.color_mask & color_channel != 0 {
+            self.remove_color_mask(color_channel);
+        } else {
+            self.add_color_mask(color_channel);
+        }
+    }
+
     pub fn add_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
         self.color_mask |= color_channel;
     }
@@ -542,8 +558,6 @@ impl Game {
                 let mouse_ts = mouse_ws / self.tile_map.tile_size;
                 self.tile_map.tiles[(mouse_ts.x + mouse_ts.y * self.tile_map.width) as usize] = 0;
             }
-
-            // Place masks
         } else {
             // do game things here
             self.player.velocity.x = 0.0;
@@ -555,6 +569,38 @@ impl Game {
             }
             if self.key_pressed[Key::A as usize] {
                 self.player.velocity.y = -100.0;
+            }
+
+            // toggle mask activation
+            if self.key_released[Key::R as usize] {
+                if let Some(red_mask) = self
+                    .player_inventory
+                    .masks
+                    .iter()
+                    .find(|&x| x.activation_key == Key::R)
+                {
+                    self.toggle_color_mask(red_mask.color);
+                };
+            }
+            if self.key_released[Key::G as usize] {
+                if let Some(green_mask) = self
+                    .player_inventory
+                    .masks
+                    .iter()
+                    .find(|&x| x.activation_key == Key::G)
+                {
+                    self.toggle_color_mask(green_mask.color);
+                };
+            }
+            if self.key_released[Key::B as usize] {
+                if let Some(blue_mask) = self
+                    .player_inventory
+                    .masks
+                    .iter()
+                    .find(|&x| x.activation_key == Key::B)
+                {
+                    self.toggle_color_mask(blue_mask.color);
+                };
             }
 
             self.player.velocity.y += GRAVITY * delta_time;
