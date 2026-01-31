@@ -43,7 +43,7 @@ struct TileMap {
     tiles: Vec<u32>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Aabb {
     min: Vec2,
     max: Vec2,
@@ -55,7 +55,7 @@ impl Aabb {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct MaskObject {
     position: Vec2,
     aabb: Aabb,
@@ -157,8 +157,9 @@ pub struct Game {
     player_speed: Vec2,
     player_on_ground: bool,
     player_aabb: Aabb,
+    player_inventory: Vec<MaskObject>,
 
-    game_objects: Vec<MaskObject>,
+    mask_game_objects: Vec<MaskObject>,
 
     time: f32,
 
@@ -256,17 +257,16 @@ impl Game {
         let white_mask_sprite_width = white_mask_sprite.width as f32;
         let white_mask_sprite_height = white_mask_sprite.height as f32;
 
-        // TODO: Fix sytax
-                    let white_mask = MaskObject {
-                position: white_mask_pos,
-                aabb: Aabb {
-                    min: white_mask_pos,
-                    max: vec2(white_mask_pos.x + white_mask_sprite_width, white_mask_pos.y + white_mask_sprite_height),
-                },
-                color: crate::bitmap::WHITE,
-                sprite: white_mask_sprite,
-                visible: true,
-            };
+        let white_mask = MaskObject {
+            position: white_mask_pos,
+            aabb: Aabb {
+                min: white_mask_pos,
+                max: vec2(white_mask_pos.x + white_mask_sprite_width, white_mask_pos.y + white_mask_sprite_height),
+            },
+            color: crate::bitmap::WHITE,
+            sprite: white_mask_sprite,
+            visible: true,
+        };
 
         Self {
             // audio: Some(Audio::new()),
@@ -298,10 +298,11 @@ impl Game {
             player_aabb: Aabb {
                 min: vec2(0.0, 0.0),
                 max: vec2(sprite_width, sprite_height), 
-            },            
+            },
+            player_inventory: Vec::new(), 
 
             // Add game objects
-            game_objects: vec![white_mask],
+            mask_game_objects: vec![white_mask],
 
 
             time: 0.0,
@@ -461,14 +462,23 @@ impl Game {
             self.color_mask,
         );
 
-        // TODO: Put all game objects in an array
-        // if self.white_mask.visible {
-        //     self.white_mask.sprite.draw_on(screen,
-        //         self.white_mask.position.x as i32, 
-        //         self.white_mask.position.y as i32, 
-        //         crate::bitmap::WHITE);
-        //     // TODO: Check for collision with player
-        // }
+        // Loop over masks
+        for mask in self.mask_game_objects.iter_mut() {
+            if mask.visible {
+                mask.sprite.draw_on(
+                    screen, 
+                    mask.position.x as i32,
+                    mask.position.y as i32, 
+                    crate::bitmap::WHITE,
+                );
+
+                // Add to collection
+                if mask.aabb.on_overlap(&self.player_aabb) {
+                    self.player_inventory.push(mask.clone());
+                    mask.visible = false;
+                }
+            }
+         }
 
         screen.draw_str(
             &self.font,
