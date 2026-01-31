@@ -20,6 +20,25 @@ pub enum Key {
     LeftBracket,
     RightBracket,
 
+    M,
+    MusicC3,
+    MusicCs3,
+    MusicD3,
+    MusicDs3,
+    MusicE3,
+    MusicF3,
+    MusicFs3,
+    MusicG3,
+    MusicGs3,
+    MusicA3,
+    MusicAs3,
+    MusicB3,
+    MusicC4,
+    MusicCs4,
+    MusicD4,
+    MusicDs4,
+    MusicE4,
+
     Count,
 }
 
@@ -199,6 +218,8 @@ impl Player {
 
 pub struct Game {
     audio: Option<Audio>,
+    music_mode: bool,
+
     font: Font,
 
     tile_set: TileSet,
@@ -334,6 +355,7 @@ impl Game {
         Self {
             // audio: Some(Audio::new()),
             audio: None,
+            music_mode: false,
             font: Font::new_default(),
 
             test_sprite: player_sprite,
@@ -391,14 +413,27 @@ impl Game {
         self.key_state[key as usize] = true;
         self.key_pressed[key as usize] = true;
 
+        if self.music_mode {
+            if let Some(audio) = &self.audio {
+                audio.key_sender.send((key, true)).unwrap();
+            }
+        }
+
         match key {
             Key::Space => self.editor_mode = !self.editor_mode,
+            Key::M => self.music_mode = !self.music_mode,
             _ => {}
         }
     }
     pub(crate) fn on_key_up(&mut self, key: Key) {
         self.key_state[key as usize] = false;
         self.key_released[key as usize] = true;
+
+        if self.music_mode {
+            if let Some(audio) = &self.audio {
+                audio.key_sender.send((key, false)).unwrap();
+            }
+        }
     }
 
     pub fn set_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
