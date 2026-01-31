@@ -387,6 +387,7 @@ impl Game {
 
         let sprite_sheet = Bitmap::load("assets/level_tiles_8x8.png");
         let coords = [
+            // Terrain Blocks
             (32, 0),
             (32, 32),
             (32, 64),
@@ -397,6 +398,18 @@ impl Game {
             (128, 64),
             (128, 96),
             (128, 128),
+            // Spikes
+            (32, 0 + 16),
+            (32, 32 + 16),
+            (32, 64 + 16),
+            (32, 96 + 16),
+            (32, 128 + 16),
+            (128, 0 + 16),
+            (128, 32 + 16),
+            (128, 64 + 16),
+            (128, 96 + 16),
+            (128, 128 + 16),
+
         ];
         let tiles = coords
             .iter()
@@ -511,7 +524,7 @@ impl Game {
 
             time: 0.0,
 
-            color_mask: crate::bitmap::RED,
+            color_mask: !0u32,
             editor_mode: false,
         }
     }
