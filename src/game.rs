@@ -13,7 +13,7 @@ const MOVEMENT_ACCELERATION: f32 = 1500.0;
 const MOVEMENT_SPEED_X: f32 = 100.0;
 const FRICTION: f32 = 1500.0;
 
-const DEBUG_MASKS: bool = true;
+const DEBUG_MASKS: bool = false;
 const DEBUG_MODE: bool = true;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -221,6 +221,7 @@ impl TileMap {
         target: &mut Bitmap,
         camera: Vec2,
         color_mask: crate::bitmap::ColorChannel,
+        lerped_color_mask: u32,
     ) {
         let screen_size = vec2(target.width as f32, target.height as f32);
         let bounds = Aabb {
@@ -258,29 +259,18 @@ impl TileMap {
 
                 // leave white tiles white
                 let tile = &tile_set.tiles[(tile_index - 1) as usize];
-                let color = &tile_set.tile_colors[(tile_index - 1) as usize];
+                let color = tile_set.tile_colors[(tile_index - 1) as usize];
                 let tile_type = &tile_set.tile_types[(tile_index - 1) as usize];
 
                 let is_colored = tile_type.intersects(TileFlags::WHITE);
-                let skip = if is_colored {
-                    // only draw if color matches mask
-                    let masked_color = (color & color_mask) & 0xffffff;
-                    masked_color == 0
-                } else {
-                    false
-                };
-
-                if skip {
-                    // skip if not wearing the correct mask
-                    continue;
-                }
 
                 tile.draw_tile(
                     target,
                     sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
                     sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
                     is_colored,
-                    color_mask,
+                    color,
+                    lerped_color_mask,
                     &tile_set.aura_low,
                     &tile_set.aura,
                 );
@@ -438,6 +428,7 @@ pub struct Game {
     editor_mode: bool,
 
     color_mask: crate::bitmap::ColorChannel,
+    lerp_color_mask: Vec3,
 }
 
 fn wang_hash(seed: u32) -> u32 {
@@ -772,6 +763,7 @@ impl Game {
 
             color_mask: crate::bitmap::BLUE,
             editor_mode: false,
+            lerp_color_mask: Vec3::ZERO,
         }
     }
 
@@ -869,6 +861,10 @@ impl Game {
             self.camera = self.player.position - vec2(132.0, 128.0);
         }
 
+        let color_mask_uvec3 = (self.lerp_color_mask * 8.0).as_uvec3() * 32;
+        let lerped_color_mask =
+            color_mask_uvec3.x << 16 | color_mask_uvec3.y << 8 | color_mask_uvec3.z | 0xff000000;
+
         self.tile_map.draw(
             &self.tile_set,
             screen,
@@ -878,6 +874,7 @@ impl Game {
             } else {
                 self.color_mask
             },
+            lerped_color_mask,
         );
 
         if !DEBUG_MODE {
@@ -953,6 +950,13 @@ impl Game {
                 }
             }
         } else {
+            {
+                let r = ((self.color_mask >> 16) & 0xff) as f32 / 255.0;
+                let g = ((self.color_mask >> 8) & 0xff) as f32 / 255.0;
+                let b = ((self.color_mask) & 0xff) as f32 / 255.0;
+                self.lerp_color_mask = self.lerp_color_mask.lerp(vec3(r, g, b), delta_time * 5.0);
+            }
+
             // do game things here
             if self.input_state.is_key_down(Key::Left) {
                 self.player.velocity.x = self.player.velocity.x.min(0.0);

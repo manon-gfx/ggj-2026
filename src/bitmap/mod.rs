@@ -60,6 +60,31 @@ pub fn blend(a: u32, b: u32, alpha: u32) -> u32 {
     (alpha << 24) | (red << 16) | (green << 8) | blue
 }
 
+pub fn blend3(a: u32, b: u32, alpha: u32) -> u32 {
+    let ar = (a >> 16) & 0xff;
+    let ag = (a >> 8) & 0xff;
+    let ab = a & 0xff;
+
+    let alpha_r = (alpha >> 16) & 0xff;
+    let alpha_g = (alpha >> 8) & 0xff;
+    let alpha_b = alpha & 0xff;
+
+    let br = (b >> 16) & 0xff;
+    let bg = (b >> 8) & 0xff;
+    let bb = b & 0xff;
+
+    let red = ((ar * (255 - alpha_r)) + (br * alpha_r)) >> 8;
+    let green = ((ag * (255 - alpha_g)) + (bg * alpha_g)) >> 8;
+    let blue = ((ab * (255 - alpha_b)) + (bb * alpha_b)) >> 8;
+
+    let red = red.clamp(0, 255);
+    let green = green.clamp(0, 255);
+    let blue = blue.clamp(0, 255);
+    let alpha = 255;
+
+    (alpha << 24) | (red << 16) | (green << 8) | blue
+}
+
 pub fn add_blend(a: u32, b: u32) -> u32 {
     let ar = (a >> 16) & 0xff;
     let ag = (a >> 8) & 0xff;
@@ -232,6 +257,7 @@ impl Bitmap {
         x: i32,
         y: i32,
         is_colored: bool,
+        visible_mask: u32,
         color_mask: ColorChannel,
         aura_low: &Bitmap,
         aura: &Bitmap,
@@ -285,9 +311,18 @@ impl Bitmap {
                         let b = ((b * b_scale) >> 8).min(0xff);
 
                         let c = (r << 16) | (g << 8) | b;
-                        *target
-                            .pixels_mut()
-                            .get_unchecked_mut((line0 + tx + x) as usize) = c;
+                        let index = (line0 + tx + x) as usize;
+
+                        let pixels = target.pixels_mut();
+
+                        let c = if is_colored {
+                            let prev = *pixels.get_unchecked_mut(index);
+                            blend3(prev, c, color_mask & visible_mask)
+                        } else {
+                            c
+                        };
+
+                        *pixels.get_unchecked_mut(index) = c;
                     }
                 }
             }
