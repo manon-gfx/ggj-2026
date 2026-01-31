@@ -22,7 +22,7 @@ struct Music {
     pub tracks: &'static [Track],
 }
 
-const TRACK1: Track = Track {
+const CHORD_TRACK: Track = Track {
     wave: triangle_wave,
     length: 8 * MusicSettings::BAR_LENGTH,
     melody: &[
@@ -32,7 +32,7 @@ const TRACK1: Track = Track {
     volume: 0.5,
 };
 
-const TRACK2: Track = Track {
+const BASS_TRACK: Track = Track {
     wave: square_wave,
     length: 8 * MusicSettings::BAR_LENGTH,
     melody: &[
@@ -48,7 +48,7 @@ const TRACK2: Track = Track {
     volume: 0.25,
 };
 
-const TRACK3: Track = Track {
+const ACCENT_TRACK: Track = Track {
     wave: sine_wave,
     length: 4 * MusicSettings::BAR_LENGTH,
     melody: &[
@@ -60,12 +60,20 @@ const TRACK3: Track = Track {
     volume: 0.5,
 };
 
-const MUSIC: Music = Music{
-    tracks: &[
-        TRACK1,
-        TRACK2,
-        TRACK3,
-    ]
+const SNARE_TRACK: Track = Track {
+    wave: white_noise,
+    length: 4 * MusicSettings::BAR_LENGTH,
+    melody: &[
+        REST, REST, REST, REST, C3, REST, REST, REST, REST, REST, REST, REST, C3, REST, REST, REST,
+        REST, REST, REST, REST, C3, REST, REST, REST, REST, REST, REST, REST, C3, REST, REST, REST,
+        REST, REST, REST, REST, C3, REST, REST, REST, REST, REST, REST, REST, C3, REST, REST, REST,
+        REST, REST, REST, REST, C3, REST, REST, REST, REST, REST, C3, REST, C3, REST, REST, REST,
+    ],
+    volume: 0.5,
+};
+
+const MUSIC: Music = Music {
+    tracks: &[BASS_TRACK, CHORD_TRACK, ACCENT_TRACK, SNARE_TRACK],
 };
 
 pub fn signal(t: f64) -> f64 {
@@ -77,9 +85,12 @@ pub fn signal(t: f64) -> f64 {
 
     for track in MUSIC.tracks.iter() {
         let beat_in_track = beat_in_loop % track.length as f64;
-        let idx_in_track = (beat_in_track as f64 / track.length as f64 * track.melody.len() as f64).floor() as usize;
+        let idx_in_track = (beat_in_track as f64 / track.length as f64 * track.melody.len() as f64)
+            .floor() as usize;
         let note = track.melody[idx_in_track];
-        signal += track.volume * (track.wave)(t, note);
+        if note != REST {
+            signal += track.volume * (track.wave)(t, note);
+        }
     }
 
     signal
@@ -142,4 +153,19 @@ pub const SINEYTABLE: [f64; 21] = [
 
 pub fn sine_wave(t: f64, freq: f64) -> f64 {
     custom_wave(t, freq, &SINETTABLE, &SINEYTABLE)
+}
+
+fn wang_hash(seed: u32) -> u32 {
+    let seed = (seed ^ 61) ^ (seed >> 16);
+    let seed = seed.overflowing_mul(9).0;
+    let seed = seed ^ (seed >> 4);
+    let seed = seed.overflowing_mul(0x27d4eb2d).0;
+    let seed = seed ^ (seed >> 15);
+    seed
+}
+
+pub fn white_noise(t: f64, freq: f64) -> f64 {
+    let rand_u32 = wang_hash((t * 44_100.) as u32);
+    let rand_0_1 = (rand_u32 as f64) / (u32::MAX as f64);
+    1. - 2. * rand_0_1
 }

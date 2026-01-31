@@ -8,7 +8,7 @@ pub mod notes;
 pub mod sound;
 use sound::signal;
 
-use crate::audio::sound::{sawtooth_wave, sine_wave, square_wave, triangle_wave};
+use crate::audio::sound::{sawtooth_wave, sine_wave, square_wave, triangle_wave, white_noise};
 use crate::game::Key;
 
 #[derive(Clone)]
@@ -21,7 +21,7 @@ struct AudioSettings {
 impl Default for AudioSettings {
     fn default() -> Self {
         Self {
-            volume: 0.1,
+            volume: 0.5,
             panning: 0.5,
             frequency: 440.0,
             note: 69,
@@ -47,15 +47,6 @@ fn approx_exp32(val: f32) -> f32 {
     x *= x;
     x *= x;
     x
-}
-
-fn wang_hash(seed: u32) -> u32 {
-    let seed = (seed ^ 61) ^ (seed >> 16);
-    let seed = seed.overflowing_mul(9).0;
-    let seed = seed ^ (seed >> 4);
-    let seed = seed.overflowing_mul(0x27d4eb2d).0;
-    let seed = seed ^ (seed >> 15);
-    seed
 }
 
 pub(crate) struct Audio {
@@ -185,7 +176,7 @@ impl Audio {
                         }
 
                         let value = value as f32;
-                        let value = value * settings.volume * 0.25;
+                        let value = value * settings.volume;
 
                         // left and right channel
                         frame[0] = value; // * (1.0 - settings.panning).min(0.5) * 2.0;
