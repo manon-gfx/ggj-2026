@@ -219,11 +219,14 @@ impl TileMap {
                 if tile_index != 0 {
                     let tile = &tile_set.tiles[(tile_index - 1) as usize];
                     let color = &tile_set.tile_colors[(tile_index - 1) as usize];
-                    tile.draw_on(
+                    let color_mask_rgb = color_mask & 0xffffff;
+                    let color_rgb = color & 0xffffff;
+                    tile.draw_tile(
                         target,
                         sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
                         sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
-                        *color_mask,
+                        tile_index != 1 && tile_index != 8 && (color_rgb & color_mask_rgb == 0),
+                        &color_mask,
                     );
                 }
             }
@@ -390,7 +393,7 @@ fn build_frame_list(
         .iter()
         .map(|(x, y)| {
             let mut bmp = Bitmap::new(size.0, size.1);
-            sprite_sheet.draw_on(&mut bmp, -x, -y, 0xffffffff);
+            sprite_sheet.draw_on(&mut bmp, -x, -y);
             bmp
         })
         .collect::<Vec<_>>()
@@ -797,7 +800,7 @@ impl Game {
                 self.player.is_jumping = false;
             }
 
-            // toggle mask activation
+            // Current situ: activating a new mask disables old mask (can't wear two masks)
             if self.input_state.is_key_released(Key::R) {
                 if let Some(red_mask) = self
                     .player_inventory
@@ -805,7 +808,8 @@ impl Game {
                     .iter()
                     .find(|&x| x.activation_key == Key::R)
                 {
-                    self.toggle_color_mask(red_mask.color);
+                    // self.toggle_color_mask(red_mask.color);
+                    self.set_color_mask(red_mask.color);
                 };
             }
             if self.input_state.is_key_released(Key::G) {
@@ -815,7 +819,8 @@ impl Game {
                     .iter()
                     .find(|&x| x.activation_key == Key::G)
                 {
-                    self.toggle_color_mask(green_mask.color);
+                    // self.toggle_color_mask(green_mask.color);
+                    self.set_color_mask(green_mask.color);
                 };
             }
             if self.input_state.is_key_released(Key::B) {
@@ -825,7 +830,8 @@ impl Game {
                     .iter()
                     .find(|&x| x.activation_key == Key::B)
                 {
-                    self.toggle_color_mask(blue_mask.color);
+                    // self.toggle_color_mask(blue_mask.color);
+                    self.set_color_mask(blue_mask.color);
                 };
             }
 
@@ -1006,7 +1012,7 @@ impl Game {
             if mask.visible {
                 let pos = world_space_to_screen_space(mask.position, self.camera);
                 mask.sprite_scene
-                    .draw_on(screen, pos.x as i32, pos.y as i32, crate::bitmap::WHITE);
+                    .draw_on(screen, pos.x as i32, pos.y as i32);
 
                 // Add to collection
                 if mask
@@ -1072,7 +1078,7 @@ impl Game {
                 {
                     self.editor_state.selected_tile = i as u32;
                 }
-                tile.draw_on(screen, 8 + i as i32 * 10, 192 + 4, 0xffffffff);
+                tile.draw_on(screen, 8 + i as i32 * 10, 192 + 4);
             }
         } else {
             screen.draw_rectangle(
@@ -1087,7 +1093,6 @@ impl Game {
                 screen,
                 self.player_inventory.position_on_screen.x as i32,
                 self.player_inventory.position_on_screen.y as i32,
-                bitmap::WHITE,
             );
             for i in 0..self.player_inventory.masks.len() {
                 self.player_inventory.masks[i].sprite_inventory.draw_on(
@@ -1095,7 +1100,6 @@ impl Game {
                     self.player_inventory.position_on_screen.x as i32
                         + (i as i32 + 2) * self.player_inventory.tile_size,
                     self.player_inventory.position_on_screen.y as i32,
-                    bitmap::WHITE,
                 );
             }
         }

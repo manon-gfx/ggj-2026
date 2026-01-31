@@ -36,7 +36,45 @@ impl BitmapData {
             Self::Owned(vec) => vec.as_mut_ptr(),
             Self::Pointer(ptr, _) => *ptr,
         }
-    }
+    } 
+}
+
+pub fn blend(a: u32, b: u32, alpha: u32) -> u32 {
+    let ar = (a >> 16) & 0xff;
+    let ag = (a >> 8) & 0xff;
+    let ab = a & 0xff;
+
+    let br = (b >> 16) & 0xff;
+    let bg = (b >> 8) & 0xff;
+    let bb = b & 0xff;
+
+    let red = ((ar * (255 - alpha)) + (br * alpha)) >> 8;
+    let green = ((ag * (255 - alpha)) + (bg * alpha)) >> 8;
+    let blue = ((ab * (255 - alpha)) + (bb * alpha)) >> 8;
+
+    let red = red.clamp(0, 255);
+    let green = green.clamp(0, 255);
+    let blue = blue.clamp(0, 255);
+    let alpha = 255;
+
+    (alpha << 24) | (red << 16) | (green << 8) | blue
+}
+
+pub fn add_blend(a: u32, b: u32) -> u32 {
+    let ar = (a >> 16) & 0xff;
+    let ag = (a >> 8) & 0xff;
+    let ab = a & 0xff;
+
+    let br = (b >> 16) & 0xff;
+    let bg = (b >> 8) & 0xff;
+    let bb = b & 0xff;
+
+    let red = (ar + br).min(255);
+    let green = (ag + bg).min(255);
+    let blue = (ab + bb).min(255);
+    let alpha = 255;
+
+    (alpha << 24) | (red << 16) | (green << 8) | blue
 }
 
 #[derive(Debug, Clone)]
@@ -128,7 +166,8 @@ impl Bitmap {
     pub fn clear(&mut self, color: u32) {
         self.pixels_mut().fill(color);
     }
-    pub fn draw_on_scaled(&self, target: &mut Self, x: i32, y: i32, scale_x: f32, scale_y: f32) {
+
+        pub fn draw_on_scaled(&self, target: &mut Self, x: i32, y: i32, scale_x: f32, scale_y: f32) {
         if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
             return;
         }
@@ -186,7 +225,8 @@ impl Bitmap {
         }
     }
 
-    pub fn draw_masked(
+    // With color masks
+    pub fn draw_tile(
         &self,
         target: &mut Self,
         x: i32,
@@ -222,13 +262,12 @@ impl Bitmap {
                     if (c & 0xff000000) != 0 {
                         let mut masked_c = c;
 
-                        // Reduce opacity
+                        // Reduce opacity if completely masked out
                         if masked_out {
-                            let rgb = c & 0x00ffffff;
-                            let alpha = 0x80;
-                            masked_c = (alpha << 24) | rgb;
+                            let blended_rgb = blend(c, BLACK, 0xc0);
+                            masked_c = blended_rgb;
                         } else {
-                            masked_c = c & color_mask;
+                            // TODO: Filter out channel
                         }
 
                         *target
@@ -240,7 +279,7 @@ impl Bitmap {
         }
     }
 
-    pub fn draw_on(&self, target: &mut Self, x: i32, y: i32, color_mask: ColorChannel) {
+    pub fn draw_on(&self, target: &mut Self, x: i32, y: i32) {
         let mut sw = self.width as i32;
         let mut sh = self.height as i32;
 
@@ -268,10 +307,9 @@ impl Bitmap {
                     let c = *self.pixels().get_unchecked((line1 + sx + x) as usize);
                     if (c & 0xff000000) != 0 {
                         // alpha
-                        let masked_c = c & color_mask;
                         *target
                             .pixels_mut()
-                            .get_unchecked_mut((line0 + tx + x) as usize) = masked_c;
+                            .get_unchecked_mut((line0 + tx + x) as usize) = c;
                     }
                 }
             }
