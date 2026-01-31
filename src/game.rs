@@ -795,6 +795,7 @@ impl Game {
         if self.editor_mode {
             if self.input_state.is_key_pressed(Key::S) {
                 self.tile_map.store_to_file("assets/level0.txt");
+                println!("Level Saved!");
             }
 
             if self.input_state.is_key_down(Key::Left) {
