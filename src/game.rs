@@ -249,6 +249,7 @@ pub struct Game {
 
     editor_state: EditorState,
 
+    background: Bitmap,
     test_sprite: Bitmap,
 
     mouse_x: f32,
@@ -512,6 +513,14 @@ impl Game {
             seconds_per_frame: 1.0 / 4.0,
         };
 
+        let mut background_part = Bitmap::new(8, 8);
+        tile_sheet.draw_on(&mut background_part, -128, -64);
+        let mut background = Bitmap::new(16, 16);
+        background_part.draw_on(&mut background, 0, 0);
+        background_part.draw_on(&mut background, 8, 0);
+        background_part.draw_on(&mut background, 0, 8);
+        background_part.draw_on(&mut background, 8, 8);
+
         Self {
             // audio: Some(Audio::new()),
             audio: None,
@@ -526,6 +535,7 @@ impl Game {
 
             editor_state: EditorState::default(),
 
+            background,
             tile_set,
             tile_map,
 
@@ -677,6 +687,48 @@ impl Game {
         let color_mask_uvec3 = (self.lerp_color_mask * 8.0).as_uvec3() * 32;
         let lerped_color_mask =
             color_mask_uvec3.x << 16 | color_mask_uvec3.y << 8 | color_mask_uvec3.z | 0xff000000;
+
+        let background_offset = -(self.camera * 0.2) % 256.0;
+        self.background.draw_background(
+            screen,
+            background_offset.x as i32,
+            background_offset.y as i32,
+            16.0,
+            16.0,
+            lerped_color_mask,
+            &self.tile_set.aura_low,
+            &self.tile_set.aura,
+        );
+        self.background.draw_background(
+            screen,
+            background_offset.x as i32 + 256,
+            background_offset.y as i32,
+            16.0,
+            16.0,
+            lerped_color_mask,
+            &self.tile_set.aura_low,
+            &self.tile_set.aura,
+        );
+        self.background.draw_background(
+            screen,
+            background_offset.x as i32,
+            background_offset.y as i32 + 256,
+            16.0,
+            16.0,
+            lerped_color_mask,
+            &self.tile_set.aura_low,
+            &self.tile_set.aura,
+        );
+        self.background.draw_background(
+            screen,
+            background_offset.x as i32 + 256,
+            background_offset.y as i32 + 256,
+            16.0,
+            16.0,
+            lerped_color_mask,
+            &self.tile_set.aura_low,
+            &self.tile_set.aura,
+        );
 
         self.tile_map.draw(
             &self.tile_set,
