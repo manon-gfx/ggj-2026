@@ -60,6 +60,7 @@ pub enum MouseButton {
 
 struct TileSet {
     tiles: Vec<Bitmap>,
+    tile_colors: Vec<bitmap::ColorChannel>,
 }
 
 struct TileMap {
@@ -147,7 +148,14 @@ impl TileMap {
         (position / self.tile_size as f32).floor() * self.tile_size as f32
     }
 
-    fn sample_world_pos(&self, position: Vec2) -> u32 {
+    fn sample_world_pos(
+        &self,
+        position: Vec2,
+        tile_colors: &Vec<bitmap::ColorChannel>,
+        color_mask: &bitmap::ColorChannel,
+    ) -> u32 {
+
+        let color_mask = color_mask & 0xffffff;
         let tile_pos = self.world_to_tile_index(position);
         if tile_pos.x < 0
             || tile_pos.y < 0
@@ -156,7 +164,17 @@ impl TileMap {
         {
             0
         } else {
-            self.tiles[(tile_pos.x + tile_pos.y * self.width as i32) as usize]
+            let tile_index = self.tiles[(tile_pos.x + tile_pos.y * self.width as i32) as usize];
+            //  If the tile is colored, and this color is masked out, treat as if there is no tile here
+            if tile_index > 1 {
+                if tile_colors[(tile_index - 1) as usize] & color_mask == 0 {
+                    0
+                } else {
+                    tile_index
+                }
+            } else {
+                tile_index
+            }
         }
     }
 
@@ -165,7 +183,7 @@ impl TileMap {
         tile_set: &TileSet,
         target: &mut Bitmap,
         camera: Vec2,
-        color_mask: crate::bitmap::ColorChannel,
+        color_mask: &crate::bitmap::ColorChannel,
     ) {
         let screen_size = vec2(target.width as f32, target.height as f32);
         let bounds = Aabb {
@@ -198,6 +216,7 @@ impl TileMap {
                 let tile_index = self.tiles[(ty * self.width + tx) as usize];
                 if tile_index != 0 {
                     let tile = &tile_set.tiles[(tile_index - 1) as usize];
+                    let color = &tile_set.tile_colors[(tile_index - 1) as usize];
                     tile.draw_on(
                         target,
                         sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
@@ -252,8 +271,12 @@ impl Player {
 
     fn draw(&self, screen: &mut Bitmap, camera: Vec2) {
         let screen_pos = world_space_to_screen_space(self.position, camera);
-        self.sprite
-            .draw_on(screen, screen_pos.x as i32, screen_pos.y as i32, 0xffffffff);
+        self.sprite.draw_on(
+            screen,
+            screen_pos.x as i32,
+            screen_pos.y as i32,
+            &bitmap::WHITE,
+        );
     }
 }
 
@@ -409,18 +432,30 @@ impl Game {
             (128, 64 + 16),
             (128, 96 + 16),
             (128, 128 + 16),
-
         ];
+        let tile_colors = vec![
+            bitmap::BLACK,
+            bitmap::RED,
+            bitmap::BLUE,
+            bitmap::GREEN,
+            bitmap::YELLOW,
+            bitmap::CYAN,
+            bitmap::MAGENTA,
+            bitmap::GREY,
+            bitmap::ORANGE,
+            bitmap::PURPLE,
+        ];
+
         let tiles = coords
             .iter()
             .map(|(x, y)| {
                 let mut bmp = Bitmap::new(8, 8);
-                sprite_sheet.draw_on(&mut bmp, -x, -y, 0xffffffff);
+                sprite_sheet.draw_on(&mut bmp, -x, -y, &bitmap::WHITE);
                 bmp
             })
             .collect::<Vec<_>>();
 
-        let tile_set = TileSet { tiles };
+        let tile_set = TileSet { tiles, tile_colors };
 
         let tile_map = TileMap {
             tile_size: 8,
@@ -524,7 +559,7 @@ impl Game {
 
             time: 0.0,
 
-            color_mask: !0u32,
+            color_mask: crate::bitmap::WHITE,
             editor_mode: false,
         }
     }
@@ -581,7 +616,7 @@ impl Game {
     }
 
     pub fn add_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
-        self.color_mask |= color_channel;
+        self.color_mask |= color_channel;        
     }
 
     pub fn remove_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
@@ -602,9 +637,9 @@ impl Game {
             screen,
             self.camera,
             if self.editor_mode {
-                0xffffffff
+                &0xffffffff
             } else {
-                self.color_mask
+                &self.color_mask
             },
         );
 
@@ -746,9 +781,21 @@ impl Game {
                     vec2(aabb_ws.min.x, aabb_ws.max.y - 1.0),
                 ];
                 let tiles_left = [
-                    self.tile_map.sample_world_pos(samples_positions_left[0]),
-                    self.tile_map.sample_world_pos(samples_positions_left[1]),
-                    self.tile_map.sample_world_pos(samples_positions_left[2]),
+                    self.tile_map.sample_world_pos(
+                        samples_positions_left[0],
+                        &self.tile_set.tile_colors,
+                        &self.color_mask,
+                    ),
+                    self.tile_map.sample_world_pos(
+                        samples_positions_left[1],
+                        &self.tile_set.tile_colors,
+                        &self.color_mask,
+                    ),
+                    self.tile_map.sample_world_pos(
+                        samples_positions_left[2],
+                        &self.tile_set.tile_colors,
+                        &self.color_mask,
+                    ),
                 ];
 
                 let samples_positions_right = [
@@ -757,9 +804,21 @@ impl Game {
                     vec2(aabb_ws.max.x, aabb_ws.max.y - 1.0),
                 ];
                 let tiles_right = [
-                    self.tile_map.sample_world_pos(samples_positions_right[0]),
-                    self.tile_map.sample_world_pos(samples_positions_right[1]),
-                    self.tile_map.sample_world_pos(samples_positions_right[2]),
+                    self.tile_map.sample_world_pos(
+                        samples_positions_right[0],
+                        &self.tile_set.tile_colors,
+                        &self.color_mask,
+                    ),
+                    self.tile_map.sample_world_pos(
+                        samples_positions_right[1],
+                        &self.tile_set.tile_colors,
+                        &self.color_mask,
+                    ),
+                    self.tile_map.sample_world_pos(
+                        samples_positions_right[2],
+                        &self.tile_set.tile_colors,
+                        &self.color_mask,
+                    ),
                 ];
                 let tile_left = tiles_left.iter().any(|a| *a != 0);
                 let tile_right = tiles_right.iter().any(|a| *a != 0);
@@ -795,9 +854,21 @@ impl Game {
                 ];
 
                 let tiles_below = [
-                    self.tile_map.sample_world_pos(samples_positions_below[0]),
-                    self.tile_map.sample_world_pos(samples_positions_below[1]),
-                    self.tile_map.sample_world_pos(samples_positions_below[2]),
+                    self.tile_map.sample_world_pos(
+                        samples_positions_below[0],
+                        &self.tile_set.tile_colors,
+                        &self.color_mask,
+                    ),
+                    self.tile_map.sample_world_pos(
+                        samples_positions_below[1],
+                        &self.tile_set.tile_colors,
+                        &self.color_mask,
+                    ),
+                    self.tile_map.sample_world_pos(
+                        samples_positions_below[2],
+                        &self.tile_set.tile_colors,
+                        &self.color_mask,
+                    ),
                 ];
 
                 let samples_positions_above = [
@@ -806,9 +877,21 @@ impl Game {
                     vec2(aabb_ws.max.x - 1.0, aabb_ws.min.y),
                 ];
                 let tiles_above = [
-                    self.tile_map.sample_world_pos(samples_positions_above[0]),
-                    self.tile_map.sample_world_pos(samples_positions_above[1]),
-                    self.tile_map.sample_world_pos(samples_positions_above[2]),
+                    self.tile_map.sample_world_pos(
+                        samples_positions_above[0],
+                        &self.tile_set.tile_colors,
+                        &self.color_mask,
+                    ),
+                    self.tile_map.sample_world_pos(
+                        samples_positions_above[1],
+                        &self.tile_set.tile_colors,
+                        &self.color_mask,
+                    ),
+                    self.tile_map.sample_world_pos(
+                        samples_positions_above[2],
+                        &self.tile_set.tile_colors,
+                        &self.color_mask,
+                    ),
                 ];
 
                 let tile_below = tiles_below.iter().any(|a| *a != 0);
@@ -858,7 +941,7 @@ impl Game {
                     screen,
                     pos.x as i32,
                     pos.y as i32,
-                    crate::bitmap::WHITE,
+                    &crate::bitmap::WHITE,
                 );
 
                 // Add to collection
@@ -925,7 +1008,7 @@ impl Game {
                 {
                     self.editor_state.selected_tile = i as u32;
                 }
-                tile.draw_on(screen, 8 + i as i32 * 10, 192 + 4, 0xffffffff);
+                tile.draw_on(screen, 8 + i as i32 * 10, 192 + 4, &0xffffffff);
             }
         } else {
             screen.draw_rectangle(
@@ -940,7 +1023,7 @@ impl Game {
                 screen,
                 self.player_inventory.position_on_screen.x as i32,
                 self.player_inventory.position_on_screen.y as i32,
-                bitmap::WHITE,
+                &bitmap::WHITE,
             );
             for i in 0..self.player_inventory.masks.len() {
                 self.player_inventory.masks[i].sprite_inventory.draw_on(
@@ -948,7 +1031,7 @@ impl Game {
                     self.player_inventory.position_on_screen.x as i32
                         + (i as i32 + 2) * self.player_inventory.tile_size,
                     self.player_inventory.position_on_screen.y as i32,
-                    bitmap::WHITE,
+                    &bitmap::WHITE,
                 );
             }
         }
