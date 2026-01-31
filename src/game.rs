@@ -1,5 +1,5 @@
 use crate::audio::Audio;
-use crate::bitmap::{Bitmap, Font};
+use crate::bitmap::{self, Bitmap, Font};
 use glam::*;
 
 const GRAVITY: f32 = 400.0;
@@ -44,6 +44,16 @@ struct TileMap {
     tiles: Vec<u32>,
 }
 
+struct PlayerInventory {
+    tile_size: i32,
+    width: i32,
+    height: i32,
+    position_on_screen: Vec2,
+    background_color: u32,
+    bag_sprite: Bitmap,
+    masks: Vec<MaskObject>,
+}
+
 #[derive(Debug, Clone)]
 struct Aabb {
     min: Vec2,
@@ -80,7 +90,8 @@ struct MaskObject {
     position: Vec2,
     aabb: Aabb,
     color: crate::bitmap::ColorChannel,
-    sprite: Bitmap,
+    sprite_scene: Bitmap,
+    sprite_inventory: Bitmap,
     visible: bool,
 }
 impl MaskObject {
@@ -223,7 +234,7 @@ pub struct Game {
     mask_game_objects: Vec<MaskObject>,
 
     player: Player,
-    player_inventory: Vec<MaskObject>,
+    player_inventory: PlayerInventory,
     time: f32,
 
     editor_mode: bool,
@@ -314,20 +325,44 @@ impl Game {
         let sprite_width = player_sprite.width as f32;
         let sprite_height = player_sprite.height as f32;
 
-        // Game objects
-        let white_mask_pos = vec2(100.0, 0.0);
-        let white_mask_sprite = Bitmap::load("assets/test_mask.png");
-        let white_mask_sprite_width = white_mask_sprite.width as f32;
-        let white_mask_sprite_height = white_mask_sprite.height as f32;
+        // Inventory
+        let bag_sprite = Bitmap::load("assets/sprites/bag.png");
 
-        let white_mask = MaskObject {
-            position: white_mask_pos,
+        // Game objects for masks
+        pub const MASK_SPRITE_SIZE: f32 = 16.0;
+        let red_mask = MaskObject {
+            position: vec2(50.0, 0.0),
             aabb: Aabb {
                 min: Vec2::ZERO,
-                max: vec2(white_mask_sprite_width, white_mask_sprite_height),
+                max: vec2(MASK_SPRITE_SIZE, MASK_SPRITE_SIZE),
             },
-            color: crate::bitmap::WHITE,
-            sprite: white_mask_sprite,
+            color: crate::bitmap::RED,
+            sprite_scene: Bitmap::load("assets/sprites/red_mask_in_scene.png"),
+            sprite_inventory: Bitmap::load("assets/sprites/red_mask_in_bag.png"),
+            visible: true,
+        };
+
+        let green_mask = MaskObject {
+            position: vec2(100.0, 0.0),
+            aabb: Aabb {
+                min: Vec2::ZERO,
+                max: vec2(MASK_SPRITE_SIZE, MASK_SPRITE_SIZE),
+            },
+            color: crate::bitmap::GREEN,
+            sprite_scene: Bitmap::load("assets/sprites/green_mask_in_scene.png"),
+            sprite_inventory: Bitmap::load("assets/sprites/green_mask_in_bag.png"),
+            visible: true,
+        };
+
+        let blue_mask = MaskObject {
+            position: vec2(150.0, 0.0),
+            aabb: Aabb {
+                min: Vec2::ZERO,
+                max: vec2(MASK_SPRITE_SIZE, MASK_SPRITE_SIZE),
+            },
+            color: crate::bitmap::BLUE,
+            sprite_scene: Bitmap::load("assets/sprites/blue_mask_in_scene.png"),
+            sprite_inventory: Bitmap::load("assets/sprites/blue_mask_in_bag.png"),
             visible: true,
         };
 
@@ -356,7 +391,7 @@ impl Game {
             mouse_y: 0.0,
 
             // Add game objects
-            mask_game_objects: vec![white_mask],
+            mask_game_objects: vec![red_mask, green_mask, blue_mask],
 
             player: Player {
                 position: player_start_pos,
@@ -366,7 +401,15 @@ impl Game {
                     max: vec2(15.0, 16.0),
                 },
             },
-            player_inventory: Vec::new(),
+            player_inventory: PlayerInventory {
+                tile_size: 16,
+                width: 256,
+                height: 64,
+                position_on_screen: vec2(0.0, 192.0),
+                background_color: 0xffffefd5,
+                bag_sprite: bag_sprite,
+                masks: Vec::new(),
+            },
 
             time: 0.0,
 
@@ -566,7 +609,7 @@ impl Game {
         // Loop over masks
         for mask in self.mask_game_objects.iter_mut() {
             if mask.visible {
-                mask.sprite.draw_on(
+                mask.sprite_scene.draw_on(
                     screen,
                     mask.position.x as i32,
                     mask.position.y as i32,
@@ -578,7 +621,7 @@ impl Game {
                     .aabb_world_space()
                     .overlaps(&self.player.aabb_world_space())
                 {
-                    self.player_inventory.push(mask.clone());
+                    self.player_inventory.masks.push(mask.clone());
                     mask.visible = false;
                 }
             }
@@ -629,6 +672,32 @@ impl Game {
             40,
             0xffff00,
         );
+
+        // draw inventory on top
+        // TODO: Could make inventory-overlay its own bitmap and draw items on that and then draw the inventory on the screen
+        screen.draw_rectangle(
+            self.player_inventory.position_on_screen.x as i32,
+            self.player_inventory.position_on_screen.y as i32,
+            self.player_inventory.position_on_screen.x as i32 + self.player_inventory.width,
+            self.player_inventory.position_on_screen.y as i32 + self.player_inventory.height,
+            true,
+            self.player_inventory.background_color,
+        );
+        self.player_inventory.bag_sprite.draw_on(
+            screen,
+            self.player_inventory.position_on_screen.x as i32,
+            self.player_inventory.position_on_screen.y as i32,
+            bitmap::WHITE,
+        );
+        for i in 0..self.player_inventory.masks.len() {
+            self.player_inventory.masks[i].sprite_inventory.draw_on(
+                screen,
+                self.player_inventory.position_on_screen.x as i32
+                    + (i as i32 + 2) * self.player_inventory.tile_size,
+                self.player_inventory.position_on_screen.y as i32,
+                bitmap::WHITE,
+            );
+        }
 
         // reset state
         self.mouse_pressed.fill(false);

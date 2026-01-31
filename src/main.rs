@@ -41,7 +41,7 @@ fn main() {
         (1280, 720)
     };
 
-    let (render_width, render_height) = (256, 192);
+    let (render_width, render_height) = (256, 208);
 
     let mut window = minifb::Window::new(
         "PIXL",
