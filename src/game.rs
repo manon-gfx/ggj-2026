@@ -367,9 +367,9 @@ impl Game {
             TileFlags::COLLISION,
             TileFlags::COLLISION,
             TileFlags::SPIKE,
-            TileFlags::SPIKE,
-            TileFlags::SPIKE,
-            TileFlags::SPIKE,
+            TileFlags::SPIKE | TileFlags::RED,
+            TileFlags::SPIKE | TileFlags::BLUE,
+            TileFlags::SPIKE | TileFlags::GREEN,
             TileFlags::SPIKE,
             TileFlags::SPIKE,
             TileFlags::SPIKE,
@@ -658,6 +658,13 @@ impl Game {
             self.camera = self.player.position - vec2(132.0, 128.0);
         }
 
+        {
+            let r = ((self.color_mask >> 16) & 0xff) as f32 / 255.0;
+            let g = ((self.color_mask >> 8) & 0xff) as f32 / 255.0;
+            let b = ((self.color_mask) & 0xff) as f32 / 255.0;
+            self.lerp_color_mask = self.lerp_color_mask.lerp(vec3(r, g, b), delta_time * 5.0);
+        }
+
         let color_mask_uvec3 = (self.lerp_color_mask * 8.0).as_uvec3() * 32;
         let lerped_color_mask =
             color_mask_uvec3.x << 16 | color_mask_uvec3.y << 8 | color_mask_uvec3.z | 0xff000000;
@@ -794,13 +801,6 @@ impl Game {
                 }
             }
         } else {
-            {
-                let r = ((self.color_mask >> 16) & 0xff) as f32 / 255.0;
-                let g = ((self.color_mask >> 8) & 0xff) as f32 / 255.0;
-                let b = ((self.color_mask) & 0xff) as f32 / 255.0;
-                self.lerp_color_mask = self.lerp_color_mask.lerp(vec3(r, g, b), delta_time * 5.0);
-            }
-
             // do game things here
             if self.input_state.is_key_down(Key::Left) {
                 self.player.velocity.x = self.player.velocity.x.min(0.0);
