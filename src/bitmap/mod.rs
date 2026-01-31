@@ -4,7 +4,7 @@ pub mod font;
 pub use font::Font;
 pub use u32 as ColorChannel;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BitmapData {
     Owned(Vec<u32>),
     Pointer(*mut u32, usize),
@@ -26,7 +26,7 @@ impl BitmapData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Bitmap {
     pub width: usize,
     pub height: usize,
