@@ -431,7 +431,7 @@ pub struct Game {
     player_inventory: PlayerInventory,
     time: f32,
 
-    is_playing_death_animation: bool,
+    death_sequence_duration: f32,
 
     editor_mode: bool,
 
@@ -765,7 +765,7 @@ impl Game {
             },
             time: 0.0,
 
-            is_playing_death_animation: false,
+            death_sequence_duration: 2.5,
 
             color_mask: crate::bitmap::BLUE,
             editor_mode: false,
@@ -788,7 +788,7 @@ impl Game {
         }
 
         // Play anim
-        self.is_playing_death_animation = true;
+        self.death_sequence_duration = 3.0;
     }
 
     pub(crate) fn on_mouse_moved(&mut self, x: f32, y: f32) {
@@ -876,13 +876,18 @@ impl Game {
             },
         );
 
-        // If we are death, play fixed death sequence and resetart the game
+        // If we are death, play fixed death sequence and restart the game
         if self.player.is_dead {
-            self.reset_game();
-            // TODO: Start playing death sequence
+            self.death_sequence_duration -= delta_time;
+            if self.death_sequence_duration < 0.0 {
+                self.reset_game();
+            } else {
+                self.player.draw(screen, self.camera);
+            }
             return;
         }
 
+        // Some things we only need to do if we aren't dead
         if self.editor_mode {
             if self.input_state.is_key_pressed(Key::S) {
                 self.tile_map.store_to_file("assets/level0.txt");
@@ -1252,7 +1257,6 @@ impl Game {
 
         // draw inventory on top
         // TODO: Could make inventory-overlay its own bitmap and draw items on that and then draw the inventory on the screen
-
         if self.editor_mode {
             screen.draw_str(&self.font, "editor_mode", 191, 10, 0xffff00);
 
