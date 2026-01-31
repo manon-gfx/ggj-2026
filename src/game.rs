@@ -157,7 +157,13 @@ impl TileMap {
         }
     }
 
-    fn draw(&self, tile_set: &TileSet, target: &mut Bitmap, camera: Vec2, color_mask: crate::bitmap::ColorChannel) {
+    fn draw(
+        &self,
+        tile_set: &TileSet,
+        target: &mut Bitmap,
+        camera: Vec2,
+        color_mask: crate::bitmap::ColorChannel,
+    ) {
         let screen_size = vec2(target.width as f32, target.height as f32);
         let bounds = Aabb {
             min: camera,
@@ -536,7 +542,8 @@ impl Game {
 
         screen.clear(0);
 
-        self.tile_map.draw(&self.tile_set, screen, self.camera, self.color_mask);
+        self.tile_map
+            .draw(&self.tile_set, screen, self.camera, self.color_mask);
 
         if self.editor_mode {
             if self.key_pressed[Key::S as usize] {
@@ -694,9 +701,9 @@ impl Game {
                 let aabb_ws = self.player.aabb_world_space();
 
                 let samples_positions_below = [
-                    vec2(aabb_ws.min.x, aabb_ws.max.y),
-                    vec2(aabb_ws.center().x, aabb_ws.max.y),
-                    vec2(aabb_ws.max.x - 1.0, aabb_ws.max.y),
+                    vec2(aabb_ws.min.x, aabb_ws.max.y + 0.99999),
+                    vec2(aabb_ws.center().x, aabb_ws.max.y + 0.99999),
+                    vec2(aabb_ws.max.x - 1.0, aabb_ws.max.y + 0.99999),
                 ];
 
                 let tiles_below = [
@@ -729,25 +736,21 @@ impl Game {
                     self.player.position.y = self.player.position.y.max(offset + limit);
                 }
                 if tile_below {
+                    // debug_value = true;
                     self.player.velocity.y = self.player.velocity.y.min(0.0);
 
                     let tile_size = self.tile_map.tile_size as f32;
-                    let limit =
-                        (self.player.aabb_world_space().max.y / tile_size).floor() * tile_size;
+                    let limit = ((self.player.aabb_world_space().max.y + 0.99999) / tile_size)
+                        .floor()
+                        * tile_size;
                     let offset = -self.player.aabb.max.y - 1.0;
+                    // dbg!((limit, offset, offset+limit));
 
                     self.player.position.y = self.player.position.y.min(offset + limit);
                 }
             }
         }
 
-        // let player_rel_pos = world_space_to_screen_space(self.player.position, self.camera);
-        // self.test_sprite.draw_on(
-        //     screen,
-        //     player_rel_pos.x as i32,
-        //     player_rel_pos.y as i32,
-        //     self.color_mask,
-        // );
         draw_aabb(
             screen,
             &self.player.aabb_world_space(),
@@ -787,7 +790,6 @@ impl Game {
 
         screen.draw_str(
             &self.font,
-            // &format!("player on ground: {}", self.player_on_ground),
             &format!("player position: {}", self.player.position),
             10,
             20,
@@ -795,21 +797,9 @@ impl Game {
         );
         screen.draw_str(
             &self.font,
-            // &format!("player on ground: {}", self.player_on_ground),
             &format!("player speed: {}", self.player.velocity),
             10,
             30,
-            0xffff00,
-        );
-
-        screen.draw_str(
-            &self.font,
-            &format!(
-                "editor_mode: {}",
-                if self.editor_mode { "true" } else { "false" }
-            ),
-            10,
-            40,
             0xffff00,
         );
 
@@ -817,6 +807,8 @@ impl Game {
         // TODO: Could make inventory-overlay its own bitmap and draw items on that and then draw the inventory on the screen
 
         if self.editor_mode {
+            screen.draw_str(&self.font, "editor_mode", 191, 10, 0xffff00);
+
             let aabb = Aabb {
                 min: vec2(-1.0, -1.0),
                 max: vec2(self.tile_map.width as f32, self.tile_map.height as f32)
