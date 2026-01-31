@@ -15,7 +15,7 @@ pub fn audio(t: f64) -> f64 {
     let n = (t * MusicSettings::TEMPO) as u32;
     let note = MELODY[(n % MELODY.len() as u32) as usize];
     if note != REST {
-        triangle_wave(t, note)
+        square_wave(t, note)
     } else {
         0.0
     }
