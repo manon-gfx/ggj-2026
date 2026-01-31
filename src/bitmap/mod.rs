@@ -209,7 +209,7 @@ impl Bitmap {
         };
 
         for _ in 0..sh {
-            let mut u = if du < 0 { (sw - 1) * -du } else { sy * du };
+            let mut u = if du < 0 { (sw - 1) * -du } else { sx * du };
             for x in 0..sw {
                 unsafe {
                     let color: u32 =
@@ -231,8 +231,25 @@ impl Bitmap {
         target: &mut Self,
         x: i32,
         y: i32,
-        masked_out: bool,
+        is_colored: bool,
+        color_mask: ColorChannel,
+        aura_low: &Bitmap,
+        aura: &Bitmap,
     ) {
+        let low_brightness = aura_low.load_pixel(x + 4, y + 4) & 0xffff;
+        let brightness = aura.load_pixel(x + 4, y + 4) & 0xffff;
+
+        let rmask = (color_mask >> 16) & 0xff;
+        let gmask = (color_mask >> 8) & 0xff;
+        let bmask = color_mask & 0xff;
+
+        let mute = if is_colored { 0x0f } else { 0x2f };
+        let mute = (low_brightness).max(mute);
+
+        let r_scale = ((brightness * rmask) >> 8).max(mute);
+        let g_scale = ((brightness * gmask) >> 8).max(mute);
+        let b_scale = ((brightness * bmask) >> 8).max(mute);
+
         let mut sw = self.width as i32;
         let mut sh = self.height as i32;
 
@@ -259,17 +276,18 @@ impl Bitmap {
                 unsafe {
                     let c = *self.pixels().get_unchecked((line1 + sx + x) as usize);
                     if (c & 0xff000000) != 0 {
-                        let mut masked_c = c;
+                        let r = (c >> 16) & 0xff;
+                        let g = (c >> 8) & 0xff;
+                        let b = c & 0xff;
 
-                        // Reduce opacity if completely masked out
-                        if masked_out {
-                            let blended_rgb = blend(c, BLACK, 0xc0);
-                            masked_c = blended_rgb;
-                        } 
+                        let r = ((r * r_scale) >> 8).min(0xff);
+                        let g = ((g * g_scale) >> 8).min(0xff);
+                        let b = ((b * b_scale) >> 8).min(0xff);
 
+                        let c = (r << 16) | (g << 8) | b;
                         *target
                             .pixels_mut()
-                            .get_unchecked_mut((line0 + tx + x) as usize) = masked_c;
+                            .get_unchecked_mut((line0 + tx + x) as usize) = c;
                     }
                 }
             }

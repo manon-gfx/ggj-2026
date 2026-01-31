@@ -13,6 +13,8 @@ const MOVEMENT_ACCELERATION: f32 = 1500.0;
 const MOVEMENT_SPEED_X: f32 = 100.0;
 const FRICTION: f32 = 1500.0;
 
+const DEBUG_MASKS: bool = true;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(usize)]
 pub enum Key {
@@ -66,6 +68,8 @@ struct TileSet {
     tiles: Vec<Bitmap>,
     tile_colors: Vec<bitmap::ColorChannel>,
     tile_types: Vec<TileFlags>,
+    aura: Bitmap,
+    aura_low: Bitmap,
 }
 
 struct TileMap {
@@ -147,6 +151,11 @@ bitflags! {
     struct TileFlags: u32 {
         const COLLISION = 0x1;
         const SPIKE = 0x2;
+
+        const RED = 0x4;
+        const GREEN = 0x8;
+        const BLUE = 0x10;
+        const WHITE = Self::RED.bits() | Self::GREEN.bits() | Self::BLUE.bits();
     }
 }
 
@@ -210,7 +219,7 @@ impl TileMap {
         tile_set: &TileSet,
         target: &mut Bitmap,
         camera: Vec2,
-        color_mask: &crate::bitmap::ColorChannel,
+        color_mask: crate::bitmap::ColorChannel,
     ) {
         let screen_size = vec2(target.width as f32, target.height as f32);
         let bounds = Aabb {
@@ -241,26 +250,39 @@ impl TileMap {
                 let sy = y as i32 * self.tile_size as i32;
 
                 let tile_index = self.tiles[(ty * self.width + tx) as usize];
-                if tile_index != 0 {
-                    // leave white tiles white
-                    let tile = &tile_set.tiles[(tile_index - 1) as usize];
-                    let color = &tile_set.tile_colors[(tile_index - 1) as usize];
-                    let color_mask_rgb = color_mask & 0xffffff;
-                    let color_rgb = color & 0xffffff;
-
-                    let is_white_tile = (tile_index == 1) | (tile_index == 8);
-                    let mut color_mask = color_mask;
-                    if is_white_tile {
-                        color_mask = &bitmap::WHITE;
-                    }
-
-                    tile.draw_tile(
-                        target,
-                        sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
-                        sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
-                        !is_white_tile && (color_rgb & color_mask_rgb == 0),
-                    );
+                // skip empty space
+                if tile_index == 0 {
+                    continue;
                 }
+
+                // leave white tiles white
+                let tile = &tile_set.tiles[(tile_index - 1) as usize];
+                let color = &tile_set.tile_colors[(tile_index - 1) as usize];
+                let tile_type = &tile_set.tile_types[(tile_index - 1) as usize];
+
+                let is_colored = tile_type.intersects(TileFlags::WHITE);
+                let skip = if is_colored {
+                    // only draw if color matches mask
+                    let masked_color = (color & color_mask) & 0xffffff;
+                    masked_color == 0
+                } else {
+                    false
+                };
+
+                if skip {
+                    // skip if not wearing the correct mask
+                    continue;
+                }
+
+                tile.draw_tile(
+                    target,
+                    sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
+                    sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
+                    is_colored,
+                    color_mask,
+                    &tile_set.aura_low,
+                    &tile_set.aura,
+                );
             }
         }
     }
@@ -534,9 +556,9 @@ impl Game {
         ];
         let tile_types = vec![
             TileFlags::COLLISION,
-            TileFlags::COLLISION,
-            TileFlags::COLLISION,
-            TileFlags::COLLISION,
+            TileFlags::COLLISION | TileFlags::RED,
+            TileFlags::COLLISION | TileFlags::BLUE,
+            TileFlags::COLLISION | TileFlags::GREEN,
             TileFlags::COLLISION,
             TileFlags::COLLISION,
             TileFlags::COLLISION,
@@ -557,10 +579,42 @@ impl Game {
 
         let tiles = build_frame_list(&tile_sheet, &coords, (8, 8));
 
+        let mut aura_low = Bitmap::new(16, 16);
+        for y in 0..aura_low.height {
+            let v = y as f32 / aura_low.height as f32;
+            for x in 0..aura_low.width {
+                let u = x as f32 / aura_low.height as f32;
+                let uv = vec2(u, v);
+                let p = uv * 2.0 - 1.0;
+                let brightness = (1.0 - (p.length_squared() * 1.2)).clamp(0.0, 1.0);
+                // let brightness = (brightness * 8.0) as u32;
+                aura_low.plot(x as i32, y as i32, (brightness * 384.0) as u32 | 0xff000000);
+            }
+        }
+        let mut aura = Bitmap::new(256, 256);
+        aura_low.draw_on_scaled(&mut aura, 0, 0, 16.0, 16.0);
+
+        let mut aura_low = Bitmap::new(16, 16);
+        for y in 0..aura_low.height {
+            let v = y as f32 / aura_low.height as f32;
+            for x in 0..aura_low.width {
+                let u = x as f32 / aura_low.height as f32;
+                let uv = vec2(u, v);
+                let p = uv * 2.0 - 1.0;
+                let brightness = (1.0 - (p.length_squared() * 5.0)).clamp(0.0, 1.0);
+                aura_low.plot(x as i32, y as i32, (brightness * 150.0) as u32 | 0xff000000);
+            }
+        }
+
+        let mut aura2 = Bitmap::new(256, 256);
+        aura_low.draw_on_scaled(&mut aura2, 0, 0, 16.0, 16.0);
+
         let tile_set = TileSet {
             tiles,
             tile_types,
             tile_colors,
+            aura,
+            aura_low: aura2,
         };
 
         let tile_map = TileMap {
@@ -791,9 +845,9 @@ impl Game {
             screen,
             self.camera,
             if self.editor_mode {
-                &0xffffffff
+                0xffffffff
             } else {
-                &self.color_mask
+                self.color_mask
             },
         );
 
@@ -885,37 +939,51 @@ impl Game {
                 self.player.is_jumping = false;
             }
 
-            // Current situ: activating a new mask disables old mask
-            // If you toggle the same mask again, you take it off
-            if self.input_state.is_key_released(Key::R) {
-                if let Some(red_mask) = self
-                    .player_inventory
-                    .masks
-                    .iter()
-                    .find(|&x| x.activation_key == Key::R)
-                {
-                    self.set_color_mask(red_mask.color);
-                };
-            }
-            if self.input_state.is_key_released(Key::G) {
-                if let Some(green_mask) = self
-                    .player_inventory
-                    .masks
-                    .iter()
-                    .find(|&x| x.activation_key == Key::G)
-                {
-                    self.set_color_mask(green_mask.color);
-                };
-            }
-            if self.input_state.is_key_released(Key::B) {
-                if let Some(blue_mask) = self
-                    .player_inventory
-                    .masks
-                    .iter()
-                    .find(|&x| x.activation_key == Key::B)
-                {
-                    self.set_color_mask(blue_mask.color);
-                };
+            if DEBUG_MASKS {
+                if self.input_state.is_key_released(Key::R) {
+                    self.toggle_color_mask(0xff0000);
+                }
+                if self.input_state.is_key_released(Key::G) {
+                    self.toggle_color_mask(0x00ff00);
+                }
+                if self.input_state.is_key_released(Key::B) {
+                    self.toggle_color_mask(0x0000ff);
+                }
+            } else {
+                // Current situ: activating a new mask disables old mask (can't wear two masks)
+                if self.input_state.is_key_released(Key::R) {
+                    if let Some(red_mask) = self
+                        .player_inventory
+                        .masks
+                        .iter()
+                        .find(|&x| x.activation_key == Key::R)
+                    {
+                        // self.toggle_color_mask(red_mask.color);
+                        self.set_color_mask(red_mask.color);
+                    };
+                }
+                if self.input_state.is_key_released(Key::G) {
+                    if let Some(green_mask) = self
+                        .player_inventory
+                        .masks
+                        .iter()
+                        .find(|&x| x.activation_key == Key::G)
+                    {
+                        // self.toggle_color_mask(green_mask.color);
+                        self.set_color_mask(green_mask.color);
+                    };
+                }
+                if self.input_state.is_key_released(Key::B) {
+                    if let Some(blue_mask) = self
+                        .player_inventory
+                        .masks
+                        .iter()
+                        .find(|&x| x.activation_key == Key::B)
+                    {
+                        // self.toggle_color_mask(blue_mask.color);
+                        self.set_color_mask(blue_mask.color);
+                    };
+                }
             }
 
             self.player.velocity.y += GRAVITY * delta_time;
