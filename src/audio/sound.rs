@@ -29,34 +29,34 @@ impl Music {
             wave: triangle_wave,
             length: 8 * MusicSettings::BAR_LENGTH,
             melody: &[
-                D4, D4, D4, A3, C4, C4, C4, A3, G3, G3, G3, F3, A3, A3, A3, REST, D4, D4, D4, A3, C4, C4,
-                C4, A3, G3, G3, G3, F3, D3, D3, D3, REST,
-            ],
-            volume: 0.5,
-        };
-        
-        let contramelody_track= Track {
-            wave: sine_wave,
-            length: 8 * MusicSettings::BAR_LENGTH,
-            melody: &[
-                A4, A4, A4, F4, G4, G4, G4, D4, F4, F4, F4, CS4, E4, E4, E4, REST, A4, A4, A4, F4, G4, G4,
-                G4, D4, F4, F4, F4, G4, A4, A4, A4, REST,
+                D4, D4, D4, A3, C4, C4, C4, A3, G3, G3, G3, F3, A3, A3, A3, REST, D4, D4, D4, A3,
+                C4, C4, C4, A3, G3, G3, G3, F3, D3, D3, D3, REST,
             ],
             volume: 0.5,
         };
 
-        let bass_track= Track {
+        let contramelody_track = Track {
+            wave: sine_wave,
+            length: 8 * MusicSettings::BAR_LENGTH,
+            melody: &[
+                A4, A4, A4, F4, G4, G4, G4, D4, F4, F4, F4, CS4, E4, E4, E4, REST, A4, A4, A4, F4,
+                G4, G4, G4, D4, F4, F4, F4, G4, A4, A4, A4, REST,
+            ],
+            volume: 0.5,
+        };
+
+        let bass_track = Track {
             wave: square_wave,
             length: 8 * MusicSettings::BAR_LENGTH,
             melody: &[
-                REST, REST, D2, D2, REST, D2, D2, REST, D2, D2, REST, REST, REST, REST, REST, REST, REST,
-                REST, E2, E2, REST, E2, E2, REST, E2, E2, REST, REST, REST, REST, REST, REST, REST, REST,
-                G2, G2, REST, G2, G2, REST, G2, G2, REST, REST, REST, REST, REST, REST, REST, REST, A2, A2,
-                REST, A2, A2, REST, A2, A2, REST, REST, G2, G2, G2, REST, REST, REST, D2, D2, REST, D2, D2,
-                REST, D2, D2, REST, REST, REST, REST, REST, REST, REST, REST, E2, E2, REST, E2, E2, REST,
-                E2, E2, REST, REST, REST, REST, REST, REST, REST, REST, G2, G2, REST, G2, G2, REST, G2, G2,
-                REST, REST, CS2, CS2, CS2, REST, D2, D2, REST, D2, D2, REST, D2, D2, D2, REST, REST, REST,
-                REST, REST, REST, REST,
+                REST, REST, D2, D2, REST, D2, D2, REST, D2, D2, REST, REST, REST, REST, REST, REST,
+                REST, REST, E2, E2, REST, E2, E2, REST, E2, E2, REST, REST, REST, REST, REST, REST,
+                REST, REST, G2, G2, REST, G2, G2, REST, G2, G2, REST, REST, REST, REST, REST, REST,
+                REST, REST, A2, A2, REST, A2, A2, REST, A2, A2, REST, REST, G2, G2, G2, REST, REST,
+                REST, D2, D2, REST, D2, D2, REST, D2, D2, REST, REST, REST, REST, REST, REST, REST,
+                REST, E2, E2, REST, E2, E2, REST, E2, E2, REST, REST, REST, REST, REST, REST, REST,
+                REST, G2, G2, REST, G2, G2, REST, G2, G2, REST, REST, CS2, CS2, CS2, REST, D2, D2,
+                REST, D2, D2, REST, D2, D2, D2, REST, REST, REST, REST, REST, REST, REST,
             ],
             volume: 0.25,
         };
@@ -65,28 +65,36 @@ impl Music {
             wave: triangle_wave,
             length: 4 * MusicSettings::BAR_LENGTH,
             melody: &[
-                REST, REST, D5, REST, D5, REST, C5, A4, REST, REST, REST, REST, REST, REST, REST, REST,
-                REST, REST, A4, REST, A4, REST, C5, D5, REST, REST, REST, REST, REST, REST, REST, REST,
-                REST, REST, D5, REST, D5, REST, F5, D5, REST, REST, REST, REST, REST, REST, REST, REST,
-                REST, REST, C5, REST, C5, REST, B4, A4, REST, REST, REST, REST, REST, REST, REST, REST,
+                REST, REST, D5, REST, D5, REST, C5, A4, REST, REST, REST, REST, REST, REST, REST,
+                REST, REST, REST, A4, REST, A4, REST, C5, D5, REST, REST, REST, REST, REST, REST,
+                REST, REST, REST, REST, D5, REST, D5, REST, F5, D5, REST, REST, REST, REST, REST,
+                REST, REST, REST, REST, REST, C5, REST, C5, REST, B4, A4, REST, REST, REST, REST,
+                REST, REST, REST, REST,
             ],
             volume: 0.5,
         };
 
-        let snare_track= Track {
+        let snare_track = Track {
             wave: white_noise,
             length: 4 * MusicSettings::BAR_LENGTH,
             melody: &[
-                REST, REST, REST, REST, C3, REST, REST, REST, REST, REST, REST, REST, C3, REST, REST, REST,
-                REST, REST, REST, REST, C3, REST, REST, REST, REST, REST, REST, REST, C3, REST, REST, REST,
-                REST, REST, REST, REST, C3, REST, REST, REST, REST, REST, REST, REST, C3, REST, REST, REST,
-                REST, REST, REST, REST, C3, REST, REST, REST, REST, REST, C3, REST, C3, REST, REST, REST,
+                REST, REST, REST, REST, C3, REST, REST, REST, REST, REST, REST, REST, C3, REST,
+                REST, REST, REST, REST, REST, REST, C3, REST, REST, REST, REST, REST, REST, REST,
+                C3, REST, REST, REST, REST, REST, REST, REST, C3, REST, REST, REST, REST, REST,
+                REST, REST, C3, REST, REST, REST, REST, REST, REST, REST, C3, REST, REST, REST,
+                REST, REST, C3, REST, C3, REST, REST, REST,
             ],
             volume: 0.5,
         };
 
         Self {
-            tracks: vec![bass_track, melody_track, contramelody_track, accent_track, snare_track],
+            tracks: vec![
+                bass_track,
+                melody_track,
+                contramelody_track,
+                accent_track,
+                snare_track,
+            ],
             track_mask: vec![false, false, false, false, false],
         }
     }
@@ -106,7 +114,8 @@ pub fn signal(t: f64, music: &mut Music) -> f64 {
     for (track, play_track) in music.tracks.iter().zip(music.track_mask.iter()) {
         if *play_track {
             let beat_in_track = beat_in_loop % track.length as f64;
-            let idx_in_track = (beat_in_track as f64 / track.length as f64 * track.melody.len() as f64)
+            let idx_in_track = (beat_in_track as f64 / track.length as f64
+                * track.melody.len() as f64)
                 .floor() as usize;
             let note = track.melody[idx_in_track];
             if note != REST {

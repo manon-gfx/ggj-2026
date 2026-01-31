@@ -36,7 +36,7 @@ impl BitmapData {
             Self::Owned(vec) => vec.as_mut_ptr(),
             Self::Pointer(ptr, _) => *ptr,
         }
-    } 
+    }
 }
 
 pub fn blend(a: u32, b: u32, alpha: u32) -> u32 {
@@ -167,7 +167,7 @@ impl Bitmap {
         self.pixels_mut().fill(color);
     }
 
-        pub fn draw_on_scaled(&self, target: &mut Self, x: i32, y: i32, scale_x: f32, scale_y: f32) {
+    pub fn draw_on_scaled(&self, target: &mut Self, x: i32, y: i32, scale_x: f32, scale_y: f32) {
         if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
             return;
         }
