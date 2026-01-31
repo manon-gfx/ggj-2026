@@ -30,37 +30,13 @@ const TRACK2: Track = Track {
     wave: square_wave,
     length: 8,
     melody: &[
-        REST, REST, D2, D2,
-        REST, D2, D2, REST,
-        D2, D2, REST, REST,
-        REST, REST, REST, REST,
-        REST, REST, E2, E2,
-        REST, E2, E2, REST,
-        E2, E2, REST, REST,
-        REST, REST, REST, REST,
-        REST, REST, G2, G2,
-        REST, G2, G2, REST,
-        G2, G2, REST, REST,
-        REST, REST, REST, REST,
-        REST, REST, A2, A2,
-        REST, A2, A2, REST,
-        A2, A2, REST, REST,
-        G2, G2, G2, REST,
-        REST, REST, D2, D2,
-        REST, D2, D2, REST,
-        D2, D2, REST, REST,
-        REST, REST, REST, REST,
-        REST, REST, E2, E2,
-        REST, E2, E2, REST,
-        E2, E2, REST, REST,
-        REST, REST, REST, REST,
-        REST, REST, G2, G2,
-        REST, G2, G2, REST,
-        G2, G2, REST, REST,
-        CS2, CS2, CS2, REST,
-        D2, D2, REST, D2,
-        D2, REST, D2, D2,
-        D2, REST, REST, REST,
+        REST, REST, D2, D2, REST, D2, D2, REST, D2, D2, REST, REST, REST, REST, REST, REST, REST,
+        REST, E2, E2, REST, E2, E2, REST, E2, E2, REST, REST, REST, REST, REST, REST, REST, REST,
+        G2, G2, REST, G2, G2, REST, G2, G2, REST, REST, REST, REST, REST, REST, REST, REST, A2, A2,
+        REST, A2, A2, REST, A2, A2, REST, REST, G2, G2, G2, REST, REST, REST, D2, D2, REST, D2, D2,
+        REST, D2, D2, REST, REST, REST, REST, REST, REST, REST, REST, E2, E2, REST, E2, E2, REST,
+        E2, E2, REST, REST, REST, REST, REST, REST, REST, REST, G2, G2, REST, G2, G2, REST, G2, G2,
+        REST, REST, CS2, CS2, CS2, REST, D2, D2, REST, D2, D2, REST, D2, D2, D2, REST, REST, REST,
         REST, REST, REST, REST,
     ],
 };
@@ -68,16 +44,23 @@ const TRACK2: Track = Track {
 pub fn signal(t: f64) -> f64 {
     let mut signal = 0.0;
 
-    let beat_in_game= (t * MusicSettings::TEMPO); // total beats since start of game
-    let beat_in_loop = beat_in_game % (MusicSettings::BAR_LENGTH * MusicSettings::LOOP_LENGTH) as f64; // current beat in the loop
+    let beat_in_game = (t * MusicSettings::TEMPO); // total beats since start of game
+    let beat_in_loop =
+        beat_in_game % (MusicSettings::BAR_LENGTH * MusicSettings::LOOP_LENGTH) as f64; // current beat in the loop
 
     let beat_in_track = beat_in_loop / (MusicSettings::LOOP_LENGTH / TRACK1.length) as f64;
-    let idx_in_track = (beat_in_track * (TRACK1.melody.len() / (TRACK1.length * MusicSettings::BAR_LENGTH)) as f64) as usize % TRACK1.melody.len();
+    let idx_in_track = (beat_in_track
+        * (TRACK1.melody.len() / (TRACK1.length * MusicSettings::BAR_LENGTH)) as f64)
+        as usize
+        % TRACK1.melody.len();
     let note = TRACK1.melody[idx_in_track];
     signal += 1.0 * (TRACK1.wave)(t, note);
 
     let beat_in_track = beat_in_loop / (MusicSettings::LOOP_LENGTH / TRACK1.length) as f64;
-    let idx_in_track = (beat_in_track * (TRACK2.melody.len() / (TRACK2.length * MusicSettings::BAR_LENGTH)) as f64) as usize % TRACK2.melody.len();
+    let idx_in_track = (beat_in_track
+        * (TRACK2.melody.len() / (TRACK2.length * MusicSettings::BAR_LENGTH)) as f64)
+        as usize
+        % TRACK2.melody.len();
     let note = TRACK2.melody[idx_in_track];
     signal += 0.5 * (TRACK2.wave)(t, note);
 
