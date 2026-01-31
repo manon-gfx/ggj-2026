@@ -593,6 +593,10 @@ impl Game {
 
         screen.clear(0);
 
+        if !self.editor_mode {
+            self.camera = self.player.position - vec2(132.0, 128.0);
+        }
+
         self.tile_map.draw(
             &self.tile_set,
             screen,
@@ -849,10 +853,11 @@ impl Game {
         // Loop over masks
         for mask in self.mask_game_objects.iter_mut() {
             if mask.visible {
+                let pos = world_space_to_screen_space(mask.position, self.camera);
                 mask.sprite_scene.draw_on(
                     screen,
-                    mask.position.x as i32,
-                    mask.position.y as i32,
+                    pos.x as i32,
+                    pos.y as i32,
                     crate::bitmap::WHITE,
                 );
 
