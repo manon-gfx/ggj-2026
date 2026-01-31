@@ -753,7 +753,13 @@ impl Game {
     }
 
     pub fn set_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
-        self.color_mask = color_channel;
+        // if its a new mask, set new mask
+        if (self.color_mask != color_channel) {
+            self.color_mask = color_channel;
+        } else {
+            // else wear no mask
+            self.color_mask = bitmap::BLACK;
+        }
     }
 
     pub fn toggle_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
@@ -880,7 +886,8 @@ impl Game {
                 self.player.is_jumping = false;
             }
 
-            // Current situ: activating a new mask disables old mask (can't wear two masks)
+            // Current situ: activating a new mask disables old mask
+            // If you toggle the same mask again, you take it off
             if self.input_state.is_key_released(Key::R) {
                 if let Some(red_mask) = self
                     .player_inventory
@@ -888,7 +895,6 @@ impl Game {
                     .iter()
                     .find(|&x| x.activation_key == Key::R)
                 {
-                    // self.toggle_color_mask(red_mask.color);
                     self.set_color_mask(red_mask.color);
                 };
             }
@@ -899,7 +905,6 @@ impl Game {
                     .iter()
                     .find(|&x| x.activation_key == Key::G)
                 {
-                    // self.toggle_color_mask(green_mask.color);
                     self.set_color_mask(green_mask.color);
                 };
             }
@@ -910,7 +915,6 @@ impl Game {
                     .iter()
                     .find(|&x| x.activation_key == Key::B)
                 {
-                    // self.toggle_color_mask(blue_mask.color);
                     self.set_color_mask(blue_mask.color);
                 };
             }
