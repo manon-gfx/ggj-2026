@@ -55,10 +55,10 @@ impl Aabb {
         (self.min + self.max) * 0.5
     }
     fn overlaps(&self, other: &Aabb) -> bool {
-        self.min.x >= other.max.x
-            && self.max.x < other.min.x
-            && self.min.y >= other.max.y
-            && self.max.y < other.min.y
+        self.min.x <= other.max.x
+            && self.max.x > other.min.x
+            && self.min.y <= other.max.y
+            && self.max.y > other.min.y
     }
 }
 
@@ -82,6 +82,14 @@ struct MaskObject {
     color: crate::bitmap::ColorChannel,
     sprite: Bitmap,
     visible: bool,
+}
+impl MaskObject {
+    fn aabb_world_space(&self) -> Aabb {
+        Aabb {
+            min: self.aabb.min + self.position,
+            max: self.aabb.max + self.position,
+        }
+    }
 }
 
 impl TileMap {
@@ -315,11 +323,8 @@ impl Game {
         let white_mask = MaskObject {
             position: white_mask_pos,
             aabb: Aabb {
-                min: white_mask_pos,
-                max: vec2(
-                    white_mask_pos.x + white_mask_sprite_width,
-                    white_mask_pos.y + white_mask_sprite_height,
-                ),
+                min: Vec2::ZERO,
+                max: vec2(white_mask_sprite_width, white_mask_sprite_height),
             },
             color: crate::bitmap::WHITE,
             sprite: white_mask_sprite,
@@ -569,7 +574,10 @@ impl Game {
                 );
 
                 // Add to collection
-                if mask.aabb.overlaps(&self.player.aabb) {
+                if mask
+                    .aabb_world_space()
+                    .overlaps(&self.player.aabb_world_space())
+                {
                     self.player_inventory.push(mask.clone());
                     mask.visible = false;
                 }
