@@ -3,6 +3,7 @@ pub mod sprite;
 pub mod tilemap;
 
 use crate::audio::Audio;
+use crate::audio::sound::SoundTypes;
 use crate::bitmap::{self, Bitmap, Font};
 use crate::game::sprite::Sprite;
 use editor::EditorState;
@@ -259,6 +260,8 @@ pub struct Game {
 
     player: Player,
     player_inventory: PlayerInventory,
+    is_player_walking: bool,
+    was_player_walking: bool,
     time: f32,
 
     death_sequence_is_playing: bool,
@@ -569,6 +572,8 @@ impl Game {
                 bag_sprite: bag_sprite,
                 masks: Vec::new(),
             },
+            is_player_walking: false,
+            was_player_walking: false,
             time: 0.0,
 
             death_sequence_duration: 1.5,
@@ -642,13 +647,7 @@ impl Game {
     }
 
     pub fn set_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
-        // if its a new mask, set new mask
-        if (self.color_mask != color_channel) {
-            self.color_mask = color_channel;
-        } else {
-            // else wear no mask
-            self.color_mask = bitmap::BLACK;
-        }
+        self.color_mask = color_channel;
     }
 
     pub fn toggle_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
@@ -788,6 +787,13 @@ impl Game {
                 if !self.death_sequence_is_playing {
                     self.player.velocity.y = -2.0 * JUMP_IMPULSE;
                     self.death_sequence_is_playing = true;
+
+                    if let Some(audio) = &self.audio {
+                        audio
+                            .sfx_sender
+                            .send((SoundTypes::DeathSound, true))
+                            .unwrap();
+                    }
                 }
                 self.death_sequence_duration -= delta_time;
                 screen.draw_str(&self.font, "U DIED :(", 100, 50, bitmap::RED);
@@ -805,14 +811,24 @@ impl Game {
 
         // Some things we only need to do if we aren't dead
         if !self.editor_mode {
+            self.is_player_walking = false;
+
             // do game things here
             if self.input_state.is_key_down(Key::Left) {
                 self.player.velocity.x = self.player.velocity.x.min(0.0);
                 self.player.velocity.x -= MOVEMENT_ACCELERATION * delta_time;
+
+                if self.player.on_ground {
+                    self.is_player_walking = true;
+                }
             }
             if self.input_state.is_key_down(Key::Right) {
                 self.player.velocity.x = self.player.velocity.x.max(0.0);
                 self.player.velocity.x += MOVEMENT_ACCELERATION * delta_time;
+
+                if self.player.on_ground {
+                    self.is_player_walking = true;
+                }
             }
 
             if !self.input_state.is_key_down(Key::Left) && !self.input_state.is_key_down(Key::Right)
@@ -824,6 +840,7 @@ impl Game {
                     self.player.velocity.x -= (-self.player.velocity.x).min(-FRICTION * delta_time);
                 }
             }
+
             self.player.velocity.x = self
                 .player
                 .velocity
@@ -833,6 +850,13 @@ impl Game {
             if self.input_state.is_key_pressed(Key::A) && self.player.on_ground {
                 self.player.velocity.y = -JUMP_IMPULSE;
                 self.player.is_jumping = true;
+
+                if let Some(audio) = &self.audio {
+                    audio
+                        .sfx_sender
+                        .send((SoundTypes::JumpSound, true))
+                        .unwrap();
+                }
             }
             if self.input_state.is_key_down(Key::A) {
                 if self.player.is_jumping {
@@ -1083,6 +1107,26 @@ impl Game {
                 self.player.on_ground = tile_collision_below;
             }
             self.player.tick(delta_time);
+
+            if self.is_player_walking && !self.was_player_walking {
+                // send signal to start playing walking sound
+                if let Some(audio) = &self.audio {
+                    audio
+                        .sfx_sender
+                        .send((SoundTypes::FootstepSound, true))
+                        .unwrap();
+                }
+            } else if self.was_player_walking && !self.is_player_walking {
+                // send signal to stop playing walking sound
+                if let Some(audio) = &self.audio {
+                    audio
+                        .sfx_sender
+                        .send((SoundTypes::FootstepSound, false))
+                        .unwrap();
+                }
+            }
+
+            self.was_player_walking = self.is_player_walking;
         }
 
         self.player.draw(screen, self.camera);
