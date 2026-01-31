@@ -170,6 +170,15 @@ pub fn play_music(t: f64, music: &mut Music) -> f64 {
     if beat_in_game > 32. {
         music.track_mask[4] = true;
     }
+    if beat_in_game > 64. {
+        music.track_mask[1] = true;
+    }
+    if beat_in_game > 96. {
+        music.track_mask[2] = true;
+    }
+    if beat_in_game > 128. {
+        music.track_mask[3] = true;
+    }
 
     for (track, play_track) in music.tracks.iter().zip(music.track_mask.iter()) {
         if *play_track {

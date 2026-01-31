@@ -126,7 +126,7 @@ impl Audio {
         let mut max_value: f32 = 0.0;
 
         let mut music = sound::Music::new();
-        music.track_mask[0] = false;
+        music.track_mask[0] = true;
 
         let mut soundeffects = sound::SoundEffects::new();
         let mut start_jump_sound: bool = false;
