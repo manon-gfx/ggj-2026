@@ -123,6 +123,7 @@ struct MaskObject {
     color: crate::bitmap::ColorChannel,
     sprite_scene: Bitmap,
     sprite_inventory: Bitmap,
+    sprite_inventory_activated: Bitmap,
     visible: bool,
     activation_key: Key,
 }
@@ -433,6 +434,9 @@ impl Game {
             color: crate::bitmap::RED,
             sprite_scene: Bitmap::load("assets/sprites/red_mask_in_scene.png"),
             sprite_inventory: Bitmap::load("assets/sprites/red_mask_in_bag.png"),
+            sprite_inventory_activated: Bitmap::load(
+                "assets/sprites/red_mask_in_bag_activated.png",
+            ),
             visible: true,
             activation_key: Key::R,
         };
@@ -446,6 +450,9 @@ impl Game {
             color: crate::bitmap::GREEN,
             sprite_scene: Bitmap::load("assets/sprites/green_mask_in_scene.png"),
             sprite_inventory: Bitmap::load("assets/sprites/green_mask_in_bag.png"),
+            sprite_inventory_activated: Bitmap::load(
+                "assets/sprites/green_mask_in_bag_activated.png",
+            ),
             visible: true,
             activation_key: Key::G,
         };
@@ -459,6 +466,9 @@ impl Game {
             color: crate::bitmap::BLUE,
             sprite_scene: Bitmap::load("assets/sprites/blue_mask_in_scene.png"),
             sprite_inventory: Bitmap::load("assets/sprites/blue_mask_in_bag.png"),
+            sprite_inventory_activated: Bitmap::load(
+                "assets/sprites/blue_mask_in_bag_activated.png",
+            ),
             visible: true,
             activation_key: Key::B,
         };
@@ -648,6 +658,7 @@ impl Game {
     }
 
     pub fn tick(&mut self, delta_time: f32, screen: &mut Bitmap) {
+        let delta_time = delta_time.min(1.0 / 30.0);
         self.time += delta_time;
 
         screen.clear(0);
@@ -698,12 +709,23 @@ impl Game {
                 self.player_inventory.position_on_screen.y as i32,
             );
             for i in 0..self.player_inventory.masks.len() {
-                self.player_inventory.masks[i].sprite_inventory.draw_on(
-                    screen,
-                    self.player_inventory.position_on_screen.x as i32
-                        + (i as i32 + 2) * self.player_inventory.tile_size,
-                    self.player_inventory.position_on_screen.y as i32,
-                );
+                if self.player_inventory.masks[i].color == self.color_mask {
+                    self.player_inventory.masks[i]
+                        .sprite_inventory_activated
+                        .draw_on(
+                            screen,
+                            self.player_inventory.position_on_screen.x as i32
+                                + (i as i32 + 2) * self.player_inventory.tile_size,
+                            self.player_inventory.position_on_screen.y as i32,
+                        );
+                } else {
+                    self.player_inventory.masks[i].sprite_inventory.draw_on(
+                        screen,
+                        self.player_inventory.position_on_screen.x as i32
+                            + (i as i32 + 2) * self.player_inventory.tile_size,
+                        self.player_inventory.position_on_screen.y as i32,
+                    );
+                }
             }
         }
 
