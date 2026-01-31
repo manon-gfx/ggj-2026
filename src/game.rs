@@ -327,16 +327,25 @@ impl Game {
             tile_indices.append(&mut row);
         }
 
-        let colors = [
-            0xffff0000, 0xff00ff00, 0xff0000ff, 0xffffff00, 0xffff00ff, 0xff00ffff,
+        let sprite_sheet = Bitmap::load("assets/level_tiles_8x8.png");
+        let coords = [
+            (32, 0),
+            (32, 32),
+            (32, 64),
+            (32, 96),
+            (32, 128),
+            (128, 0),
+            (128, 32),
+            (128, 64),
+            (128, 96),
+            (128, 128),
         ];
-
-        let tiles = colors
+        let tiles = coords
             .iter()
-            .map(|&color| {
-                let mut tile = Bitmap::new(8, 8);
-                tile.clear(color);
-                tile
+            .map(|(x, y)| {
+                let mut bmp = Bitmap::new(8, 8);
+                sprite_sheet.draw_on(&mut bmp, -x, -y, 0xffffffff);
+                bmp
             })
             .collect::<Vec<_>>();
 
