@@ -2,6 +2,7 @@ use crate::audio::Audio;
 use crate::bitmap::{Bitmap, Font};
 use glam::*;
 
+const GRAVITY: f32 = 400.0;
 const FALLING_SPEED: f32 = 800.0;
 const MOVEMENT_SPEED_X: f32 = 100.0;
 
@@ -50,9 +51,28 @@ struct Aabb {
 }
 
 impl Aabb {
-    fn on_overlap(&self, other: &Aabb) -> bool {
-        true
+    fn center(&self) -> Vec2 {
+        (self.min + self.max) * 0.5
     }
+    fn overlaps(&self, other: &Aabb) -> bool {
+        self.min.x >= other.max.x
+            && self.max.x < other.min.x
+            && self.min.y >= other.max.y
+            && self.max.y < other.min.y
+    }
+}
+
+fn draw_aabb(screen: &mut Bitmap, aabb: &Aabb, camera_pos: Vec2) {
+    let min = world_space_to_screen_space(aabb.min, camera_pos);
+    let max = world_space_to_screen_space(aabb.max, camera_pos);
+    screen.draw_rectangle(
+        min.x as i32,
+        min.y as i32,
+        max.x as i32,
+        max.y as i32,
+        false,
+        0x00ff00,
+    );
 }
 
 #[derive(Debug, Clone)]
@@ -65,6 +85,29 @@ struct MaskObject {
 }
 
 impl TileMap {
+    fn world_to_tile_index(&self, position: Vec2) -> IVec2 {
+        (position / self.tile_size as f32).as_ivec2()
+    }
+    fn tile_index_to_world_coord(&self, tile_index: IVec2) -> Vec2 {
+        (tile_index * self.tile_size as i32).as_vec2()
+    }
+    fn round_world_coord_to_tile(&self, position: Vec2) -> Vec2 {
+        (position / self.tile_size as f32).floor()
+    }
+
+    fn sample_world_pos(&self, position: Vec2) -> u32 {
+        let tile_pos = (position / self.tile_size as f32).as_ivec2();
+        if tile_pos.x < 0
+            || tile_pos.y < 0
+            || tile_pos.x >= self.width as i32
+            || tile_pos.y >= self.height as i32
+        {
+            0
+        } else {
+            self.tiles[(tile_pos.x + tile_pos.y * self.width as i32) as usize]
+        }
+    }
+
     fn draw(&self, tile_set: &TileSet, target: &mut Bitmap, camera: Vec2) {
         let screen_size = vec2(target.width as f32, target.height as f32);
         let bounds = Aabb {
@@ -130,6 +173,22 @@ impl Default for EditorState {
     }
 }
 
+#[derive(Debug)]
+struct Player {
+    position: Vec2,
+    velocity: Vec2,
+    aabb: Aabb,
+}
+
+impl Player {
+    fn aabb_world_space(&self) -> Aabb {
+        Aabb {
+            min: self.aabb.min + self.position,
+            max: self.aabb.max + self.position,
+        }
+    }
+}
+
 pub struct Game {
     audio: Option<Audio>,
     font: Font,
@@ -153,14 +212,10 @@ pub struct Game {
     mouse_x: f32,
     mouse_y: f32,
 
-    player_pos: Vec2,
-    player_speed: Vec2,
-    player_on_ground: bool,
-    player_aabb: Aabb,
-    player_inventory: Vec<MaskObject>,
-
     mask_game_objects: Vec<MaskObject>,
 
+    player: Player,
+    player_inventory: Vec<MaskObject>,
     time: f32,
 
     editor_mode: bool,
@@ -179,8 +234,8 @@ fn wang_hash(seed: u32) -> u32 {
 fn screen_to_world_space(pos_on_screen: Vec2, camera_pos: Vec2) -> Vec2 {
     pos_on_screen + camera_pos
 }
-fn world_space_to_screen_space(pos_on_screen: Vec2, camera_pos: Vec2) -> Vec2 {
-    pos_on_screen + camera_pos
+fn world_space_to_screen_space(pos_in_world: Vec2, camera_pos: Vec2) -> Vec2 {
+    pos_in_world + camera_pos
 }
 
 impl Game {
@@ -261,7 +316,10 @@ impl Game {
             position: white_mask_pos,
             aabb: Aabb {
                 min: white_mask_pos,
-                max: vec2(white_mask_pos.x + white_mask_sprite_width, white_mask_pos.y + white_mask_sprite_height),
+                max: vec2(
+                    white_mask_pos.x + white_mask_sprite_width,
+                    white_mask_pos.y + white_mask_sprite_height,
+                ),
             },
             color: crate::bitmap::WHITE,
             sprite: white_mask_sprite,
@@ -292,18 +350,18 @@ impl Game {
             mouse_x: 0.0,
             mouse_y: 0.0,
 
-            player_pos: player_start_pos,
-            player_speed: glam::vec2(0.0, 0.0),
-            player_on_ground: true,
-            player_aabb: Aabb {
-                min: vec2(0.0, 0.0),
-                max: vec2(sprite_width, sprite_height),
-            },
-            player_inventory: Vec::new(),
-
             // Add game objects
             mask_game_objects: vec![white_mask],
 
+            player: Player {
+                position: player_start_pos,
+                velocity: Vec2::ZERO,
+                aabb: Aabb {
+                    min: vec2(1.0, 2.0),
+                    max: vec2(15.0, 16.0),
+                },
+            },
+            player_inventory: Vec::new(),
 
             time: 0.0,
 
@@ -329,16 +387,6 @@ impl Game {
         self.key_pressed[key as usize] = true;
 
         match key {
-            Key::Up => {
-                if self.player_on_ground {
-                    self.player_speed.y = -0.5 * FALLING_SPEED
-                }
-            }
-            // Key::Down => self.player_y += 10,
-            Key::Left => self.player_speed.x -= MOVEMENT_SPEED_X,
-            Key::Right => self.player_speed.x += MOVEMENT_SPEED_X,
-            Key::A => {}
-            Key::B => {}
             Key::Space => self.editor_mode = !self.editor_mode,
             _ => {}
         }
@@ -364,6 +412,8 @@ impl Game {
         self.time += delta_time;
 
         screen.clear(0);
+
+        self.tile_map.draw(&self.tile_set, screen, self.camera);
 
         if self.editor_mode {
             if self.key_pressed[Key::S as usize] {
@@ -411,56 +461,102 @@ impl Game {
             }
 
             // Place masks
-
         } else {
             // do game things here
-        }
+            // let player_center = self.player.aabb_world_space().center();
+            let aabb_ws = self.player.aabb_world_space();
 
-        self.tile_map.draw(&self.tile_set, screen, self.camera);
+            let samples_positions_below = [
+                vec2(aabb_ws.min.x, aabb_ws.max.y + 1.0),
+                vec2(aabb_ws.center().x, aabb_ws.max.y + 1.0),
+                vec2(aabb_ws.max.x, aabb_ws.max.y + 1.0),
+            ];
+            let tiles_below = [
+                self.tile_map.sample_world_pos(samples_positions_below[0]),
+                self.tile_map.sample_world_pos(samples_positions_below[1]),
+                self.tile_map.sample_world_pos(samples_positions_below[2]),
+            ];
 
-        let pixel_lower_left = screen.load_pixel(
-            self.player_pos.x as i32,
-            self.player_pos.y as i32 + self.test_sprite.height as i32,
-        );
-        let pixel_lower_right = screen.load_pixel(
-            self.player_pos.x as i32 + self.test_sprite.width as i32,
-            self.player_pos.y as i32 + self.test_sprite.height as i32,
-        );
-        let pixel_upper_left =
-            screen.load_pixel(self.player_pos.x as i32, self.player_pos.y as i32);
-        let pixel_upper_right = screen.load_pixel(
-            self.player_pos.x as i32 + self.test_sprite.width as i32,
-            self.player_pos.y as i32,
-        );
-        let background = 0;
-        self.player_on_ground = true;
-        if pixel_lower_left == background || pixel_lower_right == background {
-            self.player_speed.y += FALLING_SPEED * delta_time;
-            self.player_on_ground = false;
-        } else {
-            // we are on ground
-            if self.player_speed.y > 0.0 {
-                self.player_speed.y = 0.0;
+            let samples_positions_above = [
+                vec2(aabb_ws.min.x, aabb_ws.min.y - 1.0),
+                vec2(aabb_ws.center().x, aabb_ws.min.y - 1.0),
+                vec2(aabb_ws.max.x, aabb_ws.min.y - 1.0),
+            ];
+            let tiles_above = [
+                self.tile_map.sample_world_pos(samples_positions_above[0]),
+                self.tile_map.sample_world_pos(samples_positions_above[1]),
+                self.tile_map.sample_world_pos(samples_positions_above[2]),
+            ];
+
+            let samples_positions_left = [
+                vec2(aabb_ws.min.x - 1.0, aabb_ws.min.y),
+                vec2(aabb_ws.min.x - 1.0, aabb_ws.center().y),
+                vec2(aabb_ws.min.x - 1.0, aabb_ws.max.y),
+            ];
+            let tiles_left = [
+                self.tile_map.sample_world_pos(samples_positions_left[0]),
+                self.tile_map.sample_world_pos(samples_positions_left[1]),
+                self.tile_map.sample_world_pos(samples_positions_left[2]),
+            ];
+
+            let samples_positions_right = [
+                vec2(aabb_ws.max.x + 1.0, aabb_ws.min.y),
+                vec2(aabb_ws.max.x + 1.0, aabb_ws.center().y),
+                vec2(aabb_ws.max.x + 1.0, aabb_ws.max.y),
+            ];
+            let tiles_right = [
+                self.tile_map.sample_world_pos(samples_positions_right[0]),
+                self.tile_map.sample_world_pos(samples_positions_right[1]),
+                self.tile_map.sample_world_pos(samples_positions_right[2]),
+            ];
+
+            let tile_below = tiles_below.iter().any(|a| *a != 0);
+            let tile_above = tiles_above.iter().any(|a| *a != 0);
+            let tile_left = tiles_left.iter().any(|a| *a != 0);
+            let tile_right = tiles_right.iter().any(|a| *a != 0);
+
+            self.player.velocity.x = 0.0;
+            if self.key_state[Key::Left as usize] {
+                self.player.velocity.x -= MOVEMENT_SPEED_X;
             }
+            if self.key_state[Key::Right as usize] {
+                self.player.velocity.x += MOVEMENT_SPEED_X;
+            }
+            if self.key_pressed[Key::A as usize] {
+                self.player.velocity.y = -100.0;
+            }
+
+            if tile_left {
+                self.player.velocity.x = self.player.velocity.x.max(0.0);
+            }
+            if tile_right {
+                self.player.velocity.x = self.player.velocity.x.min(0.0);
+            }
+            if tile_above {
+                self.player.velocity.y = self.player.velocity.y.max(0.0);
+            }
+            if !tile_below {
+                self.player.velocity.y += GRAVITY * delta_time;
+            } else {
+                self.player.velocity.y = self.player.velocity.y.min(0.0);
+            }
+
+            // self.player.velocity = self
+            //     .player
+            //     .velocity
+            //     .clamp(vec2(-500.0, -500.0), vec2(500.0, 500.0));
+
+            self.player.position += self.player.velocity * delta_time;
         }
 
-        self.player_pos.x += delta_time * self.player_speed.x;
-        if self.player_on_ground {
-            self.player_speed.x = 0.0; // auto stop if we are on ground
-        }
-        self.player_pos.y += delta_time * self.player_speed.y;
-
-        // Update player's aabb
-        self.player_aabb.min += self.player_pos;
-        self.player_aabb.max += self.player_pos;
-
-
-        self.test_sprite.draw_on(
-            screen,
-            self.player_pos.x as i32,
-            self.player_pos.y as i32,
-            self.color_mask,
-        );
+        // let player_rel_pos = world_space_to_screen_space(self.player.position, self.camera);
+        // self.test_sprite.draw_on(
+        //     screen,
+        //     player_rel_pos.x as i32,
+        //     player_rel_pos.y as i32,
+        //     self.color_mask,
+        // );
+        draw_aabb(screen, &self.player.aabb_world_space(), self.camera);
 
         // Loop over masks
         for mask in self.mask_game_objects.iter_mut() {
@@ -473,12 +569,12 @@ impl Game {
                 );
 
                 // Add to collection
-                if mask.aabb.on_overlap(&self.player_aabb) {
+                if mask.aabb.overlaps(&self.player.aabb) {
                     self.player_inventory.push(mask.clone());
                     mask.visible = false;
                 }
             }
-         }
+        }
 
         screen.draw_str(
             &self.font,
@@ -491,7 +587,7 @@ impl Game {
         screen.draw_str(
             &self.font,
             // &format!("player on ground: {}", self.player_on_ground),
-            &format!("player speed: {}", self.player_speed),
+            &format!("player speed: {}", self.player.velocity),
             10,
             30,
             0xffff00,

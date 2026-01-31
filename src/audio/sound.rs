@@ -25,11 +25,11 @@ pub fn triangle_wave(t: f64, freq: f64) -> f64 {
     let saw = 2. * sawtooth_wave(t, freq);
     if saw > 1. {
         2. - saw
-     } else if saw < -1. {
+    } else if saw < -1. {
         -2. - saw
-     } else {
+    } else {
         saw
-     }
+    }
 }
 
 pub fn square_wave(t: f64, freq: f64) -> f64 {
