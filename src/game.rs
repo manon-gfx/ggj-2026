@@ -629,7 +629,7 @@ impl Game {
 
             time: 0.0,
 
-            color_mask: crate::bitmap::WHITE,
+            color_mask: crate::bitmap::BLUE,
             editor_mode: false,
         }
     }
