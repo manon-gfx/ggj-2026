@@ -18,9 +18,9 @@ pub struct Track {
     pub volume: f64,
 }
 
-pub struct Sound{
+pub struct Sound {
     pub wave: WaveFn,
-    pub start: f64, // start time
+    pub start: f64,    // start time
     pub duration: f64, // duration in seconds
     pub melody: &'static [f64],
     pub volume: f64,
@@ -122,28 +122,31 @@ pub struct SoundEffects {
 
 impl SoundEffects {
     pub fn new() -> Self {
-        let footstep = Sound{
-            wave : white_noise,
-            start : 0.,
-            duration : 0.1,
-            melody : &[C3],
-            volume : 0.5,
+        let footstep = Sound {
+            wave: white_noise,
+            start: 0.,
+            duration: 0.1,
+            melody: &[C3],
+            volume: 0.5,
         };
 
-        let jump = Sound{
-            wave : sawtooth_wave,
-            start : 0.,
-            duration : 0.1,
-            melody : &[C4, E4, G4, C5],
-            volume : 0.5,
+        let jump = Sound {
+            wave: sawtooth_wave,
+            start: 0.,
+            duration: 0.1,
+            melody: &[C4, E4, G4, C5],
+            volume: 0.5,
         };
 
-        let death = Sound{
-            wave : white_noise,
-            start : 0.,
-            duration : 0.1,
-            melody : &[C3],
-            volume : 0.5,
+        let death = Sound {
+            wave: square_wave,
+            start: 0.,
+            duration: 8.,
+            melody: &[
+                D2, D2, REST, A1, A1, REST, C2, C2, REST, G1, G1, REST, GS1, GS1, REST, F1, F1,
+                REST, G1, G1, REST, REST, D1, REST, D1, D1, D1, D1, REST, REST, REST, REST,
+            ],
+            volume: 0.5,
         };
 
         Self {

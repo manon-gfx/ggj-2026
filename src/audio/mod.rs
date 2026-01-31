@@ -8,8 +8,10 @@ pub mod notes;
 pub mod sound;
 use sound::{play_music, play_sfx};
 
-use crate::audio::sound::{SoundEffects, sawtooth_wave, sine_wave, square_wave, triangle_wave, white_noise};
 use crate::audio::sound::SoundTypes;
+use crate::audio::sound::{
+    SoundEffects, sawtooth_wave, sine_wave, square_wave, triangle_wave, white_noise,
+};
 use crate::game::Key;
 
 #[derive(Clone)]
@@ -124,12 +126,15 @@ impl Audio {
         let mut max_value: f32 = 0.0;
 
         let mut music = sound::Music::new();
-        music.track_mask[0] = true;
+        music.track_mask[0] = false;
 
         let mut soundeffects = sound::SoundEffects::new();
         let mut start_jump_sound: bool = false;
+        let mut start_death_sound: bool = false;
         let mut play_jump_sound: bool = false;
+        let mut play_death_sound: bool = false;
         let mut t0_jump_sound: f64 = 0.0;
+        let mut t0_death_sound: f64 = 0.0;
 
         let stream = device
             .build_output_stream(
@@ -162,10 +167,12 @@ impl Audio {
                         match sfx_event {
                             SoundTypes::FootstepSound => println!("play footstep!"),
                             SoundTypes::JumpSound => {
-                                println!("play jump sound!");
                                 start_jump_sound = true;
                             }
-                            SoundTypes::DeathSound => println!("play death sound!"),
+                            SoundTypes::DeathSound => {
+                                println!("play death sound!");
+                                start_death_sound = true;
+                            }
                             _ => {}
                         }
                     }
@@ -198,14 +205,24 @@ impl Audio {
                             play_jump_sound = true;
                             t0_jump_sound = t;
                         }
-                        
+
                         if play_jump_sound {
                             value += 0.5 * play_sfx(t ,t0_jump_sound, &soundeffects.jump)
                         }
-                        
+
+                        if start_death_sound {
+                            start_death_sound = false;
+                            play_death_sound = true;
+                            t0_death_sound = t;
+                        }
+
+                        if play_death_sound {
+                            value += 0.5 * play_sfx(t ,t0_death_sound, &soundeffects.death)
+                        }
+
                         for (i, note_played ) in piano_notes.iter().enumerate(){
                             if *note_played {
-                               value += 0.5 * triangle_wave(t, 440. * 1.05946309436_f64.powi(i as i32 - 9));
+                               value += 0.5 * square_wave(t, 55. * 1.05946309436_f64.powi(i as i32 - 9));
                             }
                         }
 
