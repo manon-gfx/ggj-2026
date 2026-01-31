@@ -580,8 +580,16 @@ impl Game {
 
         screen.clear(0);
 
-        self.tile_map
-            .draw(&self.tile_set, screen, self.camera, self.color_mask);
+        self.tile_map.draw(
+            &self.tile_set,
+            screen,
+            self.camera,
+            if self.editor_mode {
+                0xffffffff
+            } else {
+                self.color_mask
+            },
+        );
 
         if self.editor_mode {
             if self.input_state.is_key_pressed(Key::S) {
