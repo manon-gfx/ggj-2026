@@ -3,6 +3,7 @@ pub mod sprite;
 use crate::audio::Audio;
 use crate::bitmap::{self, Bitmap, Font};
 use crate::game::sprite::Sprite;
+use bitflags::bitflags;
 use glam::*;
 
 const GRAVITY: f32 = 600.0;
@@ -64,6 +65,7 @@ pub enum MouseButton {
 struct TileSet {
     tiles: Vec<Bitmap>,
     tile_colors: Vec<bitmap::ColorChannel>,
+    tile_types: Vec<TileFlags>,
 }
 
 struct TileMap {
@@ -140,6 +142,14 @@ impl MaskObject {
     }
 }
 
+bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    struct TileFlags: u32 {
+        const COLLISION = 0x1;
+        const SPIKE = 0x2;
+    }
+}
+
 impl TileMap {
     fn world_to_tile_index(&self, position: Vec2) -> IVec2 {
         (position / self.tile_size as f32).as_ivec2()
@@ -177,6 +187,21 @@ impl TileMap {
             } else {
                 tile_index
             }
+        }
+    }
+
+    fn sample_tile_type_ws(
+        &self,
+        position: Vec2,
+        tile_flags: &Vec<TileFlags>,
+        tile_colors: &Vec<bitmap::ColorChannel>,
+        color_mask: &bitmap::ColorChannel,
+    ) -> TileFlags {
+        let tile_index = self.sample_world_pos(position, tile_colors, &color_mask);
+        if tile_index == 0 {
+            TileFlags::empty()
+        } else {
+            tile_flags[(tile_index - 1) as usize]
         }
     }
 
@@ -260,12 +285,14 @@ struct Player {
     idle_sprite: Sprite,
     walk_sprite: Sprite,
     jump_sprite: Sprite,
+    death_sprite: Sprite,
 
     position: Vec2,
     velocity: Vec2,
     aabb: Aabb,
     on_ground: bool,
     is_jumping: bool,
+    is_dead: bool,
 }
 
 impl Player {
@@ -278,14 +305,25 @@ impl Player {
 
     fn tick(&mut self, delta_time: f32) {
         self.walk_sprite.tick(delta_time);
-        self.jump_sprite.tick(delta_time);
+
+        if !self.on_ground {
+            self.jump_sprite.tick(delta_time);
+        } else {
+            self.jump_sprite.t = 0.0;
+        }
+
+        if self.is_dead {
+            self.death_sprite.tick(delta_time);
+        }
     }
 
     fn draw(&self, screen: &mut Bitmap, camera: Vec2) {
         let scale = vec2(if self.velocity.x < 0.0 { -1.0 } else { 1.0 }, 1.0);
-
         let screen_pos = world_space_to_screen_space(self.position, camera);
-        if !self.on_ground {
+
+        if self.is_dead {
+            self.death_sprite.draw(screen, screen_pos, scale);
+        } else if !self.on_ground {
             self.jump_sprite.draw(screen, screen_pos, scale);
         } else {
             if self.velocity.x.abs() < 0.001 {
@@ -487,10 +525,36 @@ impl Game {
             bitmap::ORANGE,
             bitmap::PURPLE,
         ];
+        let tile_types = vec![
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+        ];
 
         let tiles = build_frame_list(&tile_sheet, &coords, (8, 8));
 
-        let tile_set = TileSet { tiles, tile_colors };
+        let tile_set = TileSet {
+            tiles,
+            tile_types,
+            tile_colors,
+        };
 
         let tile_map = TileMap {
             tile_size: 8,
@@ -580,6 +644,12 @@ impl Game {
             t: 0.0,
             seconds_per_frame: 1.0 / 4.0,
         };
+        let death_sprite = Sprite {
+            frames: build_frame_list(&player_sprite_sheet, &[(0, 32)], (16, 16)),
+            frame_index: 0,
+            t: 0.0,
+            seconds_per_frame: 1.0 / 4.0,
+        };
 
         Self {
             // audio: Some(Audio::new()),
@@ -608,6 +678,7 @@ impl Game {
                 idle_sprite,
                 walk_sprite,
                 jump_sprite,
+                death_sprite,
                 position: player_start_pos,
                 velocity: Vec2::ZERO,
                 aabb: Aabb {
@@ -616,6 +687,7 @@ impl Game {
                 },
                 on_ground: false,
                 is_jumping: false,
+                is_dead: false,
             },
             player_inventory: PlayerInventory {
                 tile_size: 16,
@@ -626,7 +698,6 @@ impl Game {
                 bag_sprite: bag_sprite,
                 masks: Vec::new(),
             },
-
             time: 0.0,
 
             color_mask: crate::bitmap::BLUE,
@@ -854,18 +925,21 @@ impl Game {
                     vec2(aabb_ws.min.x, aabb_ws.max.y - 1.0),
                 ];
                 let tiles_left = [
-                    self.tile_map.sample_world_pos(
+                    self.tile_map.sample_tile_type_ws(
                         samples_positions_left[0],
+                        &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         &self.color_mask,
                     ),
-                    self.tile_map.sample_world_pos(
+                    self.tile_map.sample_tile_type_ws(
                         samples_positions_left[1],
+                        &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         &self.color_mask,
                     ),
-                    self.tile_map.sample_world_pos(
+                    self.tile_map.sample_tile_type_ws(
                         samples_positions_left[2],
+                        &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         &self.color_mask,
                     ),
@@ -877,26 +951,39 @@ impl Game {
                     vec2(aabb_ws.max.x, aabb_ws.max.y - 1.0),
                 ];
                 let tiles_right = [
-                    self.tile_map.sample_world_pos(
+                    self.tile_map.sample_tile_type_ws(
                         samples_positions_right[0],
+                        &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         &self.color_mask,
                     ),
-                    self.tile_map.sample_world_pos(
+                    self.tile_map.sample_tile_type_ws(
                         samples_positions_right[1],
+                        &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         &self.color_mask,
                     ),
-                    self.tile_map.sample_world_pos(
+                    self.tile_map.sample_tile_type_ws(
                         samples_positions_right[2],
+                        &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         &self.color_mask,
                     ),
                 ];
-                let tile_left = tiles_left.iter().any(|a| *a != 0);
-                let tile_right = tiles_right.iter().any(|a| *a != 0);
+                let tile_collision_left =
+                    tiles_left.iter().any(|a| a.contains(TileFlags::COLLISION));
+                let tile_collision_right =
+                    tiles_right.iter().any(|a| a.contains(TileFlags::COLLISION));
 
-                if tile_left {
+                if tiles_left
+                    .iter()
+                    .chain(tiles_right.iter())
+                    .any(|a| a.contains(TileFlags::SPIKE))
+                {
+                    self.player.is_dead = true;
+                }
+
+                if tile_collision_left {
                     self.player.velocity.x = self.player.velocity.x.max(0.0);
                     let tile_size = self.tile_map.tile_size as f32;
                     let limit =
@@ -904,7 +991,7 @@ impl Game {
                     let offset = -self.player.aabb.min.x;
                     self.player.position.x = self.player.position.x.max(offset + limit);
                 }
-                if tile_right {
+                if tile_collision_right {
                     self.player.velocity.x = self.player.velocity.x.min(0.0);
 
                     let tile_size = self.tile_map.tile_size as f32;
@@ -927,18 +1014,21 @@ impl Game {
                 ];
 
                 let tiles_below = [
-                    self.tile_map.sample_world_pos(
+                    self.tile_map.sample_tile_type_ws(
                         samples_positions_below[0],
+                        &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         &self.color_mask,
                     ),
-                    self.tile_map.sample_world_pos(
+                    self.tile_map.sample_tile_type_ws(
                         samples_positions_below[1],
+                        &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         &self.color_mask,
                     ),
-                    self.tile_map.sample_world_pos(
+                    self.tile_map.sample_tile_type_ws(
                         samples_positions_below[2],
+                        &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         &self.color_mask,
                     ),
@@ -950,27 +1040,40 @@ impl Game {
                     vec2(aabb_ws.max.x - 1.0, aabb_ws.min.y),
                 ];
                 let tiles_above = [
-                    self.tile_map.sample_world_pos(
+                    self.tile_map.sample_tile_type_ws(
                         samples_positions_above[0],
+                        &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         &self.color_mask,
                     ),
-                    self.tile_map.sample_world_pos(
+                    self.tile_map.sample_tile_type_ws(
                         samples_positions_above[1],
+                        &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         &self.color_mask,
                     ),
-                    self.tile_map.sample_world_pos(
+                    self.tile_map.sample_tile_type_ws(
                         samples_positions_above[2],
+                        &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         &self.color_mask,
                     ),
                 ];
 
-                let tile_below = tiles_below.iter().any(|a| *a != 0);
-                let tile_above = tiles_above.iter().any(|a| *a != 0);
+                let tile_collision_below =
+                    tiles_below.iter().any(|a| a.contains(TileFlags::COLLISION));
+                let tile_collision_above =
+                    tiles_above.iter().any(|a| a.contains(TileFlags::COLLISION));
 
-                if tile_above {
+                if tiles_above
+                    .iter()
+                    .chain(tiles_below.iter())
+                    .any(|a| a.contains(TileFlags::SPIKE))
+                {
+                    self.player.is_dead = true;
+                }
+
+                if tile_collision_above {
                     self.player.velocity.y = self.player.velocity.y.max(0.0);
 
                     let tile_size = self.tile_map.tile_size as f32;
@@ -981,7 +1084,7 @@ impl Game {
 
                     self.player.is_jumping = false;
                 }
-                if tile_below {
+                if tile_collision_below {
                     self.player.velocity.y = self.player.velocity.y.min(0.0);
 
                     let tile_size = self.tile_map.tile_size as f32;
@@ -994,17 +1097,11 @@ impl Game {
 
                     self.player.is_jumping = false;
                 }
-                self.player.on_ground = tile_below;
+                self.player.on_ground = tile_collision_below;
             }
             self.player.tick(delta_time);
         }
 
-        draw_aabb(
-            screen,
-            &self.player.aabb_world_space(),
-            self.camera,
-            0x00ff00,
-        );
         self.player.draw(screen, self.camera);
 
         // Loop over masks
@@ -1038,13 +1135,6 @@ impl Game {
             &format!("player position: {}", self.player.position),
             10,
             20,
-            0xffff00,
-        );
-        screen.draw_str(
-            &self.font,
-            &format!("player speed: {}", self.player.velocity),
-            10,
-            30,
             0xffff00,
         );
 
