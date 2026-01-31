@@ -391,11 +391,15 @@ fn main() {
         handle_key_events(minifb::Key::Left, game::Key::Left);
         handle_key_events(minifb::Key::Right, game::Key::Right);
         handle_key_events(minifb::Key::Z, game::Key::A);
-        handle_key_events(minifb::Key::X, game::Key::B);
         handle_key_events(minifb::Key::S, game::Key::S);
         handle_key_events(minifb::Key::Space, game::Key::Space);
         handle_key_events(minifb::Key::LeftBracket, game::Key::LeftBracket);
         handle_key_events(minifb::Key::RightBracket, game::Key::RightBracket);
+
+        // Toggle masks
+        handle_key_events(minifb::Key::R, game::Key::R);
+        handle_key_events(minifb::Key::G, game::Key::G);
+        handle_key_events(minifb::Key::B, game::Key::B);
 
         handle_key_events(minifb::Key::M, game::Key::M);
         handle_key_events(minifb::Key::A, game::Key::MusicC3);
@@ -405,7 +409,7 @@ fn main() {
         handle_key_events(minifb::Key::D, game::Key::MusicE3);
         handle_key_events(minifb::Key::F, game::Key::MusicF3);
         handle_key_events(minifb::Key::T, game::Key::MusicFs3);
-        handle_key_events(minifb::Key::G, game::Key::MusicG3);
+        // handle_key_events(minifb::Key::G, game::Key::MusicG3);
         handle_key_events(minifb::Key::Y, game::Key::MusicGs3);
         handle_key_events(minifb::Key::H, game::Key::MusicA3);
         handle_key_events(minifb::Key::U, game::Key::MusicAs3);

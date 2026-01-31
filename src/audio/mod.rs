@@ -140,7 +140,7 @@ impl Audio {
                             Key::MusicE3 => piano_notes[4] = down,
                             Key::MusicF3 => piano_notes[5] = down,
                             Key::MusicFs3 => piano_notes[6] = down,
-                            Key::MusicG3 => piano_notes[7] = down,
+                            Key::G => piano_notes[7] = down,
                             Key::MusicGs3 => piano_notes[8] = down,
                             Key::MusicA3 => piano_notes[9] = down,
                             Key::MusicAs3 => piano_notes[10] = down,
