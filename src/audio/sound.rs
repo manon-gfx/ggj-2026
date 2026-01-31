@@ -15,6 +15,11 @@ struct Track {
     pub wave: WaveFn,
     pub length: usize, // number of bars per track
     pub melody: &'static [f64],
+    pub volume: f64,
+}
+
+struct Music {
+    pub tracks: &'static [Track],
 }
 
 const TRACK1: Track = Track {
@@ -24,6 +29,7 @@ const TRACK1: Track = Track {
         D4, D4, D4, A3, C4, C4, C4, A3, G3, G3, G3, F3, A3, A3, A3, REST, D4, D4, D4, A3, C4, C4,
         C4, A3, G3, G3, G3, F3, D3, D3, D3, REST,
     ],
+    volume: 0.5,
 };
 
 const TRACK2: Track = Track {
@@ -39,6 +45,14 @@ const TRACK2: Track = Track {
         REST, REST, CS2, CS2, CS2, REST, D2, D2, REST, D2, D2, REST, D2, D2, D2, REST, REST, REST,
         REST, REST, REST, REST,
     ],
+    volume: 0.25,
+};
+
+const MUSIC: Music = Music{
+    tracks: &[
+        TRACK1,
+        TRACK2,
+    ]
 };
 
 pub fn signal(t: f64) -> f64 {
@@ -48,21 +62,15 @@ pub fn signal(t: f64) -> f64 {
     let beat_in_loop =
         beat_in_game % (MusicSettings::BAR_LENGTH * MusicSettings::LOOP_LENGTH) as f64; // current beat in the loop
 
-    let beat_in_track = beat_in_loop / (MusicSettings::LOOP_LENGTH / TRACK1.length) as f64;
-    let idx_in_track = (beat_in_track
-        * (TRACK1.melody.len() / (TRACK1.length * MusicSettings::BAR_LENGTH)) as f64)
-        as usize
-        % TRACK1.melody.len();
-    let note = TRACK1.melody[idx_in_track];
-    signal += 1.0 * (TRACK1.wave)(t, note);
-
-    let beat_in_track = beat_in_loop / (MusicSettings::LOOP_LENGTH / TRACK1.length) as f64;
-    let idx_in_track = (beat_in_track
-        * (TRACK2.melody.len() / (TRACK2.length * MusicSettings::BAR_LENGTH)) as f64)
-        as usize
-        % TRACK2.melody.len();
-    let note = TRACK2.melody[idx_in_track];
-    signal += 0.5 * (TRACK2.wave)(t, note);
+    for track in MUSIC.tracks {
+        let beat_in_track = beat_in_loop / (MusicSettings::LOOP_LENGTH / track.length) as f64;
+        let idx_in_track = (beat_in_track
+            * (track.melody.len() / (track.length * MusicSettings::BAR_LENGTH)) as f64)
+            as usize
+            % track.melody.len();
+        let note = track.melody[idx_in_track];
+        signal += track.volume * (track.wave)(t, note);
+    }
 
     signal
 }
