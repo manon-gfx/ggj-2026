@@ -38,6 +38,13 @@ pub struct Bitmap {
 pub const RED: ColorChannel = 0xffff0000;
 pub const GREEN: ColorChannel = 0xff00ff00;
 pub const BLUE: ColorChannel = 0xff0000ff;
+pub const YELLOW: ColorChannel = 0xffffff00;
+pub const CYAN: ColorChannel = 0xff00ffff;
+pub const MAGENTA: ColorChannel = 0xffff00ff;
+pub const ORANGE: ColorChannel = 0xffff7f00;
+pub const PURPLE: ColorChannel = 0xff7f00ff;
+pub const GREY: ColorChannel = 0xff777777;
+pub const BLACK: ColorChannel = 0xff000000;
 pub const WHITE: ColorChannel = RED | GREEN | BLUE;
 
 impl Bitmap {
@@ -109,7 +116,61 @@ impl Bitmap {
         self.pixels_mut().fill(color);
     }
 
-    pub fn draw_on(&self, target: &mut Self, x: i32, y: i32, color_mask: ColorChannel) {
+    pub fn draw_masked(
+        &self,
+        target: &mut Self,
+        x: i32,
+        y: i32,
+        masked_out: bool,
+        color_mask: &ColorChannel,
+    ) {
+        let mut sw = self.width as i32;
+        let mut sh = self.height as i32;
+
+        let (sx, tx) = if x < 0 {
+            sw += x;
+            (x.abs(), 0)
+        } else {
+            (0, x)
+        };
+        let (sy, ty) = if y < 0 {
+            sh += y;
+            (y.abs(), 0)
+        } else {
+            (0, y)
+        };
+
+        sw = sw.min(target.width as i32 - tx);
+        sh = sh.min(target.height as i32 - ty);
+
+        for y in 0..sh {
+            let line0 = (ty + y) * (target.stride as i32);
+            let line1 = (sy + y) * (self.stride as i32);
+            for x in 0..sw {
+                unsafe {
+                    let c = *self.pixels().get_unchecked((line1 + sx + x) as usize);
+                    if (c & 0xff000000) != 0 {
+                        let mut masked_c = c;
+
+                        // Reduce opacity
+                        if masked_out {
+                            let rgb = c & 0x00ffffff;
+                            let alpha = 0x80;
+                            masked_c = (alpha << 24) | rgb;
+                        } else {
+                            masked_c = c & color_mask;
+                        }
+
+                        *target
+                            .pixels_mut()
+                            .get_unchecked_mut((line0 + tx + x) as usize) = masked_c;
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn draw_on(&self, target: &mut Self, x: i32, y: i32, color_mask: &ColorChannel) {
         let mut sw = self.width as i32;
         let mut sh = self.height as i32;
 
