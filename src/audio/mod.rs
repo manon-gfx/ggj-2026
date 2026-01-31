@@ -179,13 +179,23 @@ impl Audio {
                             }
                         }
 
-                        let value = value as f32;
-
                         // normalize output
+                        let value = value as f32;
+                        let value = value * settings.volume;
+
                         if value.abs() > max_value {
-                            max_value = value.abs()
+                            max_value = value.abs();
+                            if max_value > 1.0 {
+                                println!("WARNING: audio amplitude greater than 1");
+                                println!("\tnormalizing amplitude from now on");
+                            }
                         }
-                        let value = value / max_value * settings.volume;
+
+                        let value = if max_value > 1.0 {
+                            value / max_value
+                        } else {
+                            value
+                        };
 
                         // left and right channel
                         frame[0] = value; // * (1.0 - settings.panning).min(0.5) * 2.0;
