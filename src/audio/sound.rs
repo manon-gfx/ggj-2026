@@ -22,6 +22,7 @@ pub struct Sound {
     pub wave: WaveFn,
     pub start: f64,    // start time
     pub duration: f64, // duration in seconds
+    pub interval: f64, // interval in seconds
     pub melody: &'static [f64],
     pub volume: f64,
 }
@@ -123,17 +124,19 @@ pub struct SoundEffects {
 impl SoundEffects {
     pub fn new() -> Self {
         let footstep = Sound {
-            wave: white_noise,
+            wave: triangle_wave,
             start: 0.,
-            duration: 0.1,
-            melody: &[C3],
-            volume: 0.5,
+            duration: 0.15,
+            interval: 0.3,
+            melody: &[D2],
+            volume: 0.2,
         };
 
         let jump = Sound {
             wave: sawtooth_wave,
             start: 0.,
             duration: 0.1,
+            interval: 0.0,
             melody: &[C4, E4, G4, C5],
             volume: 0.5,
         };
@@ -185,10 +188,16 @@ pub fn play_music(t: f64, music: &mut Music) -> f64 {
 }
 
 pub fn play_sfx(t: f64, t0: f64, sound: &Sound) -> f64 {
-    if t < t0 + sound.duration {
-        let idx_in_melody = ((t - t0) / sound.duration * sound.melody.len() as f64) as usize;
+    let dt = if sound.interval == 0.0 {
+        t - t0
+    } else {
+        (t - t0) % sound.interval
+    };
+
+    if sound.duration > dt {
+        let idx_in_melody = (dt / sound.duration * sound.melody.len() as f64) as usize;
         let note = sound.melody[idx_in_melody];
-        (sound.wave)(t, note)
+        sound.volume * (sound.wave)(t, note)
     } else {
         0.0
     }

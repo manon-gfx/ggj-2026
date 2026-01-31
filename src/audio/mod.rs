@@ -66,7 +66,7 @@ pub(crate) struct Audio {
     pub shit_recv: Receiver<Vec<f32>>,
 
     pub key_sender: Sender<(Key, bool)>,
-    pub sfx_sender: Sender<SoundTypes>,
+    pub sfx_sender: Sender<(SoundTypes, bool)>,
 }
 
 impl Audio {
@@ -131,10 +131,14 @@ impl Audio {
         let mut soundeffects = sound::SoundEffects::new();
         let mut start_jump_sound: bool = false;
         let mut start_death_sound: bool = false;
+        let mut start_footstep_sound: bool = false;
+        let mut stop_footstep_sound: bool = false;
         let mut play_jump_sound: bool = false;
         let mut play_death_sound: bool = false;
+        let mut play_footstep_sound: bool = false;
         let mut t0_jump_sound: f64 = 0.0;
         let mut t0_death_sound: f64 = 0.0;
+        let mut t0_footstep_sound: f64 = 0.0;
 
         let stream = device
             .build_output_stream(
@@ -163,15 +167,20 @@ impl Audio {
                         }
                     }
 
-                    while let Ok(sfx_event) = sfx_recv.try_recv() {
+                    while let Ok((sfx_event, play)) = sfx_recv.try_recv() {
                         match sfx_event {
-                            SoundTypes::FootstepSound => println!("play footstep!"),
+                            SoundTypes::FootstepSound => {
+                                if play {
+                                    start_footstep_sound = true;
+                                } else {
+                                    stop_footstep_sound = true;
+                                }
+                            }
                             SoundTypes::JumpSound => {
-                                start_jump_sound = true;
+                                start_jump_sound = play;
                             }
                             SoundTypes::DeathSound => {
-                                println!("play death sound!");
-                                start_death_sound = true;
+                                start_death_sound = play;
                             }
                             _ => {}
                         }
@@ -218,6 +227,21 @@ impl Audio {
 
                         if play_death_sound {
                             value += 0.5 * play_sfx(t ,t0_death_sound, &soundeffects.death)
+                        }
+
+                        if start_footstep_sound {
+                            start_footstep_sound = false;
+                            play_footstep_sound = true;
+                            t0_footstep_sound = t;
+                        }
+
+                        if stop_footstep_sound {
+                            stop_footstep_sound = false;
+                            play_footstep_sound = false;
+                        }
+
+                        if play_footstep_sound {
+                            value += 0.5 * play_sfx(t ,t0_footstep_sound, &soundeffects.footstep)
                         }
 
                         for (i, note_played ) in piano_notes.iter().enumerate(){
