@@ -267,7 +267,8 @@ impl Bitmap {
                             let blended_rgb = blend(c, BLACK, 0xc0);
                             masked_c = blended_rgb;
                         } else {
-                            // TODO: Filter out channel
+                            let color_mask_rgb = color_mask & 0xffffff;
+                            masked_c = c & color_mask_rgb;
                         }
 
                         *target
