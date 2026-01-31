@@ -22,14 +22,20 @@ pub fn audio(t: f64) -> f64 {
 }
 
 pub fn triangle_wave(t: f64, freq: f64) -> f64 {
-    let up = 2. * sawtooth_wave(t, freq);
-    if up > 1. { 2. - up } else { up }
+    let saw = 2. * sawtooth_wave(t, freq);
+    if saw > 1. {
+        2. - saw
+     } else if saw < -1. {
+        -2. - saw
+     } else {
+        saw
+     }
 }
 
 pub fn square_wave(t: f64, freq: f64) -> f64 {
-    (((freq * t * 2.) as i32) % 2) as f64
+    2. * (((freq * t * 2.) as i32) % 2) as f64 - 1.
 }
 
 pub fn sawtooth_wave(t: f64, freq: f64) -> f64 {
-    (freq * t) % 1.
+    2. * (freq * t) % 2. - 1.
 }
