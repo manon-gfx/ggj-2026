@@ -372,6 +372,7 @@ impl Bitmap {
             (0xba1102, 0x681102),                                     // red
             (0x096509, 0x224202),                                     // green
             (0x2211B7, 0x221168),                                     // blue
+            (0xdcaf00, 0xb57c41),                                     // gold
         ];
         let color_set = color_table[color_index as usize];
 
