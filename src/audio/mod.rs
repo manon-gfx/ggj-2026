@@ -1,3 +1,4 @@
+use glam::*;
 use std::collections::HashMap;
 use std::sync::{
     Arc,
@@ -67,6 +68,7 @@ pub(crate) struct Audio {
 
     pub key_sender: Sender<(Key, bool)>,
     pub sfx_sender: Sender<(SoundTypes, bool)>,
+    pub color_mask_sender: Sender<Vec3>,
 }
 
 impl Audio {
@@ -112,6 +114,7 @@ impl Audio {
         let (shit_sender, shit_recv) = channel();
         let (key_sender, key_recv) = channel();
         let (sfx_sender, sfx_recv) = channel();
+        let (color_mask_sender, color_mask_recv) = channel();
 
         struct StreamContext {
             settings: AudioSettings,
@@ -192,6 +195,10 @@ impl Audio {
                                 start_death_sound = play;
                             }
                         }
+                    }
+
+                    while let Ok(color_mask) = color_mask_recv.try_recv() {
+                        dbg!(color_mask);
                     }
 
                     let sample_duration = 1.0 / sample_rate as f64;
@@ -323,6 +330,7 @@ impl Audio {
             shit_recv,
             key_sender,
             sfx_sender,
+            color_mask_sender,
         }
     }
 }
