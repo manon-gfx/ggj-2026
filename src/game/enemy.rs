@@ -34,12 +34,12 @@ impl Enemy {
                 max: vec2(6.0, 6.0),
             },
             sprite: sprite.clone(),
-            color_mask,
+            color_mask: color_mask & 0xffffff,
         }
     }
 
     pub fn is_colored(&self) -> bool {
-        (self.color_mask & 0xffffff) != 0xffffff
+        self.color_mask != 0xffffff
     }
 
     pub fn tick(&mut self, delta_time: f32, tile_map: &TileMap, tile_set: &TileSet) {
@@ -135,6 +135,6 @@ pub fn spawn_enemies(
         vec2(2263.0, 2176.0),
         true,
         sprite_green,
-        bitmap::GREEN & 0xffffff,
+        bitmap::GREEN,
     )]
 }
