@@ -41,7 +41,7 @@ impl Music {
                 D4, D4, D4, A3, C4, C4, C4, A3, G3, G3, G3, F3, A3, A3, A3, REST, D4, D4, D4, A3,
                 C4, C4, C4, A3, G3, G3, G3, F3, D3, D3, D3, REST,
             ],
-            volume: 0.5,
+            volume: 0.1,
         };
 
         let contramelody_track = Track {
@@ -51,7 +51,7 @@ impl Music {
                 A4, A4, A4, F4, G4, G4, G4, D4, F4, F4, F4, CS4, E4, E4, E4, REST, A4, A4, A4, F4,
                 G4, G4, G4, D4, F4, F4, F4, G4, A4, A4, A4, REST,
             ],
-            volume: 0.5,
+            volume: 0.1,
         };
 
         let bass_track = Track {
@@ -67,7 +67,7 @@ impl Music {
                 REST, G2, G2, REST, G2, G2, REST, G2, G2, REST, REST, CS2, CS2, CS2, REST, D2, D2,
                 REST, D2, D2, REST, D2, D2, D2, REST, REST, REST, REST, REST, REST, REST,
             ],
-            volume: 0.25,
+            volume: 0.1,
         };
 
         let accent_track = Track {
@@ -80,7 +80,7 @@ impl Music {
                 REST, REST, REST, REST, REST, C5, REST, C5, REST, B4, A4, REST, REST, REST, REST,
                 REST, REST, REST, REST,
             ],
-            volume: 0.5,
+            volume: 0.1,
         };
 
         let snare_track = Track {
@@ -93,7 +93,7 @@ impl Music {
                 REST, REST, C3, REST, REST, REST, REST, REST, REST, REST, C3, REST, REST, REST,
                 REST, REST, C3, REST, C3, REST, REST, REST,
             ],
-            volume: 0.5,
+            volume: 0.1,
         };
 
         Self {
@@ -131,7 +131,7 @@ impl SoundEffects {
             duration: 0.15,
             interval: 0.3,
             melody: &[D2],
-            volume: 0.2,
+            volume: 0.1,
         };
 
         let jump = Sound {
@@ -140,7 +140,7 @@ impl SoundEffects {
             duration: 0.1,
             interval: 0.0,
             melody: &[C4, E4, G4, C5],
-            volume: 0.5,
+            volume: 0.1,
         };
 
         let death = Sound {
@@ -151,7 +151,7 @@ impl SoundEffects {
             melody: &[
                 D2, A1, REST, C2, G1, REST, A1, F1, REST, REST, D1, REST, D1, D1, D1, REST,
             ],
-            volume: 0.5,
+            volume: 0.1,
         };
 
         let pickup = Sound {
@@ -160,7 +160,7 @@ impl SoundEffects {
             duration: 0.5,
             interval: 0.0,
             melody: &[CS5, A4, CS5, E5, A5],
-            volume: 0.5,
+            volume: 0.1,
         };
 
         Self {
