@@ -2,6 +2,7 @@
 
 pub mod font;
 pub use font::Font;
+use glam::IVec2;
 pub use u32 as ColorChannel;
 
 #[derive(Debug, Clone)]
@@ -263,13 +264,15 @@ impl Bitmap {
         color_mask: ColorChannel,
         aura_low: &Bitmap,
         aura: &Bitmap,
+        aura_transl: IVec2,
     ) {
         if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
             return;
         }
 
-        let low_brightness = aura_low.load_pixel(x + 4, y + 4) & 0xffff;
-        let brightness = aura.load_pixel(x + 4, y + 4) & 0xffff;
+        let low_brightness =
+            aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
+        let brightness = aura.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.x) & 0xffff;
 
         let rmask = (color_mask >> 16) & 0xff;
         let gmask = (color_mask >> 8) & 0xff;
@@ -448,6 +451,7 @@ impl Bitmap {
         color_mask: ColorChannel,
         aura_low: &Bitmap,
         aura: &Bitmap,
+        aura_transl: IVec2,
     ) {
         if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
             return;
@@ -495,11 +499,14 @@ impl Bitmap {
                 .add((ty * target.width as i32 + tx) as usize)
         };
 
+        let aura_x = tx - aura_transl.x;
+        let aura_y = ty - aura_transl.y;
+
         for y in 0..sh {
             let mut u = if du < 0 { (sw - 1) * -du } else { sx * du };
             for x in 0..sw {
-                let low_brightness = (aura_low.load_pixel(tx + x, ty + y) & 0xffff) >> 2;
-                let brightness = (aura.load_pixel(tx + x, ty + y) & 0xffff) >> 2;
+                let low_brightness = (aura_low.load_pixel(aura_x + x, aura_y + y) & 0xffff) >> 2;
+                let brightness = (aura.load_pixel(aura_x + x, aura_y + y) & 0xffff) >> 2;
 
                 unsafe {
                     let color: u32 =
@@ -542,9 +549,11 @@ impl Bitmap {
         color_mask: ColorChannel,
         aura_low: &Bitmap,
         aura: &Bitmap,
+        aura_transl: IVec2,
     ) {
-        let low_brightness = aura_low.load_pixel(x + 4, y + 4) & 0xffff;
-        let brightness = aura.load_pixel(x + 4, y + 4) & 0xffff;
+        let low_brightness =
+            aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
+        let brightness = aura.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
 
         let rmask = (color_mask >> 16) & 0xff;
         let gmask = (color_mask >> 8) & 0xff;
