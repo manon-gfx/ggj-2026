@@ -134,7 +134,7 @@ impl TileMap {
         position: Vec2,
         tile_flags: &Vec<TileFlags>,
         tile_colors: &Vec<bitmap::ColorChannel>,
-        color_mask: &bitmap::ColorChannel,
+        color_mask: bitmap::ColorChannel,
     ) -> TileFlags {
         let tile_index = self.sample_world_pos(position, tile_flags, tile_colors, &color_mask);
         if tile_index == 0 {

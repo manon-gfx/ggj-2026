@@ -73,9 +73,9 @@ pub fn blend3(a: u32, b: u32, alpha: u32) -> u32 {
     let bg = (b >> 8) & 0xff;
     let bb = b & 0xff;
 
-    let red = ((ar * (255 - alpha_r)) + (br * alpha_r)) >> 8;
-    let green = ((ag * (255 - alpha_g)) + (bg * alpha_g)) >> 8;
-    let blue = ((ab * (255 - alpha_b)) + (bb * alpha_b)) >> 8;
+    let red = ((ar * (256 - alpha_r)) + (br * alpha_r)) >> 8;
+    let green = ((ag * (256 - alpha_g)) + (bg * alpha_g)) >> 8;
+    let blue = ((ab * (256 - alpha_b)) + (bb * alpha_b)) >> 8;
 
     let red = red.clamp(0, 255);
     let green = green.clamp(0, 255);
@@ -241,6 +241,107 @@ impl Bitmap {
                         *srcline.add(((v >> 16) * self.width as i32 + (u >> 16)) as usize);
                     if (color & 0xff000000) != 0 {
                         *dstline.add(x as usize) = color;
+                    }
+                }
+                u += du;
+            }
+            v += dv;
+            dstline = unsafe { dstline.add(target.width as usize) };
+        }
+    }
+
+    // With color masks
+    pub fn draw_on_scaled_colored_obj(
+        &self,
+        target: &mut Self,
+        x: i32,
+        y: i32,
+        scale_x: f32,
+        scale_y: f32,
+        is_colored: bool,
+        visible_mask: u32,
+        color_mask: ColorChannel,
+        aura_low: &Bitmap,
+        aura: &Bitmap,
+    ) {
+        if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
+            return;
+        }
+
+        let low_brightness = aura_low.load_pixel(x + 4, y + 4) & 0xffff;
+        let brightness = aura.load_pixel(x + 4, y + 4) & 0xffff;
+
+        let rmask = (color_mask >> 16) & 0xff;
+        let gmask = (color_mask >> 8) & 0xff;
+        let bmask = color_mask & 0xff;
+
+        let mute = if is_colored { 0x0f } else { 0x2f };
+        let mute = (low_brightness).max(mute);
+
+        let r_scale = ((brightness * rmask) >> 8).max(mute);
+        let g_scale = ((brightness * gmask) >> 8).max(mute);
+        let b_scale = ((brightness * bmask) >> 8).max(mute);
+
+        let swf = self.width as f32 * scale_x;
+        let shf = self.height as f32 * scale_y;
+
+        let du = ((1.0 / swf) * 65535.0) as i32 * self.width as i32;
+        let dv = ((1.0 / shf) * 65535.0) as i32 * self.height as i32;
+
+        let mut sw = swf.abs() as i32;
+        let mut sh = shf.abs() as i32;
+
+        let (sx, tx) = if x < 0 {
+            sw += x;
+            (x.abs(), 0)
+        } else {
+            (0, x)
+        };
+
+        let (sy, ty) = if y < 0 {
+            sh += y;
+            (y.abs(), 0)
+        } else {
+            (0, y)
+        };
+
+        sw = (sw as i32).min(target.width as i32 - tx);
+        sh = (sh as i32).min(target.height as i32 - ty);
+
+        let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * du };
+
+        let srcline = self.pixels.as_ptr();
+        let mut dstline = unsafe {
+            target
+                .pixels
+                .as_mut_ptr()
+                .add((ty * target.width as i32 + tx) as usize)
+        };
+
+        for _ in 0..sh {
+            let mut u = if du < 0 { (sw - 1) * -du } else { sx * du };
+            for x in 0..sw {
+                unsafe {
+                    let c: u32 = *srcline.add(((v >> 16) * self.width as i32 + (u >> 16)) as usize);
+                    if (c & 0xff000000) != 0 {
+                        let r = (c >> 16) & 0xff;
+                        let g = (c >> 8) & 0xff;
+                        let b = c & 0xff;
+
+                        let r = ((r * r_scale) >> 8).min(0xff);
+                        let g = ((g * g_scale) >> 8).min(0xff);
+                        let b = ((b * b_scale) >> 8).min(0xff);
+
+                        let c = (r << 16) | (g << 8) | b;
+
+                        let c = if is_colored {
+                            let prev = *dstline.add(x as usize);
+                            blend3(prev, c, color_mask & visible_mask)
+                        } else {
+                            c
+                        };
+
+                        *dstline.add(x as usize) = c;
                     }
                 }
                 u += du;
