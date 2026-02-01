@@ -129,7 +129,7 @@ impl Audio {
         let mut max_value: f32 = 0.0;
 
         let mut music = sound::Music::new();
-        music.track_mask[0] = true;
+        let mut t0_music = time;
 
         let mut soundeffects = sound::SoundEffects::new();
         let mut start_footstep_sound: bool = false;
@@ -215,7 +215,7 @@ impl Audio {
                         }
                         last_time = t;
 
-                        let mut value = play_music(t, &mut music);
+                        let mut value = play_music(t, t0_music, &mut music);
 
                         if start_footstep_sound {
                             start_footstep_sound = false;
@@ -259,6 +259,7 @@ impl Audio {
                         }
 
                         if play_death_sound {
+                            t0_music = t;
                             value += play_sfx(t ,t0_death_sound, &soundeffects.death)
                         }
 
