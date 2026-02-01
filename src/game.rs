@@ -25,6 +25,15 @@ const FRICTION: f32 = 1500.0;
 const DEBUG_MASKS: bool = false;
 const DEBUG_MODE: bool = false;
 
+#[derive(Debug)]
+pub struct SaveState {
+    pub player_position: Vec2,
+    pub has_red_mask: bool,
+    pub has_green_mask: bool,
+    pub has_blue_mask: bool,
+    pub color_mask: u32,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(usize)]
 pub enum Axis {
@@ -301,6 +310,8 @@ pub struct Game {
 
     background: Bitmap,
     test_sprite: Bitmap,
+
+    save_state: Option<SaveState>,
 
     mouse_x: f32,
     mouse_y: f32,
@@ -629,6 +640,8 @@ impl Game {
 
             input_state: InputState::default(),
 
+            save_state: None,
+
             editor_state: EditorState::default(),
 
             background,
@@ -713,6 +726,39 @@ impl Game {
         // Reset death sequence
         self.death_sequence_duration = 1.5;
         self.death_sequence_is_playing = false;
+
+        self.restore_save_game();
+    }
+
+    pub fn restore_save_game(&mut self) {
+        if let Some(save_state) = &self.save_state {
+            self.player.position = save_state.player_position;
+            if save_state.has_red_mask {
+                for mask in self.mask_game_objects.iter_mut() {
+                    if mask.color == bitmap::RED {
+                        self.player_inventory.masks.push(mask.clone());
+                        mask.visible = false;
+                    }
+                }
+            }
+            if save_state.has_blue_mask {
+                for mask in self.mask_game_objects.iter_mut() {
+                    if mask.color == bitmap::BLUE {
+                        self.player_inventory.masks.push(mask.clone());
+                        mask.visible = false;
+                    }
+                }
+            }
+            if save_state.has_green_mask {
+                for mask in self.mask_game_objects.iter_mut() {
+                    if mask.color == bitmap::GREEN {
+                        self.player_inventory.masks.push(mask.clone());
+                        mask.visible = false;
+                    }
+                }
+            }
+            self.color_mask = save_state.color_mask;
+        }
     }
 
     pub(crate) fn on_mouse_moved(&mut self, x: f32, y: f32) {
@@ -1296,6 +1342,29 @@ impl Game {
 
                     self.player_inventory.masks.push(mask.clone());
                     mask.visible = false;
+
+                    self.save_state = Some(SaveState {
+                        player_position: self.player.position,
+                        has_red_mask: self
+                            .player_inventory
+                            .masks
+                            .iter()
+                            .find(|mask| mask.color == bitmap::RED)
+                            .is_some(),
+                        has_green_mask: self
+                            .player_inventory
+                            .masks
+                            .iter()
+                            .find(|mask| mask.color == bitmap::RED)
+                            .is_some(),
+                        has_blue_mask: self
+                            .player_inventory
+                            .masks
+                            .iter()
+                            .find(|mask| mask.color == bitmap::RED)
+                            .is_some(),
+                        color_mask: self.color_mask,
+                    });
 
                     if let Some(audio) = &self.audio {
                         audio
