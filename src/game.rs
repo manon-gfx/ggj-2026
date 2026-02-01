@@ -157,6 +157,8 @@ struct MaskObject {
     sprite_scene: Bitmap,
     sprite_inventory: Bitmap,
     sprite_inventory_activated: Bitmap,
+    sprite_key_keyboard: Bitmap,
+    sprite_key_controller: Bitmap,
     visible: bool,
 }
 impl MaskObject {
@@ -339,6 +341,8 @@ pub struct Game {
     was_player_walking: bool,
     time: f32,
 
+    player_uses_controller: bool,
+
     death_sequence_is_playing: bool,
     death_sequence_duration: f32,
 
@@ -515,6 +519,8 @@ impl Game {
             sprite_inventory_activated: Bitmap::load(
                 "assets/sprites/red_mask_in_bag_activated.png",
             ),
+            sprite_key_keyboard: Bitmap::load("assets/sprites/red-r.png"),
+            sprite_key_controller: Bitmap::load("assets/sprites/red-b.png"),
             visible: true,
         };
 
@@ -530,6 +536,9 @@ impl Game {
             sprite_inventory_activated: Bitmap::load(
                 "assets/sprites/green_mask_in_bag_activated.png",
             ),
+            sprite_key_keyboard: Bitmap::load("assets/sprites/green-g.png"),
+            sprite_key_controller: Bitmap::load("assets/sprites/green-a.png"),
+
             visible: true,
         };
 
@@ -545,6 +554,8 @@ impl Game {
             sprite_inventory_activated: Bitmap::load(
                 "assets/sprites/blue_mask_in_bag_activated.png",
             ),
+            sprite_key_keyboard: Bitmap::load("assets/sprites/blue-b.png"),
+            sprite_key_controller: Bitmap::load("assets/sprites/blue-x.png"),
             visible: true,
         };
 
@@ -560,6 +571,8 @@ impl Game {
             sprite_inventory_activated: Bitmap::load(
                 "assets/sprites/king_mask_in_scene.png", // not used
             ),
+            sprite_key_keyboard: Bitmap::load("assets/sprites/red-r.png"), // not used
+            sprite_key_controller: Bitmap::load("assets/sprites/red-b.png"), // not used
             visible: true,
         };
 
@@ -710,7 +723,7 @@ impl Game {
                 tile_size: 16,
                 width: 256,
                 height: 64,
-                position_on_screen: vec2(0.0, 192.0),
+                position_on_screen: vec2(0.0, 180.0),
                 background_color: 0xffffefd5,
                 bag_sprite: bag_sprite,
                 masks: Vec::new(),
@@ -718,6 +731,8 @@ impl Game {
             is_player_walking: false,
             was_player_walking: false,
             time: 0.0,
+
+            player_uses_controller: true,
 
             death_sequence_duration: 1.5,
             death_sequence_is_playing: false,
@@ -961,6 +976,25 @@ impl Game {
                             + (i as i32 + 2) * self.player_inventory.tile_size,
                         self.player_inventory.position_on_screen.y as i32,
                     );
+                }
+
+                // Draw key hint
+                if self.player_uses_controller {
+                    self.player_inventory.masks[i]
+                        .sprite_key_controller
+                        .draw_on(
+                            screen,
+                            self.player_inventory.position_on_screen.x as i32
+                                + (i as i32 + 2) * self.player_inventory.tile_size,
+                            self.player_inventory.position_on_screen.y as i32 + 12,
+                        )
+                } else {
+                    self.player_inventory.masks[i].sprite_key_keyboard.draw_on(
+                        screen,
+                        self.player_inventory.position_on_screen.x as i32
+                            + (i as i32 + 2) * self.player_inventory.tile_size,
+                        self.player_inventory.position_on_screen.y as i32 + 12,
+                    )
                 }
             }
         }
