@@ -263,19 +263,19 @@ impl Audio {
                         }
 
                         if play_footstep_sound {
-                            value += play_sfx(t,t0_footstep_sound, &soundeffects.footstep)
+                            value += play_sfx(t, t0_footstep_sound, &soundeffects.footstep)
                         }
 
                         if play_jump_sound {
-                            value += play_sfx(t,t0_jump_sound, &soundeffects.jump)
+                            value += play_sfx(t, t0_jump_sound, &soundeffects.jump)
                         }
 
                         if play_pickup_sound {
-                            value += play_sfx(t,t0_pickup_sound, &soundeffects.pickup)
+                            value += play_sfx(t, t0_pickup_sound, &soundeffects.pickup)
                         }
 
                         if play_death_sound {
-                            value += play_sfx(t,t0_death_sound, &soundeffects.death)
+                            value += play_sfx(t, t0_death_sound, &soundeffects.death)
                         }
 
                         for (i, note_played ) in piano_notes.iter().enumerate(){
