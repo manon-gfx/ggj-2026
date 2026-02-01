@@ -1,4 +1,4 @@
-use crate::bitmap::Bitmap;
+use crate::bitmap::{self, Bitmap};
 use glam::*;
 
 #[derive(Debug, Clone)]
@@ -62,7 +62,7 @@ impl Sprite {
         );
         let color_index = if (color_mask & 0xffffff) == 0 {
             0
-        } else if (color_mask == 0xffff00) {
+        } else if color_mask == bitmap::YELLOW {
             4
         } 
         else {

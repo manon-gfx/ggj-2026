@@ -548,6 +548,21 @@ impl Game {
             visible: true,
         };
 
+        let golden_mask = MaskObject {
+            position: vec2(2618.0, 2112.0),
+            aabb: Aabb {
+                min: Vec2::ZERO,
+                max: vec2(MASK_SPRITE_SIZE, MASK_SPRITE_SIZE),
+            },
+            color: crate::bitmap::YELLOW,
+            sprite_scene: Bitmap::load("assets/sprites/king_mask_in_scene.png"),
+            sprite_inventory: Bitmap::load("assets/sprites/king_mask_in_scene.png"), // not used
+            sprite_inventory_activated: Bitmap::load(
+                "assets/sprites/king_mask_in_scene.png", // not used
+            ),
+            visible: true,
+        };
+
         let player_sprite_sheet = Bitmap::load("assets/sprite/spritesheet_animation.png");
 
         let walk_frames = [
@@ -674,7 +689,7 @@ impl Game {
             mouse_y: 0.0,
 
             // Add game objects
-            mask_game_objects: vec![red_mask, green_mask, blue_mask],
+            mask_game_objects: vec![red_mask, green_mask, blue_mask, golden_mask],
             enemies: vec![],
 
             enemy_sprite_white,
@@ -996,7 +1011,6 @@ impl Game {
             );
         }
 
-        self.player.is_winner = self.player.is_dead; // TODO: Delete
         // If we won, play winning sequence
         if self.player.is_winner {
             let desired_position = vec2(self.player.position.x, self.player.position.y - self.player.win_sprite.frames[0].height as f32);
@@ -1013,7 +1027,7 @@ impl Game {
                 self.reset_game();
             } else {
                 self.player.tick(delta_time);
-                self.player.draw(screen, self.camera, 0xffff00); // draw with golden mask
+                self.player.draw(screen, self.camera, self.color_mask); // draw with golden mask
 
                 // TODO: I was thinking we could lerp to bigger scale & higher position but it needs fixing with aligning with pixels --> looks jerky now
                 // Lerp to pos
@@ -1408,9 +1422,15 @@ impl Game {
                     .overlaps(&self.player.aabb_world_space())
                 {
                     self.color_mask = mask.color;
+                    mask.visible = false;
+
+                    // Special case for the golden mask
+                    if (mask.color == bitmap::YELLOW) {
+                        self.player.is_winner = true;
+                        return;
+                    }
 
                     self.player_inventory.masks.push(mask.clone());
-                    mask.visible = false;
 
                     self.save_state = Some(SaveState {
                         player_position: self.player.position,
