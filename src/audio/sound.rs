@@ -1,4 +1,5 @@
 use crate::audio::notes::*;
+use glam::*;
 use interp::{InterpMode, interp};
 
 struct MusicSettings;
@@ -29,7 +30,7 @@ pub struct Sound {
 
 pub struct Music {
     pub tracks: Vec<Track>,
-    pub track_mask: Vec<bool>,
+    pub track_mask: Vec<u32>,
 }
 
 impl Music {
@@ -104,7 +105,7 @@ impl Music {
                 accent_track,
                 snare_track,
             ],
-            track_mask: vec![false, false, false, false, false],
+            track_mask: vec![0, 0, 0, 0, 0],
         }
     }
 }
@@ -172,42 +173,80 @@ impl SoundEffects {
     }
 }
 
-pub fn play_music(t: f64, t0: f64, music: &mut Music) -> f64 {
+pub fn play_music(t: f64, t0: &DVec4, color_mask: &UVec3, music: &mut Music) -> f64 {
     let mut signal = 0.0;
 
-    if t > t0 {
-        let beat_in_game = ((t - t0) * MusicSettings::TEMPO); // total beats since start of game
+    // start either 1 second after red mask pickup or 3 seconds after death
+    let tstart = if t0[0] > 0.0 {
+        (t0[0] + 1.).max(t0[3] + 3.)
+    } else {
+        0.0
+    };
+
+    if tstart > 0.0 && t > tstart {
+        let beat_in_game = (t - tstart) * MusicSettings::TEMPO; // total beats since red mask pickup
+        let beats_since_blue = (t - (t0[2].max(t0[3] + 3.))) * MusicSettings::TEMPO; // total beats since red mask pickup
+
         let beat_in_loop =
             beat_in_game % (MusicSettings::BAR_LENGTH * MusicSettings::LOOP_LENGTH) as f64; // current beat in the loop
 
-        if beat_in_game < 32. {
-            music.track_mask = vec![false, false, false, false, false];
-        }
-        if beat_in_game > 32. {
-            music.track_mask[0] = true;
-        }
-        if beat_in_game > 64. {
-            music.track_mask[4] = true;
-        }
-        if beat_in_game > 96. {
-            music.track_mask[1] = true;
-        }
-        if beat_in_game > 128. {
-            music.track_mask[2] = true;
-        }
-        if beat_in_game > 160. {
-            music.track_mask[3] = true;
+        if beat_in_game < 0.1 {
+            music.track_mask = vec![0, 0, 0, 0, 0];
         }
 
-        for (track, play_track) in music.tracks.iter().zip(music.track_mask.iter()) {
-            if *play_track {
+        // green melody
+        if t0[1] > 0.0 {
+            if t - t0[1] < 1. {
+                music.track_mask[3] = color_mask[1];
+            } else {
+                music.track_mask[3] = 256;
+            }
+
+            // always play red music
+            music.track_mask[0] = 256;
+            music.track_mask[4] = 256;
+
+            // always play blue music
+            music.track_mask[1] = 256;
+            music.track_mask[2] = 256;
+        } else if t0[2] > 0.0 {
+            if t - t0[2] < 1. {
+                music.track_mask[1] = color_mask[1];
+            } else {
+                music.track_mask[1] = 256;
+            }
+
+            // add second melody after 8 bars
+            if beats_since_blue > 32. {
+                music.track_mask[2] = 256;
+            }
+
+            // always play red music
+            music.track_mask[0] = 256;
+            music.track_mask[4] = 256;
+        } else if t0[0] > 0.0 {
+            if t - t0[0] < 1. {
+                music.track_mask[0] = color_mask[0];
+            } else {
+                music.track_mask[0] = 256;
+            }
+
+            // add snare after 8 bars
+            if beat_in_game > 32. {
+                music.track_mask[4] = 256;
+            }
+        }
+
+        for (track, &track_mask) in music.tracks.iter().zip(music.track_mask.iter()) {
+            if track_mask > 0 {
                 let beat_in_track = beat_in_loop % track.length as f64;
                 let idx_in_track = (beat_in_track as f64 / track.length as f64
                     * track.melody.len() as f64)
                     .floor() as usize;
                 let note = track.melody[idx_in_track];
                 if note != REST {
-                    signal += track.volume * (track.wave)(t, note);
+                    let volume = track.volume * track_mask as f64 / 256.;
+                    signal += volume * (track.wave)(t, note);
                 }
             }
         }

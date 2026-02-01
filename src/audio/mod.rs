@@ -1,3 +1,4 @@
+use glam::*;
 use std::collections::HashMap;
 use std::sync::{
     Arc,
@@ -67,6 +68,7 @@ pub(crate) struct Audio {
 
     pub key_sender: Sender<(Key, bool)>,
     pub sfx_sender: Sender<(SoundTypes, bool)>,
+    pub color_mask_sender: Sender<UVec3>,
 }
 
 impl Audio {
@@ -112,6 +114,7 @@ impl Audio {
         let (shit_sender, shit_recv) = channel();
         let (key_sender, key_recv) = channel();
         let (sfx_sender, sfx_recv) = channel();
+        let (color_mask_sender, color_mask_recv) = channel();
 
         struct StreamContext {
             settings: AudioSettings,
@@ -129,7 +132,8 @@ impl Audio {
         let mut max_value: f32 = 0.0;
 
         let mut music = sound::Music::new();
-        let mut t0_music = time;
+        let mut t0_music = DVec4::ZERO; // red, green, blue, death
+        let mut color_mask_music = UVec3::ZERO;
 
         let mut soundeffects = sound::SoundEffects::new();
         let mut start_footstep_sound: bool = false;
@@ -194,6 +198,17 @@ impl Audio {
                         }
                     }
 
+                    while let Ok(color_mask) = color_mask_recv.try_recv() {
+                        color_mask_music = color_mask;
+
+                        // first time each mask is picked up
+                        for i in 0..3 {
+                            if t0_music[i] == 0.0 && color_mask_music[i] > 0 {
+                                t0_music[i] = time + 1.;
+                            }
+                        }
+                    }
+
                     let sample_duration = 1.0 / sample_rate as f64;
                     let chunk_time = (data.len() / channels as usize) as f64 / sample_rate as f64;
 
@@ -215,7 +230,7 @@ impl Audio {
                         }
                         last_time = t;
 
-                        let mut value = play_music(t, t0_music, &mut music);
+                        let mut value = play_music(t, &t0_music, &color_mask_music, &mut music);
 
                         if start_footstep_sound {
                             start_footstep_sound = false;
@@ -244,23 +259,23 @@ impl Audio {
                             start_death_sound = false;
                             play_death_sound = true;
                             t0_death_sound = t;
-                            t0_music = t + 1.5;
+                            t0_music[3] = t;
                         }
 
                         if play_footstep_sound {
-                            value += play_sfx(t ,t0_footstep_sound, &soundeffects.footstep)
+                            value += play_sfx(t, t0_footstep_sound, &soundeffects.footstep)
                         }
 
                         if play_jump_sound {
-                            value += play_sfx(t ,t0_jump_sound, &soundeffects.jump)
+                            value += play_sfx(t, t0_jump_sound, &soundeffects.jump)
                         }
 
                         if play_pickup_sound {
-                            value += play_sfx(t ,t0_pickup_sound, &soundeffects.pickup)
+                            value += play_sfx(t, t0_pickup_sound, &soundeffects.pickup)
                         }
 
                         if play_death_sound {
-                            value += play_sfx(t ,t0_death_sound, &soundeffects.death)
+                            value += play_sfx(t, t0_death_sound, &soundeffects.death)
                         }
 
                         for (i, note_played ) in piano_notes.iter().enumerate(){
@@ -323,6 +338,7 @@ impl Audio {
             shit_recv,
             key_sender,
             sfx_sender,
+            color_mask_sender,
         }
     }
 }
