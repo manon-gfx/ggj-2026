@@ -24,6 +24,8 @@ const FRICTION: f32 = 1500.0;
 
 const DEBUG_MASKS: bool = false;
 const DEBUG_MODE: bool = false;
+const ALLOW_EDITOR: bool = true;
+const ALLOW_KEYBOAD_MODE: bool = true;
 
 #[derive(Debug)]
 pub struct SaveState {
@@ -845,8 +847,8 @@ impl Game {
         }
 
         match key {
-            Key::Space => self.editor_mode = !self.editor_mode,
-            Key::M => self.music_mode = !self.music_mode,
+            Key::Space => self.editor_mode = (!self.editor_mode) && ALLOW_EDITOR,
+            Key::M => self.music_mode = (!self.music_mode) && ALLOW_KEYBOAD_MODE,
             _ => {}
         }
     }
