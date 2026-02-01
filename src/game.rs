@@ -909,10 +909,7 @@ impl Game {
         let color_mask_uvec3 = (self.lerp_color_mask * 8.0).as_uvec3() * 32;
 
         if let Some(audio) = &self.audio {
-            audio
-                .color_mask_sender
-                .send(color_mask_uvec3)
-                .unwrap();
+            audio.color_mask_sender.send(color_mask_uvec3).unwrap();
         }
 
         let lerped_color_mask =

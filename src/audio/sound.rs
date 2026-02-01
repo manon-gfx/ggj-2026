@@ -1,6 +1,6 @@
 use crate::audio::notes::*;
-use interp::{InterpMode, interp};
 use glam::*;
+use interp::{InterpMode, interp};
 
 struct MusicSettings;
 
@@ -105,7 +105,7 @@ impl Music {
                 accent_track,
                 snare_track,
             ],
-            track_mask: vec![0, 0, 0, 0, 0]
+            track_mask: vec![0, 0, 0, 0, 0],
         }
     }
 }

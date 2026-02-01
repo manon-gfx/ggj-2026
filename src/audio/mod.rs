@@ -132,7 +132,7 @@ impl Audio {
         let mut max_value: f32 = 0.0;
 
         let mut music = sound::Music::new();
-        let mut t0_music = time;
+        let mut t0_music = 0.0;
         let mut color_mask_music = UVec3::ZERO;
 
         let mut soundeffects = sound::SoundEffects::new();
@@ -200,6 +200,11 @@ impl Audio {
 
                     while let Ok(color_mask) = color_mask_recv.try_recv() {
                         color_mask_music = color_mask;
+
+                        // first time the red mask is picked up
+                        if t0_music == 0.0 && color_mask_music[0] > 0 {
+                            t0_music = time + 0.5;
+                        }
                     }
 
                     let sample_duration = 1.0 / sample_rate as f64;
@@ -252,7 +257,7 @@ impl Audio {
                             start_death_sound = false;
                             play_death_sound = true;
                             t0_death_sound = t;
-                            t0_music = t + 1.5;
+                            t0_music = time + 3.; // hard-coded bit of extra time to allow death music
                         }
 
                         if play_footstep_sound {
