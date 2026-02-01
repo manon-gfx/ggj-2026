@@ -578,13 +578,13 @@ impl Game {
             (112, 16),
         ];
         let jump_frames = [(0, 80), (16, 80)];
-        let win_frames= [
+        let win_frames = [
             (0, 100),
             (16, 100),
             (32, 100),
             (48, 100),
             (64, 100),
-            (80, 100)
+            (80, 100),
         ];
 
         let idle_sprite = Sprite {
@@ -611,7 +611,7 @@ impl Game {
             t: 0.0,
             seconds_per_frame: 1.0 / 4.0,
         };
-        let win_sprite=  Sprite {
+        let win_sprite = Sprite {
             frames: build_frame_list(&player_sprite_sheet, &win_frames, (16, 16)), // TODO: Own frames
             frame_index: 0,
             t: 0.0,
@@ -965,17 +965,10 @@ impl Game {
             &self.tile_set,
             screen,
             self.camera,
-            if self.editor_mode {
-                0xffffffff
-            } else {
-                self.color_mask
-            },
-            if self.editor_mode {
-                0xffffffff
-            } else {
-                lerped_color_mask
-            },
+            self.color_mask,
+            lerped_color_mask,
             aura_translation,
+            self.editor_mode,
         );
 
         // draw inventory on top
@@ -1042,13 +1035,15 @@ impl Game {
 
         // If we won, play winning sequence
         if self.player.is_winner {
-            let desired_position = vec2(self.player.position.x, self.player.position.y - self.player.win_sprite.frames[0].height as f32);
-            let desired_scale_scalar = 2.0;            
-            
+            let desired_position = vec2(
+                self.player.position.x,
+                self.player.position.y - self.player.win_sprite.frames[0].height as f32,
+            );
+            let desired_scale_scalar = 2.0;
+
             // Just won
-            if !self.winning_sequence_is_playing {
-            }
-            
+            if !self.winning_sequence_is_playing {}
+
             self.winning_sequence_duration -= delta_time;
             screen.draw_str(&self.font, "U WON :)", 100, 50, bitmap::GREEN);
 

@@ -152,6 +152,7 @@ impl TileMap {
         color_mask: crate::bitmap::ColorChannel,
         lerped_color_mask: u32,
         aura_transl: IVec2,
+        editor_mode: bool,
     ) {
         let screen_size = vec2(target.width as f32, target.height as f32);
         let bounds = Aabb {
@@ -187,24 +188,32 @@ impl TileMap {
                     continue;
                 }
 
-                // leave white tiles white
                 let tile = &tile_set.tiles[(tile_index - 1) as usize];
-                let color = tile_set.tile_colors[(tile_index - 1) as usize];
-                let tile_type = &tile_set.tile_types[(tile_index - 1) as usize];
+                if editor_mode {
+                    tile.draw_on(
+                        target,
+                        sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
+                        sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
+                    );
+                } else {
+                    // leave white tiles white
+                    let color = tile_set.tile_colors[(tile_index - 1) as usize];
+                    let tile_type = &tile_set.tile_types[(tile_index - 1) as usize];
 
-                let is_colored = tile_type.intersects(TileFlags::WHITE);
+                    let is_colored = tile_type.intersects(TileFlags::WHITE);
 
-                tile.draw_tile(
-                    target,
-                    sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
-                    sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
-                    is_colored,
-                    color,
-                    lerped_color_mask,
-                    &tile_set.aura_low,
-                    &tile_set.aura,
-                    aura_transl,
-                );
+                    tile.draw_tile(
+                        target,
+                        sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
+                        sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
+                        is_colored,
+                        color,
+                        lerped_color_mask,
+                        &tile_set.aura_low,
+                        &tile_set.aura,
+                        aura_transl,
+                    );
+                }
             }
         }
     }
