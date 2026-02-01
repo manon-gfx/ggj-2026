@@ -963,11 +963,6 @@ impl Game {
                 &self.input_state,
             );
         } else {
-            self.player_inventory.bag_sprite.draw_on(
-                screen,
-                self.player_inventory.position_on_screen.x as i32,
-                self.player_inventory.position_on_screen.y as i32,
-            );
             for i in 0..self.player_inventory.masks.len() {
                 if self.player_inventory.masks[i].color == self.color_mask {
                     self.player_inventory.masks[i]
@@ -975,14 +970,14 @@ impl Game {
                         .draw_on(
                             screen,
                             self.player_inventory.position_on_screen.x as i32
-                                + (i as i32 + 2) * self.player_inventory.tile_size,
+                                + (i as i32 + 1) * self.player_inventory.tile_size,
                             self.player_inventory.position_on_screen.y as i32,
                         );
                 } else {
                     self.player_inventory.masks[i].sprite_inventory.draw_on(
                         screen,
                         self.player_inventory.position_on_screen.x as i32
-                            + (i as i32 + 2) * self.player_inventory.tile_size,
+                            + (i as i32 + 1) * self.player_inventory.tile_size,
                         self.player_inventory.position_on_screen.y as i32,
                     );
                 }
@@ -994,14 +989,14 @@ impl Game {
                         .draw_on(
                             screen,
                             self.player_inventory.position_on_screen.x as i32
-                                + (i as i32 + 2) * self.player_inventory.tile_size,
+                                + (i as i32 + 1) * self.player_inventory.tile_size,
                             self.player_inventory.position_on_screen.y as i32 + 12,
                         )
                 } else {
                     self.player_inventory.masks[i].sprite_key_keyboard.draw_on(
                         screen,
                         self.player_inventory.position_on_screen.x as i32
-                            + (i as i32 + 2) * self.player_inventory.tile_size,
+                            + (i as i32 + 1) * self.player_inventory.tile_size,
                         self.player_inventory.position_on_screen.y as i32 + 12,
                     )
                 }
