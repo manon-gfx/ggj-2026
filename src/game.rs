@@ -344,6 +344,9 @@ pub struct Game {
 
     player_uses_controller: bool,
 
+    jump_key_hint_delay: f32,
+    check_if_should_show_jump_key: bool,
+
     death_sequence_is_playing: bool,
     death_sequence_duration: f32,
 
@@ -733,6 +736,9 @@ impl Game {
             was_player_walking: false,
             time: 0.0,
 
+            jump_key_hint_delay: 4.0,
+            check_if_should_show_jump_key: true,
+
             player_uses_controller: true,
 
             death_sequence_duration: 1.5,
@@ -1092,6 +1098,20 @@ impl Game {
             }
         }
 
+        // Draw key hint if we didnt jump yet
+        if self.check_if_should_show_jump_key {
+            self.jump_key_hint_delay -= delta_time;
+
+            // after x seconds of no jumping, show key
+            if (self.jump_key_hint_delay < 0.0) {
+                if (self.player_uses_controller) {
+                    screen.draw_str(&self.font, "Press (Y) to jump", 80, 60, 0xb57c41);
+                } else {
+                    screen.draw_str(&self.font, "Press (Z) to jump", 80, 60, 0xb57c41);
+                }
+            }
+        }
+
         // Some things we only need to do if we aren't dead
         if !self.editor_mode {
             self.is_player_walking = false;
@@ -1141,6 +1161,9 @@ impl Game {
                 .clamp(-MOVEMENT_SPEED_X, MOVEMENT_SPEED_X);
 
             if self.input_state.is_key_pressed(Key::Jump) && self.player.on_ground {
+                // If you jump, don't show keyhint
+                self.check_if_should_show_jump_key = false;
+
                 self.player.velocity.y = -JUMP_IMPULSE;
                 self.player.is_jumping = true;
 
@@ -1152,6 +1175,8 @@ impl Game {
                 }
             }
             if self.input_state.is_key_down(Key::Jump) {
+                // If you jump, don't show keyhint
+                self.check_if_should_show_jump_key = false;
                 if self.player.is_jumping {
                     self.player.velocity.y -= JUMP_SUSTAIN * delta_time;
                 }
