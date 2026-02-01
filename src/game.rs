@@ -1105,9 +1105,9 @@ impl Game {
             // after x seconds of no jumping, show key
             if (self.jump_key_hint_delay < 0.0) {
                 if (self.player_uses_controller) {
-                    screen.draw_str(&self.font, "Press (Y) to jump", 80, 60, 0xb57c41);
+                    screen.draw_str(&self.font, "Press (Y) to jump", 80, 60, 0xdcaf00);
                 } else {
-                    screen.draw_str(&self.font, "Press (Z) to jump", 80, 60, 0xb57c41);
+                    screen.draw_str(&self.font, "Press (Z) to jump", 80, 60, 0xdcaf00);
                 }
             }
         }
