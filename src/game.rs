@@ -1159,18 +1159,18 @@ impl Game {
             }
 
             if DEBUG_MASKS {
-                if self.input_state.is_key_released(Key::MaskRed) {
+                if self.input_state.is_key_pressed(Key::MaskRed) {
                     self.toggle_color_mask(0xff0000);
                 }
-                if self.input_state.is_key_released(Key::MaskGreen) {
+                if self.input_state.is_key_pressed(Key::MaskGreen) {
                     self.toggle_color_mask(0x00ff00);
                 }
-                if self.input_state.is_key_released(Key::MaskBlue) {
+                if self.input_state.is_key_pressed(Key::MaskBlue) {
                     self.toggle_color_mask(0x0000ff);
                 }
             } else {
                 // Current situ: activating a new mask disables old mask (can't wear two masks)
-                if self.input_state.is_key_released(Key::MaskRed) {
+                if self.input_state.is_key_pressed(Key::MaskRed) {
                     if let Some(red_mask) = self
                         .player_inventory
                         .masks
@@ -1181,7 +1181,7 @@ impl Game {
                         self.set_color_mask(red_mask.color);
                     };
                 }
-                if self.input_state.is_key_released(Key::MaskGreen) {
+                if self.input_state.is_key_pressed(Key::MaskGreen) {
                     if let Some(green_mask) = self
                         .player_inventory
                         .masks
@@ -1192,7 +1192,7 @@ impl Game {
                         self.set_color_mask(green_mask.color);
                     };
                 }
-                if self.input_state.is_key_released(Key::MaskBlue) {
+                if self.input_state.is_key_pressed(Key::MaskBlue) {
                     if let Some(blue_mask) = self
                         .player_inventory
                         .masks
