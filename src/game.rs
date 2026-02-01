@@ -490,7 +490,7 @@ impl Game {
         };
 
         let green_mask = MaskObject {
-            position: vec2(100.0, 0.0),
+            position: vec2(2037.0, 1872.0),
             aabb: Aabb {
                 min: Vec2::ZERO,
                 max: vec2(MASK_SPRITE_SIZE, MASK_SPRITE_SIZE),
