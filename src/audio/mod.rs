@@ -80,7 +80,6 @@ impl Audio {
 
         let supported_config = supported_configs_range
             .find(|config| {
-                dbg!(config);
                 if config.sample_format() == cpal::SampleFormat::F32 && config.channels() == 2 {
                     true
                 } else {
@@ -98,12 +97,7 @@ impl Audio {
             supported_config.with_max_sample_rate()
         };
 
-        // let supported_config = supported_configs_range
-        //     .next()
-        //     .unwrap()
-        //     .with_max_sample_rate();
         let sample_format = supported_config.sample_format();
-        dbg!(sample_format);
         let sample_rate = supported_config.sample_rate();
         let channels = supported_config.channels();
 
