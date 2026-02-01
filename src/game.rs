@@ -21,6 +21,7 @@ const JUMP_SUSTAIN: f32 = 350.0;
 const MOVEMENT_ACCELERATION: f32 = 1500.0;
 const MOVEMENT_SPEED_X: f32 = 100.0;
 const FRICTION: f32 = 1500.0;
+const PEAK_SCALE: f32 = 100.0;
 
 const DEBUG_MASKS: bool = false;
 const DEBUG_MODE: bool = false;
@@ -42,8 +43,8 @@ pub enum Axis {
     LeftStickX,
     LeftStickY,
     // LeftZ,
-    // RightStickX,
-    // RightStickY,
+    RightStickX,
+    RightStickY,
     // RightZ,
     // DPadX,
     // DPadY,
@@ -903,7 +904,9 @@ impl Game {
                 - screen_offset
         } else {
             let target = self.player.aabb_world_space().center() - screen_offset;
-            target + self.player.velocity * vec2(0.35, 0.1)
+            let target = target + self.player.velocity * vec2(0.35, 0.1);
+            let peak = vec2(self.input_state.axis_state(Axis::RightStickX), self.input_state.axis_state(Axis::RightStickY));
+            target + peak * PEAK_SCALE
         };
         self.actual_camera = self.actual_camera.lerp(target, delta_time * 4.0);
 

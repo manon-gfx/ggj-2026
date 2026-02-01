@@ -376,6 +376,8 @@ fn main() {
                 gilrs::EventType::AxisChanged(axis, value, _code) => match axis {
                     gilrs::Axis::LeftStickX => game.on_axis_change(game::Axis::LeftStickX, value),
                     gilrs::Axis::LeftStickY => game.on_axis_change(game::Axis::LeftStickY, value),
+                    gilrs::Axis::RightStickX => game.on_axis_change(game::Axis::RightStickX, value),
+                    gilrs::Axis::RightStickY => game.on_axis_change(game::Axis::RightStickY, value),
                     _ => {}
                 },
                 // gilrs::EventType::ForceFeedbackEffectCompleted,
