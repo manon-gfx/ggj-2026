@@ -1,12 +1,16 @@
 pub mod editor;
+pub mod enemy;
 pub mod sprite;
 pub mod tilemap;
+
+use std::thread::spawn;
 
 use crate::audio::Audio;
 use crate::audio::sound::SoundTypes;
 use crate::bitmap::{self, Bitmap, Font};
 use crate::game::sprite::Sprite;
 use editor::EditorState;
+use enemy::{Enemy, spawn_enemies};
 use glam::*;
 
 use tilemap::{TileFlags, TileMap, TileSet};
@@ -302,6 +306,12 @@ pub struct Game {
     mouse_y: f32,
 
     mask_game_objects: Vec<MaskObject>,
+    enemies: Vec<Enemy>,
+
+    enemy_sprite_red: Sprite,
+    enemy_sprite_green: Sprite,
+    enemy_sprite_blue: Sprite,
+    enemy_sprite_white: Sprite,
 
     player: Player,
     player_inventory: PlayerInventory,
@@ -566,7 +576,49 @@ impl Game {
         background_part.draw_on(&mut background, 0, 8);
         background_part.draw_on(&mut background, 8, 8);
 
-        Self {
+        let enemy_sprite_sheet = Bitmap::load("assets/sprite/enemy_test_sheet.png");
+        let enemy_sprite_white = Sprite {
+            frames: build_frame_list(
+                &enemy_sprite_sheet,
+                &[(0, 0), (8, 0), (16, 0), (24, 0)],
+                (8, 8),
+            ),
+            frame_index: 0,
+            t: 0.0,
+            seconds_per_frame: 1.0 / 24.0,
+        };
+        let enemy_sprite_red = Sprite {
+            frames: build_frame_list(
+                &enemy_sprite_sheet,
+                &[(0, 8), (8, 8), (16, 8), (24, 8)],
+                (8, 8),
+            ),
+            frame_index: 0,
+            t: 0.0,
+            seconds_per_frame: 1.0 / 24.0,
+        };
+        let enemy_sprite_green = Sprite {
+            frames: build_frame_list(
+                &enemy_sprite_sheet,
+                &[(0, 16), (8, 16), (16, 16), (24, 16)],
+                (8, 8),
+            ),
+            frame_index: 0,
+            t: 0.0,
+            seconds_per_frame: 1.0 / 24.0,
+        };
+        let enemy_sprite_blue = Sprite {
+            frames: build_frame_list(
+                &enemy_sprite_sheet,
+                &[(0, 24), (8, 24), (16, 24), (24, 24)],
+                (8, 8),
+            ),
+            frame_index: 0,
+            t: 0.0,
+            seconds_per_frame: 1.0 / 24.0,
+        };
+
+        let mut game = Self {
             audio: Some(Audio::new()),
             music_mode: false,
             font: Font::new_default(),
@@ -588,6 +640,12 @@ impl Game {
 
             // Add game objects
             mask_game_objects: vec![red_mask, green_mask, blue_mask],
+            enemies: vec![],
+
+            enemy_sprite_white,
+            enemy_sprite_red,
+            enemy_sprite_green,
+            enemy_sprite_blue,
 
             player: Player {
                 idle_sprite,
@@ -623,7 +681,10 @@ impl Game {
             color_mask: Self::START_COLOR_MASK,
             editor_mode: false,
             lerp_color_mask: Vec3::ZERO,
-        }
+        };
+
+        game.reset_game();
+        game
     }
 
     pub fn reset_game(&mut self) {
@@ -632,6 +693,13 @@ impl Game {
         self.player.on_ground = false;
         self.player.is_jumping = false;
         self.player.is_dead = false;
+
+        self.enemies = spawn_enemies(
+            &self.enemy_sprite_white,
+            &self.enemy_sprite_red,
+            &self.enemy_sprite_green,
+            &self.enemy_sprite_blue,
+        );
 
         // Reset inventory
         self.player_inventory.masks.clear();
@@ -825,6 +893,28 @@ impl Game {
             }
         }
 
+        for enemy in self.enemies.iter_mut() {
+            enemy.tick(delta_time, &self.tile_map, &self.tile_set);
+
+            if !enemy.is_colored() || (self.color_mask & enemy.color_mask) & 0xffffff != 0 {
+                if self
+                    .player
+                    .aabb_world_space()
+                    .overlaps(&enemy.hitbox_aabb_world_space())
+                {
+                    self.player.is_dead = true;
+                }
+            }
+
+            enemy.draw(
+                screen,
+                self.camera,
+                lerped_color_mask & 0xffffff,
+                &self.tile_set.aura_low,
+                &self.tile_set.aura,
+            );
+        }
+
         if !DEBUG_MODE {
             // If we are death, play fixed death sequence and restart the game
             if self.player.is_dead {
@@ -991,19 +1081,19 @@ impl Game {
                         samples_positions_left[0],
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
-                        &self.color_mask,
+                        self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_left[1],
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
-                        &self.color_mask,
+                        self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_left[2],
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
-                        &self.color_mask,
+                        self.color_mask,
                     ),
                 ];
 
@@ -1017,19 +1107,19 @@ impl Game {
                         samples_positions_right[0],
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
-                        &self.color_mask,
+                        self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_right[1],
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
-                        &self.color_mask,
+                        self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_right[2],
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
-                        &self.color_mask,
+                        self.color_mask,
                     ),
                 ];
                 let tile_collision_left =
@@ -1080,19 +1170,19 @@ impl Game {
                         samples_positions_below[0],
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
-                        &self.color_mask,
+                        self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_below[1],
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
-                        &self.color_mask,
+                        self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_below[2],
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
-                        &self.color_mask,
+                        self.color_mask,
                     ),
                 ];
 
@@ -1106,19 +1196,19 @@ impl Game {
                         samples_positions_above[0],
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
-                        &self.color_mask,
+                        self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_above[1],
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
-                        &self.color_mask,
+                        self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_above[2],
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
-                        &self.color_mask,
+                        self.color_mask,
                     ),
                 ];
 

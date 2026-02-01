@@ -1,7 +1,7 @@
 use crate::bitmap::Bitmap;
 use glam::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Sprite {
     pub frames: Vec<Bitmap>,
     pub frame_index: usize,
@@ -25,6 +25,32 @@ impl Sprite {
             position.y as i32,
             scale.x,
             scale.y,
+        );
+    }
+
+    pub fn draw_colored(
+        &self,
+        target: &mut Bitmap,
+        position: Vec2,
+        scale: Vec2,
+        is_colored: bool,
+        visible_mask: u32,
+        lerped_color_mask: u32,
+        aura_low: &Bitmap,
+        aura: &Bitmap,
+    ) {
+        let bitmap = &self.frames[self.frame_index];
+        bitmap.draw_on_scaled_colored_obj(
+            target,
+            position.x as i32,
+            position.y as i32,
+            scale.x,
+            scale.y,
+            is_colored,
+            visible_mask,
+            lerped_color_mask,
+            aura_low,
+            aura,
         );
     }
 
