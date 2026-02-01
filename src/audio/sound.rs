@@ -184,9 +184,8 @@ pub fn play_music(t: f64, t0: &DVec4, color_mask: &UVec3, music: &mut Music) -> 
     };
 
     if tstart > 0.0 && t > tstart {
-        let beat_in_game = ((t - tstart) * MusicSettings::TEMPO); // total beats since red mask pickup
-        let beats_since_red = ((t - t0[0]) * MusicSettings::TEMPO); // total beats since red mask pickup
-        let beats_since_blue = ((t - t0[2]) * MusicSettings::TEMPO); // total beats since blue mask pickup
+        let beat_in_game = (t - tstart) * MusicSettings::TEMPO; // total beats since red mask pickup
+        let beats_since_blue = (t - (t0[2].max(t0[3] + 3.))) * MusicSettings::TEMPO; // total beats since red mask pickup
 
         let beat_in_loop =
             beat_in_game % (MusicSettings::BAR_LENGTH * MusicSettings::LOOP_LENGTH) as f64; // current beat in the loop
@@ -233,7 +232,7 @@ pub fn play_music(t: f64, t0: &DVec4, color_mask: &UVec3, music: &mut Music) -> 
             }
 
             // add snare after 8 bars
-            if beats_since_red > 32. {
+            if beat_in_game > 32. {
                 music.track_mask[4] = 256;
             }
         }
