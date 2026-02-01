@@ -851,7 +851,11 @@ impl Game {
             } else {
                 self.color_mask
             },
-            lerped_color_mask,
+            if self.editor_mode {
+                0xffffffff
+            } else {
+                lerped_color_mask
+            },
         );
 
         // draw inventory on top
