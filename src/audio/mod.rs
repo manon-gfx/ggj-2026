@@ -132,7 +132,7 @@ impl Audio {
         let mut max_value: f32 = 0.0;
 
         let mut music = sound::Music::new();
-        let mut t0_music = DVec3::ZERO;
+        let mut t0_music = DVec4::ZERO; // red, green, blue, death
         let mut color_mask_music = UVec3::ZERO;
 
         let mut soundeffects = sound::SoundEffects::new();
@@ -259,15 +259,7 @@ impl Audio {
                             start_death_sound = false;
                             play_death_sound = true;
                             t0_death_sound = t;
-
-                            for i in [1, 2, 0] {
-                                dbg!(i);
-
-                                if t0_music[i] > 0.0{
-                                    t0_music[i] = t + 3.;
-                                    break;
-                                }
-                            }
+                            t0_music[3] = t;
                         }
 
                         if play_footstep_sound {

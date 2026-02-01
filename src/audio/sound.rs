@@ -173,14 +173,20 @@ impl SoundEffects {
     }
 }
 
-pub fn play_music(t: f64, t0: &DVec3, color_mask: &UVec3, music: &mut Music) -> f64 {
+pub fn play_music(t: f64, t0: &DVec4, color_mask: &UVec3, music: &mut Music) -> f64 {
     let mut signal = 0.0;
 
-    if t > t0[0] {
-        let beat_in_game = ((t - t0[0]) * MusicSettings::TEMPO); // total beats since red mask pickup
+    // start either 1 second after red mask pickup or 3 seconds after death
+    let tstart = if t0[0] > 0.0 {
+        (t0[0] + 1.).max(t0[3] + 3.)
+    } else {
+        0.0
+    };
+
+    if tstart > 0.0 && t > tstart {
+        let beat_in_game = ((t - tstart) * MusicSettings::TEMPO); // total beats since red mask pickup
         let beats_since_red = ((t - t0[0]) * MusicSettings::TEMPO); // total beats since red mask pickup
-        let beats_since_green = ((t - t0[1]) * MusicSettings::TEMPO); // total beats since red mask pickup
-        let beats_since_blue = ((t - t0[2]) * MusicSettings::TEMPO); // total beats since red mask pickup
+        let beats_since_blue = ((t - t0[2]) * MusicSettings::TEMPO); // total beats since blue mask pickup
 
         let beat_in_loop =
             beat_in_game % (MusicSettings::BAR_LENGTH * MusicSettings::LOOP_LENGTH) as f64; // current beat in the loop
@@ -189,34 +195,46 @@ pub fn play_music(t: f64, t0: &DVec3, color_mask: &UVec3, music: &mut Music) -> 
             music.track_mask = vec![0, 0, 0, 0, 0];
         }
 
-        // red melody
-        if t0[0] > 0.0 {
-            music.track_mask[0] = color_mask[0];
-
-            if beats_since_red > 32. {
-                music.track_mask[4] = 256;
-            }
-        }
-
-        // blue melody
-        if t0[0] > 0.0 && t0[2] > 0.0 {
-            if t - t0[2] < 1. {
-                music.track_mask[1] = color_mask[2];
-            } else {
-                music.track_mask[1] = 256;
-
-                if beats_since_blue > 32. {
-                    music.track_mask[2] = 256;
-                }
-            }
-        }
-
         // green melody
-        if t0[0] > 0.0 && t0[2] > 0.0 && t0[1] > 0.0 {
+        if t0[1] > 0.0 {
             if t - t0[1] < 1. {
                 music.track_mask[3] = color_mask[1];
             } else {
                 music.track_mask[3] = 256;
+            }
+
+            // always play red music
+            music.track_mask[0] = 256;
+            music.track_mask[4] = 256;
+
+            // always play blue music
+            music.track_mask[1] = 256;
+            music.track_mask[2] = 256;
+        } else if t0[2] > 0.0 {
+            if t - t0[2] < 1. {
+                music.track_mask[1] = color_mask[1];
+            } else {
+                music.track_mask[1] = 256;
+            }
+
+            // add second melody after 8 bars
+            if beats_since_blue > 32. {
+                music.track_mask[2] = 256;
+            }
+
+            // always play red music
+            music.track_mask[0] = 256;
+            music.track_mask[4] = 256;
+        } else if t0[0] > 0.0 {
+            if t - t0[0] < 1. {
+                music.track_mask[0] = color_mask[0];
+            } else {
+                music.track_mask[0] = 256;
+            }
+
+            // add snare after 8 bars
+            if beats_since_red > 32. {
+                music.track_mask[4] = 256;
             }
         }
 
