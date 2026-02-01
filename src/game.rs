@@ -624,12 +624,12 @@ impl Game {
         background_part.draw_on(&mut background, 0, 8);
         background_part.draw_on(&mut background, 8, 8);
 
-        let enemy_sprite_sheet = Bitmap::load("assets/sprite/enemy_test_sheet.png");
+        let enemy_sprite_sheet = Bitmap::load("assets/sprite/enemy_sprite.png");
         let enemy_sprite_white = Sprite {
             frames: build_frame_list(
                 &enemy_sprite_sheet,
-                &[(0, 0), (8, 0), (16, 0), (24, 0)],
-                (8, 8),
+                &(0..8).map(|i| (i * 16, 0)).collect::<Vec<_>>(),
+                (16, 8),
             ),
             frame_index: 0,
             t: 0.0,
@@ -638,8 +638,8 @@ impl Game {
         let enemy_sprite_red = Sprite {
             frames: build_frame_list(
                 &enemy_sprite_sheet,
-                &[(0, 8), (8, 8), (16, 8), (24, 8)],
-                (8, 8),
+                &(0..8).map(|i| (i * 16, 8)).collect::<Vec<_>>(),
+                (16, 8),
             ),
             frame_index: 0,
             t: 0.0,
@@ -648,8 +648,8 @@ impl Game {
         let enemy_sprite_green = Sprite {
             frames: build_frame_list(
                 &enemy_sprite_sheet,
-                &[(0, 16), (8, 16), (16, 16), (24, 16)],
-                (8, 8),
+                &(0..8).map(|i| (i * 16, 16)).collect::<Vec<_>>(),
+                (16, 8),
             ),
             frame_index: 0,
             t: 0.0,
@@ -658,8 +658,8 @@ impl Game {
         let enemy_sprite_blue = Sprite {
             frames: build_frame_list(
                 &enemy_sprite_sheet,
-                &[(0, 24), (8, 24), (16, 24), (24, 24)],
-                (8, 8),
+                &(0..8).map(|i| (i * 16, 24)).collect::<Vec<_>>(),
+                (16, 8),
             ),
             frame_index: 0,
             t: 0.0,
