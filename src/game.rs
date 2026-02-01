@@ -1,13 +1,13 @@
+pub mod background;
 pub mod editor;
 pub mod enemy;
 pub mod sprite;
 pub mod tilemap;
 
-use std::thread::spawn;
-
 use crate::audio::Audio;
 use crate::audio::sound::SoundTypes;
 use crate::bitmap::{self, Bitmap, Font};
+use crate::game::background::Background;
 use crate::game::sprite::Sprite;
 use editor::EditorState;
 use enemy::{Enemy, spawn_enemies};
@@ -317,8 +317,7 @@ pub struct Game {
 
     editor_state: EditorState,
 
-    background: Bitmap,
-    test_sprite: Bitmap,
+    background: Background,
 
     save_state: Option<SaveState>,
 
@@ -498,7 +497,6 @@ impl Game {
             aura_low: aura2,
         };
         let tile_map = TileMap::from_file("assets/level0.txt");
-        let player_sprite = Bitmap::load("assets/test_sprite.png");
 
         // Inventory
         let bag_sprite = Bitmap::load("assets/sprites/bag.png");
@@ -618,14 +616,6 @@ impl Game {
             seconds_per_frame: 1.0 / 12.0,
         };
 
-        let mut background_part = Bitmap::new(8, 8);
-        tile_sheet.draw_on(&mut background_part, -128, -64);
-        let mut background = Bitmap::new(16, 16);
-        background_part.draw_on(&mut background, 0, 0);
-        background_part.draw_on(&mut background, 8, 0);
-        background_part.draw_on(&mut background, 0, 8);
-        background_part.draw_on(&mut background, 8, 8);
-
         let enemy_sprite_sheet = Bitmap::load("assets/sprite/enemy_sprite.png");
         let enemy_sprite_white = Sprite {
             frames: build_frame_list(
@@ -673,8 +663,6 @@ impl Game {
             music_mode: false,
             font: Font::new_default(),
 
-            test_sprite: player_sprite,
-
             actual_camera: vec2(2000.0, 2000.0),
             camera: vec2(2000.0, 2000.0),
 
@@ -684,7 +672,7 @@ impl Game {
 
             editor_state: EditorState::default(),
 
-            background,
+            background: Background::new(),
             tile_set,
             tile_map,
 
@@ -910,51 +898,13 @@ impl Game {
         let lerped_color_mask =
             color_mask_uvec3.x << 16 | color_mask_uvec3.y << 8 | color_mask_uvec3.z | 0xff000000;
 
-        let background_offset = -(self.camera * 0.2) % 256.0;
-
         let aura_translation =
             world_space_to_screen_space(self.player.position, self.camera) - vec2(128.0, 128.0);
         let aura_translation = aura_translation.as_ivec2();
 
-        self.background.draw_background(
+        self.background.draw(
             screen,
-            background_offset.x as i32,
-            background_offset.y as i32,
-            16.0,
-            16.0,
-            lerped_color_mask,
-            &self.tile_set.aura_low,
-            &self.tile_set.aura,
-            aura_translation,
-        );
-        self.background.draw_background(
-            screen,
-            background_offset.x as i32 + 256,
-            background_offset.y as i32,
-            16.0,
-            16.0,
-            lerped_color_mask,
-            &self.tile_set.aura_low,
-            &self.tile_set.aura,
-            aura_translation,
-        );
-        self.background.draw_background(
-            screen,
-            background_offset.x as i32,
-            background_offset.y as i32 + 256,
-            16.0,
-            16.0,
-            lerped_color_mask,
-            &self.tile_set.aura_low,
-            &self.tile_set.aura,
-            aura_translation,
-        );
-        self.background.draw_background(
-            screen,
-            background_offset.x as i32 + 256,
-            background_offset.y as i32 + 256,
-            16.0,
-            16.0,
+            self.camera,
             lerped_color_mask,
             &self.tile_set.aura_low,
             &self.tile_set.aura,
