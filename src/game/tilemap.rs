@@ -151,6 +151,7 @@ impl TileMap {
         camera: Vec2,
         color_mask: crate::bitmap::ColorChannel,
         lerped_color_mask: u32,
+        aura_transl: IVec2,
     ) {
         let screen_size = vec2(target.width as f32, target.height as f32);
         let bounds = Aabb {
@@ -202,6 +203,7 @@ impl TileMap {
                     lerped_color_mask,
                     &tile_set.aura_low,
                     &tile_set.aura,
+                    aura_transl,
                 );
             }
         }

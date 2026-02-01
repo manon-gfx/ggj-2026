@@ -310,6 +310,7 @@ pub struct Game {
     tile_set: TileSet,
     tile_map: TileMap,
 
+    actual_camera: Vec2,
     camera: Vec2,
 
     input_state: InputState,
@@ -332,6 +333,7 @@ pub struct Game {
     enemy_sprite_blue: Sprite,
     enemy_sprite_white: Sprite,
 
+    died_position: Vec2,
     player: Player,
     player_inventory: PlayerInventory,
     is_player_walking: bool,
@@ -673,6 +675,7 @@ impl Game {
 
             test_sprite: player_sprite,
 
+            actual_camera: vec2(2000.0, 2000.0),
             camera: vec2(2000.0, 2000.0),
 
             input_state: InputState::default(),
@@ -697,6 +700,7 @@ impl Game {
             enemy_sprite_green,
             enemy_sprite_blue,
 
+            died_position: Vec2::ZERO,
             player: Player {
                 idle_sprite,
                 walk_sprite,
@@ -877,8 +881,22 @@ impl Game {
 
         screen.clear(0);
 
-        if !self.editor_mode && !self.player.is_dead {
-            self.camera = self.player.position - vec2(132.0, 128.0);
+        let screen_offset = vec2(128.0, 104.0 + 32.0);
+        let target = if self.player.is_dead {
+            Aabb {
+                min: self.player.aabb.min + self.died_position,
+                max: self.player.aabb.max + self.died_position,
+            }
+            .center()
+                - screen_offset
+        } else {
+            let target = self.player.aabb_world_space().center() - screen_offset;
+            target + self.player.velocity * vec2(0.35, 0.1)
+        };
+        self.actual_camera = self.actual_camera.lerp(target, delta_time * 4.0);
+
+        if !self.editor_mode {
+            self.camera = self.actual_camera.round()
         }
 
         {
@@ -893,6 +911,11 @@ impl Game {
             color_mask_uvec3.x << 16 | color_mask_uvec3.y << 8 | color_mask_uvec3.z | 0xff000000;
 
         let background_offset = -(self.camera * 0.2) % 256.0;
+
+        let aura_translation =
+            world_space_to_screen_space(self.player.position, self.camera) - vec2(128.0, 128.0);
+        let aura_translation = aura_translation.as_ivec2();
+
         self.background.draw_background(
             screen,
             background_offset.x as i32,
@@ -902,6 +925,7 @@ impl Game {
             lerped_color_mask,
             &self.tile_set.aura_low,
             &self.tile_set.aura,
+            aura_translation,
         );
         self.background.draw_background(
             screen,
@@ -912,6 +936,7 @@ impl Game {
             lerped_color_mask,
             &self.tile_set.aura_low,
             &self.tile_set.aura,
+            aura_translation,
         );
         self.background.draw_background(
             screen,
@@ -922,6 +947,7 @@ impl Game {
             lerped_color_mask,
             &self.tile_set.aura_low,
             &self.tile_set.aura,
+            aura_translation,
         );
         self.background.draw_background(
             screen,
@@ -932,6 +958,7 @@ impl Game {
             lerped_color_mask,
             &self.tile_set.aura_low,
             &self.tile_set.aura,
+            aura_translation,
         );
 
         self.tile_map.draw(
@@ -948,6 +975,7 @@ impl Game {
             } else {
                 lerped_color_mask
             },
+            aura_translation,
         );
 
         // draw inventory on top
@@ -1008,6 +1036,7 @@ impl Game {
                 lerped_color_mask & 0xffffff,
                 &self.tile_set.aura_low,
                 &self.tile_set.aura,
+                aura_translation,
             );
         }
 
@@ -1052,6 +1081,7 @@ impl Game {
             if self.player.is_dead {
                 // just died
                 if !self.death_sequence_is_playing {
+                    self.died_position = self.player.position;
                     self.player.velocity.y = -2.0 * JUMP_IMPULSE;
                     self.death_sequence_is_playing = true;
 

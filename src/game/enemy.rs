@@ -105,6 +105,7 @@ impl Enemy {
         lerped_color_mask: u32,
         aura_low: &Bitmap,
         aura: &Bitmap,
+        aura_transl: IVec2,
     ) {
         let scale_x = if self.going_left { -1.0 } else { 1.0 };
 
@@ -121,6 +122,7 @@ impl Enemy {
             lerped_color_mask,
             aura_low,
             aura,
+            aura_transl,
         );
     }
 }

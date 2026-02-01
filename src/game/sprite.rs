@@ -38,6 +38,7 @@ impl Sprite {
         lerped_color_mask: u32,
         aura_low: &Bitmap,
         aura: &Bitmap,
+        aura_transl: IVec2,
     ) {
         let bitmap = &self.frames[self.frame_index];
         bitmap.draw_on_scaled_colored_obj(
@@ -51,6 +52,7 @@ impl Sprite {
             lerped_color_mask,
             aura_low,
             aura,
+            aura_transl,
         );
     }
 
