@@ -174,6 +174,7 @@ struct Player {
     walk_sprite: Sprite,
     jump_sprite: Sprite,
     death_sprite: Sprite,
+    win_sprite: Sprite,
 
     position: Vec2,
     velocity: Vec2,
@@ -181,6 +182,7 @@ struct Player {
     on_ground: bool,
     is_jumping: bool,
     is_dead: bool,
+    is_winner: bool,
 }
 
 impl Player {
@@ -203,13 +205,19 @@ impl Player {
         if self.is_dead {
             self.death_sprite.tick(delta_time);
         }
+        if self.is_winner {
+            self.win_sprite.tick(delta_time);
+        }
     }
 
     fn draw(&self, screen: &mut Bitmap, camera: Vec2, color_mask: u32) {
         let scale = vec2(if self.velocity.x < 0.0 { -1.0 } else { 1.0 }, 1.0);
         let screen_pos = world_space_to_screen_space(self.position, camera);
 
-        if self.is_dead {
+        if self.is_winner {
+            self.win_sprite
+                .draw_player(screen, screen_pos, scale, color_mask);
+        } else if self.is_dead {
             self.death_sprite
                 .draw_player(screen, screen_pos, scale, color_mask);
         } else if !self.on_ground {
@@ -332,6 +340,9 @@ pub struct Game {
 
     death_sequence_is_playing: bool,
     death_sequence_duration: f32,
+
+    winning_sequence_is_playing: bool,
+    winning_sequence_duration: f32,
 
     editor_mode: bool,
 
@@ -485,10 +496,7 @@ impl Game {
             aura_low: aura2,
         };
         let tile_map = TileMap::from_file("assets/level0.txt");
-
         let player_sprite = Bitmap::load("assets/test_sprite.png");
-        let sprite_width = player_sprite.width as f32;
-        let sprite_height = player_sprite.height as f32;
 
         // Inventory
         let bag_sprite = Bitmap::load("assets/sprites/bag.png");
@@ -553,6 +561,14 @@ impl Game {
             (112, 16),
         ];
         let jump_frames = [(0, 80), (16, 80)];
+        let win_frames= [
+            (0, 100),
+            (16, 100),
+            (32, 100),
+            (48, 100),
+            (64, 100),
+            (80, 100)
+        ];
 
         let idle_sprite = Sprite {
             frames: build_frame_list(&player_sprite_sheet, &[(0, 0)], (16, 16)),
@@ -573,10 +589,16 @@ impl Game {
             seconds_per_frame: 1.0 / 4.0,
         };
         let death_sprite = Sprite {
-            frames: build_frame_list(&player_sprite_sheet, &[(0, 32)], (16, 16)),
+            frames: build_frame_list(&player_sprite_sheet, &[(0, 32)], (16, 16)), // TODO: Add anim
             frame_index: 0,
             t: 0.0,
             seconds_per_frame: 1.0 / 4.0,
+        };
+        let win_sprite=  Sprite {
+            frames: build_frame_list(&player_sprite_sheet, &win_frames, (16, 16)), // TODO: Own frames
+            frame_index: 0,
+            t: 0.0,
+            seconds_per_frame: 1.0 / 12.0,
         };
 
         let mut background_part = Bitmap::new(8, 8);
@@ -665,6 +687,7 @@ impl Game {
                 walk_sprite,
                 jump_sprite,
                 death_sprite,
+                win_sprite,
                 position: Self::PLAYER_START_POS,
                 velocity: Vec2::ZERO,
                 aabb: Aabb {
@@ -674,6 +697,7 @@ impl Game {
                 on_ground: false,
                 is_jumping: false,
                 is_dead: false,
+                is_winner: false,
             },
             player_inventory: PlayerInventory {
                 tile_size: 16,
@@ -691,6 +715,9 @@ impl Game {
             death_sequence_duration: 1.5,
             death_sequence_is_playing: false,
 
+            winning_sequence_duration: 2.5,
+            winning_sequence_is_playing: false,
+
             color_mask: Self::START_COLOR_MASK,
             editor_mode: false,
             lerp_color_mask: Vec3::ZERO,
@@ -706,6 +733,7 @@ impl Game {
         self.player.on_ground = false;
         self.player.is_jumping = false;
         self.player.is_dead = false;
+        self.player.is_winner = false;
 
         self.enemies = spawn_enemies(
             &self.enemy_sprite_white,
@@ -726,6 +754,9 @@ impl Game {
         // Reset death sequence
         self.death_sequence_duration = 1.5;
         self.death_sequence_is_playing = false;
+
+        self.winning_sequence_duration = 2.5;
+        self.winning_sequence_is_playing = false;
 
         self.restore_save_game();
     }
@@ -965,6 +996,43 @@ impl Game {
             );
         }
 
+        self.player.is_winner = self.player.is_dead; // TODO: Delete
+        // If we won, play winning sequence
+        if self.player.is_winner {
+            let desired_position = vec2(self.player.position.x, self.player.position.y - self.player.win_sprite.frames[0].height as f32);
+            let desired_scale_scalar = 2.0;            
+            
+            // Just won
+            if !self.winning_sequence_is_playing {
+            }
+            
+            self.winning_sequence_duration -= delta_time;
+            screen.draw_str(&self.font, "U WON :)", 100, 50, bitmap::GREEN);
+
+            if self.winning_sequence_duration < 0.0 {
+                self.reset_game();
+            } else {
+                self.player.tick(delta_time);
+                self.player.draw(screen, self.camera, 0xffff00); // draw with golden mask
+
+                // TODO: I was thinking we could lerp to bigger scale & higher position but it needs fixing with aligning with pixels --> looks jerky now
+                // Lerp to pos
+                // let start_pos = self.player.position;
+                // let player_pos = desired_position.lerp(start_pos, self.winning_sequence_duration / (2.5 * 2.0)); // lerping the wrong way
+
+                // // Draw
+                // let scale = vec2(if self.player.velocity.x < 0.0 { -1.0 } else { 1.0 }, 1.0);
+                // let start_scale = 1.0;
+                // let scale_scalar = desired_scale_scalar.lerp(start_scale, self.winning_sequence_duration / (2.5 * 2.0)); // lerping the wrong way
+
+                // let screen_pos = world_space_to_screen_space(player_pos, self.camera);
+                // // self.player.tick(delta_time);
+                // self.player.win_sprite
+                //     .draw_player(screen, screen_pos, scale * scale_scalar, 0xffff00); // draw with golden mask
+            }
+            return;
+        }
+
         if !DEBUG_MODE {
             // If we are death, play fixed death sequence and restart the game
             if self.player.is_dead {
@@ -988,6 +1056,7 @@ impl Game {
                 } else {
                     self.player.velocity.y += GRAVITY * delta_time;
                     self.player.position.y += self.player.velocity.y * delta_time;
+                    self.player.tick(delta_time);
                     self.player.draw(screen, self.camera, self.color_mask);
                 }
                 return;

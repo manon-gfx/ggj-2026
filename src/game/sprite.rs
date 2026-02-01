@@ -60,10 +60,12 @@ impl Sprite {
             (color_mask >> 8) & 0xff,
             color_mask & 0xff,
         );
-
         let color_index = if (color_mask & 0xffffff) == 0 {
             0
-        } else {
+        } else if (color_mask == 0xffff00) {
+            4
+        } 
+        else {
             if components.x > components.y {
                 if components.x > components.z { 1 } else { 3 }
             } else if components.y > components.z {
