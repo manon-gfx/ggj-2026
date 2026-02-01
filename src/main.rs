@@ -13,6 +13,7 @@ use ash::{
 use bitmap::Bitmap;
 use game::Game;
 
+use gilrs::Gilrs;
 use minifb::WindowOptions;
 use raw_window_handle::HasDisplayHandle;
 
@@ -325,12 +326,14 @@ fn main() {
 
     // Initialize the game!
     let game_init_start = std::time::Instant::now();
-    let mut game = Game::new();
+    let mut game = Box::new(Game::new());
     let game_init_end = std::time::Instant::now();
     println!(
         "Initializing game took {:?}",
         game_init_end - game_init_start
     );
+
+    let mut gilrs = Gilrs::new().unwrap();
 
     // Mouse state to keep track of
     let mut mouse_x = 0.0;
@@ -341,6 +344,45 @@ fn main() {
 
     let mut swap_index = 0;
     while window.is_open() {
+        while let Some(gilrs::Event {
+            id, event, time, ..
+        }) = gilrs.next_event()
+        {
+            match event {
+                gilrs::EventType::ButtonPressed(button, _code) => match button {
+                    gilrs::Button::North => game.on_key_down(game::Key::Jump),
+                    gilrs::Button::South => game.on_key_down(game::Key::MaskGreen),
+                    gilrs::Button::East => game.on_key_down(game::Key::MaskRed),
+                    gilrs::Button::West => game.on_key_down(game::Key::MaskBlue),
+
+                    gilrs::Button::DPadUp => game.on_key_down(game::Key::Up),
+                    gilrs::Button::DPadDown => game.on_key_down(game::Key::Down),
+                    gilrs::Button::DPadLeft => game.on_key_down(game::Key::Left),
+                    gilrs::Button::DPadRight => game.on_key_down(game::Key::Right),
+                    _ => {}
+                },
+                gilrs::EventType::ButtonReleased(button, _code) => match button {
+                    gilrs::Button::North => game.on_key_up(game::Key::Jump),
+                    gilrs::Button::South => game.on_key_up(game::Key::MaskGreen),
+                    gilrs::Button::East => game.on_key_up(game::Key::MaskRed),
+                    gilrs::Button::West => game.on_key_up(game::Key::MaskBlue),
+
+                    gilrs::Button::DPadUp => game.on_key_up(game::Key::Up),
+                    gilrs::Button::DPadDown => game.on_key_up(game::Key::Down),
+                    gilrs::Button::DPadLeft => game.on_key_up(game::Key::Left),
+                    gilrs::Button::DPadRight => game.on_key_up(game::Key::Right),
+                    _ => {}
+                },
+                gilrs::EventType::AxisChanged(axis, value, _code) => match axis {
+                    gilrs::Axis::LeftStickX => game.on_axis_change(game::Axis::LeftStickX, value),
+                    gilrs::Axis::LeftStickY => game.on_axis_change(game::Axis::LeftStickY, value),
+                    _ => {}
+                },
+                // gilrs::EventType::ForceFeedbackEffectCompleted,
+                _ => {} // ignore
+            }
+        }
+
         if let Some((x, y)) = window.get_mouse_pos(minifb::MouseMode::Clamp) {
             let scale_x = window_width as f32 / render_width as f32;
             let scale_y = window_height as f32 / render_height as f32;
@@ -390,16 +432,16 @@ fn main() {
         handle_key_events(minifb::Key::Down, game::Key::Down);
         handle_key_events(minifb::Key::Left, game::Key::Left);
         handle_key_events(minifb::Key::Right, game::Key::Right);
-        handle_key_events(minifb::Key::Z, game::Key::A);
+        handle_key_events(minifb::Key::Z, game::Key::Jump);
         handle_key_events(minifb::Key::S, game::Key::S);
         handle_key_events(minifb::Key::Space, game::Key::Space);
         handle_key_events(minifb::Key::LeftBracket, game::Key::LeftBracket);
         handle_key_events(minifb::Key::RightBracket, game::Key::RightBracket);
 
         // Toggle masks
-        handle_key_events(minifb::Key::R, game::Key::R);
-        handle_key_events(minifb::Key::G, game::Key::G);
-        handle_key_events(minifb::Key::B, game::Key::B);
+        handle_key_events(minifb::Key::R, game::Key::MaskRed);
+        handle_key_events(minifb::Key::G, game::Key::MaskGreen);
+        handle_key_events(minifb::Key::B, game::Key::MaskBlue);
 
         handle_key_events(minifb::Key::M, game::Key::M);
         handle_key_events(minifb::Key::A, game::Key::MusicC3);

@@ -23,6 +23,20 @@ const DEBUG_MODE: bool = false;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(usize)]
+pub enum Axis {
+    LeftStickX,
+    LeftStickY,
+    // LeftZ,
+    // RightStickX,
+    // RightStickY,
+    // RightZ,
+    // DPadX,
+    // DPadY,
+    Count,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[repr(usize)]
 pub enum Key {
     Up,
     Down,
@@ -57,6 +71,11 @@ pub enum Key {
     MusicD4,
     MusicDs4,
     MusicE4,
+
+    MaskRed,
+    MaskGreen,
+    MaskBlue,
+    Jump,
 
     Count,
 }
@@ -196,9 +215,11 @@ impl Player {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct InputState {
-    mouse: Vec2,
+    pub mouse: Vec2,
+
+    pub axis_state: [f32; Axis::Count as usize],
 
     pub key_state: [bool; Key::Count as usize],
     pub key_pressed: [bool; Key::Count as usize],
@@ -207,6 +228,23 @@ pub struct InputState {
     pub mouse_state: [bool; MouseButton::Count as usize], // is mouse currently pressed
     pub mouse_pressed: [bool; MouseButton::Count as usize], // was mouse just pressed
     pub mouse_released: [bool; MouseButton::Count as usize], // was mouse just release
+}
+impl Default for InputState {
+    fn default() -> Self {
+        Self {
+            mouse: Vec2::default(),
+
+            axis_state: [0.0; Axis::Count as usize],
+
+            key_state: [false; Key::Count as usize],
+            key_pressed: [false; Key::Count as usize],
+            key_released: [false; Key::Count as usize],
+
+            mouse_state: [false; MouseButton::Count as usize], // is mouse currently pressed
+            mouse_pressed: [false; MouseButton::Count as usize], // was mouse just pressed
+            mouse_released: [false; MouseButton::Count as usize], // was mouse just release
+        }
+    }
 }
 impl InputState {
     fn is_key_down(&self, key: Key) -> bool {
@@ -217,6 +255,10 @@ impl InputState {
     }
     fn is_key_released(&self, key: Key) -> bool {
         self.key_released[key as usize]
+    }
+
+    fn axis_state(&self, axis: Axis) -> f32 {
+        self.axis_state[axis as usize]
     }
 
     fn is_mouse_down(&self, button: MouseButton) -> bool {
@@ -649,6 +691,10 @@ impl Game {
         }
     }
 
+    pub(crate) fn on_axis_change(&mut self, axis: Axis, value: f32) {
+        self.input_state.axis_state[axis as usize] = value;
+    }
+
     pub fn set_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
         self.color_mask = color_channel;
     }
@@ -816,26 +862,36 @@ impl Game {
         if !self.editor_mode {
             self.is_player_walking = false;
 
+            let mut movement_axis = self.input_state.axis_state(Axis::LeftStickX);
+            if movement_axis.abs() < 0.1 {
+                // keyboard input
+                if self.input_state.is_key_down(Key::Left) {
+                    movement_axis -= 1.0;
+                }
+                if self.input_state.is_key_down(Key::Right) {
+                    movement_axis += 1.0;
+                }
+            }
+
             // do game things here
-            if self.input_state.is_key_down(Key::Left) {
+            if movement_axis < 0.0 {
                 self.player.velocity.x = self.player.velocity.x.min(0.0);
-                self.player.velocity.x -= MOVEMENT_ACCELERATION * delta_time;
+                self.player.velocity.x += MOVEMENT_ACCELERATION * delta_time * movement_axis;
 
                 if self.player.on_ground {
                     self.is_player_walking = true;
                 }
             }
-            if self.input_state.is_key_down(Key::Right) {
+            if movement_axis > 0.0 {
                 self.player.velocity.x = self.player.velocity.x.max(0.0);
-                self.player.velocity.x += MOVEMENT_ACCELERATION * delta_time;
+                self.player.velocity.x += MOVEMENT_ACCELERATION * delta_time * movement_axis;
 
                 if self.player.on_ground {
                     self.is_player_walking = true;
                 }
             }
 
-            if !self.input_state.is_key_down(Key::Left) && !self.input_state.is_key_down(Key::Right)
-            {
+            if movement_axis == 0.0 {
                 if self.player.velocity.x > 0.0 {
                     self.player.velocity.x -= self.player.velocity.x.min(FRICTION * delta_time);
                 }
@@ -850,7 +906,7 @@ impl Game {
                 .x
                 .clamp(-MOVEMENT_SPEED_X, MOVEMENT_SPEED_X);
 
-            if self.input_state.is_key_pressed(Key::A) && self.player.on_ground {
+            if self.input_state.is_key_pressed(Key::Jump) && self.player.on_ground {
                 self.player.velocity.y = -JUMP_IMPULSE;
                 self.player.is_jumping = true;
 
@@ -861,7 +917,7 @@ impl Game {
                         .unwrap();
                 }
             }
-            if self.input_state.is_key_down(Key::A) {
+            if self.input_state.is_key_down(Key::Jump) {
                 if self.player.is_jumping {
                     self.player.velocity.y -= JUMP_SUSTAIN * delta_time;
                 }
@@ -870,45 +926,45 @@ impl Game {
             }
 
             if DEBUG_MASKS {
-                if self.input_state.is_key_released(Key::R) {
+                if self.input_state.is_key_released(Key::MaskRed) {
                     self.toggle_color_mask(0xff0000);
                 }
-                if self.input_state.is_key_released(Key::G) {
+                if self.input_state.is_key_released(Key::MaskGreen) {
                     self.toggle_color_mask(0x00ff00);
                 }
-                if self.input_state.is_key_released(Key::B) {
+                if self.input_state.is_key_released(Key::MaskBlue) {
                     self.toggle_color_mask(0x0000ff);
                 }
             } else {
                 // Current situ: activating a new mask disables old mask (can't wear two masks)
-                if self.input_state.is_key_released(Key::R) {
+                if self.input_state.is_key_released(Key::MaskRed) {
                     if let Some(red_mask) = self
                         .player_inventory
                         .masks
                         .iter()
-                        .find(|&x| x.activation_key == Key::R)
+                        .find(|&x| x.activation_key == Key::MaskRed)
                     {
                         // self.toggle_color_mask(red_mask.color);
                         self.set_color_mask(red_mask.color);
                     };
                 }
-                if self.input_state.is_key_released(Key::G) {
+                if self.input_state.is_key_released(Key::MaskGreen) {
                     if let Some(green_mask) = self
                         .player_inventory
                         .masks
                         .iter()
-                        .find(|&x| x.activation_key == Key::G)
+                        .find(|&x| x.activation_key == Key::MaskGreen)
                     {
                         // self.toggle_color_mask(green_mask.color);
                         self.set_color_mask(green_mask.color);
                     };
                 }
-                if self.input_state.is_key_released(Key::B) {
+                if self.input_state.is_key_released(Key::MaskBlue) {
                     if let Some(blue_mask) = self
                         .player_inventory
                         .masks
                         .iter()
-                        .find(|&x| x.activation_key == Key::B)
+                        .find(|&x| x.activation_key == Key::MaskBlue)
                     {
                         // self.toggle_color_mask(blue_mask.color);
                         self.set_color_mask(blue_mask.color);
