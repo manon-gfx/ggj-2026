@@ -145,7 +145,6 @@ struct MaskObject {
     sprite_inventory: Bitmap,
     sprite_inventory_activated: Bitmap,
     visible: bool,
-    activation_key: Key,
 }
 impl MaskObject {
     fn aabb_world_space(&self) -> Aabb {
@@ -488,7 +487,6 @@ impl Game {
                 "assets/sprites/red_mask_in_bag_activated.png",
             ),
             visible: true,
-            activation_key: Key::R,
         };
 
         let green_mask = MaskObject {
@@ -504,7 +502,6 @@ impl Game {
                 "assets/sprites/green_mask_in_bag_activated.png",
             ),
             visible: true,
-            activation_key: Key::G,
         };
 
         let blue_mask = MaskObject {
@@ -520,7 +517,6 @@ impl Game {
                 "assets/sprites/blue_mask_in_bag_activated.png",
             ),
             visible: true,
-            activation_key: Key::B,
         };
 
         let player_sprite_sheet = Bitmap::load("assets/sprite/spritesheet_animation.png");
@@ -942,7 +938,7 @@ impl Game {
                         .player_inventory
                         .masks
                         .iter()
-                        .find(|&x| x.activation_key == Key::MaskRed)
+                        .find(|&x| x.color == bitmap::RED)
                     {
                         // self.toggle_color_mask(red_mask.color);
                         self.set_color_mask(red_mask.color);
@@ -953,7 +949,7 @@ impl Game {
                         .player_inventory
                         .masks
                         .iter()
-                        .find(|&x| x.activation_key == Key::MaskGreen)
+                        .find(|&x| x.color == bitmap::GREEN)
                     {
                         // self.toggle_color_mask(green_mask.color);
                         self.set_color_mask(green_mask.color);
@@ -964,7 +960,7 @@ impl Game {
                         .player_inventory
                         .masks
                         .iter()
-                        .find(|&x| x.activation_key == Key::MaskBlue)
+                        .find(|&x| x.color == bitmap::BLUE)
                     {
                         // self.toggle_color_mask(blue_mask.color);
                         self.set_color_mask(blue_mask.color);
@@ -1202,6 +1198,8 @@ impl Game {
                     .aabb_world_space()
                     .overlaps(&self.player.aabb_world_space())
                 {
+                    self.color_mask = mask.color;
+
                     self.player_inventory.masks.push(mask.clone());
                     mask.visible = false;
                 }
