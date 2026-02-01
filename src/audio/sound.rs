@@ -113,12 +113,14 @@ pub enum SoundTypes {
     FootstepSound,
     JumpSound,
     DeathSound,
+    PickupSound,
 }
 
 pub struct SoundEffects {
     pub footstep: Sound,
     pub jump: Sound,
     pub death: Sound,
+    pub pickup: Sound,
 }
 
 impl SoundEffects {
@@ -152,10 +154,20 @@ impl SoundEffects {
             volume: 0.5,
         };
 
+        let pickup = Sound {
+            wave: sawtooth_wave,
+            start: 0.,
+            duration: 0.5,
+            interval: 0.0,
+            melody: &[CS5, A4, CS5, E5, A5],
+            volume: 0.5,
+        };
+
         Self {
             footstep: footstep,
             jump: jump,
             death: death,
+            pickup: pickup,
         }
     }
 }

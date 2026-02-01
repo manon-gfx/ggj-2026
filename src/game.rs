@@ -1202,6 +1202,13 @@ impl Game {
 
                     self.player_inventory.masks.push(mask.clone());
                     mask.visible = false;
+
+                    if let Some(audio) = &self.audio {
+                        audio
+                            .sfx_sender
+                            .send((SoundTypes::PickupSound, true))
+                            .unwrap();
+                    }
                 }
             }
         }

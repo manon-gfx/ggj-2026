@@ -138,16 +138,19 @@ impl Audio {
         music.track_mask[0] = true;
 
         let mut soundeffects = sound::SoundEffects::new();
-        let mut start_jump_sound: bool = false;
-        let mut start_death_sound: bool = false;
         let mut start_footstep_sound: bool = false;
         let mut stop_footstep_sound: bool = false;
-        let mut play_jump_sound: bool = false;
-        let mut play_death_sound: bool = false;
+        let mut start_jump_sound: bool = false;
+        let mut start_pickup_sound: bool = false;
+        let mut start_death_sound: bool = false;
         let mut play_footstep_sound: bool = false;
-        let mut t0_jump_sound: f64 = 0.0;
-        let mut t0_death_sound: f64 = 0.0;
+        let mut play_jump_sound: bool = false;
+        let mut play_pickup_sound: bool = false;
+        let mut play_death_sound: bool = false;
         let mut t0_footstep_sound: f64 = 0.0;
+        let mut t0_jump_sound: f64 = 0.0;
+        let mut t0_pickup_sound: f64 = 0.0;
+        let mut t0_death_sound: f64 = 0.0;
 
         let stream = device
             .build_output_stream(
@@ -188,10 +191,12 @@ impl Audio {
                             SoundTypes::JumpSound => {
                                 start_jump_sound = play;
                             }
+                            SoundTypes::PickupSound => {
+                                start_pickup_sound = play;
+                            }
                             SoundTypes::DeathSound => {
                                 start_death_sound = play;
                             }
-                            _ => {}
                         }
                     }
 
@@ -218,26 +223,6 @@ impl Audio {
 
                         let mut value = play_music(t, &mut music);
 
-                        if start_jump_sound {
-                            start_jump_sound = false;
-                            play_jump_sound = true;
-                            t0_jump_sound = t;
-                        }
-
-                        if play_jump_sound {
-                            value += 0.5 * play_sfx(t ,t0_jump_sound, &soundeffects.jump)
-                        }
-
-                        if start_death_sound {
-                            start_death_sound = false;
-                            play_death_sound = true;
-                            t0_death_sound = t;
-                        }
-
-                        if play_death_sound {
-                            value += 0.5 * play_sfx(t ,t0_death_sound, &soundeffects.death)
-                        }
-
                         if start_footstep_sound {
                             start_footstep_sound = false;
                             play_footstep_sound = true;
@@ -249,8 +234,38 @@ impl Audio {
                             play_footstep_sound = false;
                         }
 
+                        if start_jump_sound {
+                            start_jump_sound = false;
+                            play_jump_sound = true;
+                            t0_jump_sound = t;
+                        }
+
+                        if start_pickup_sound {
+                            start_pickup_sound = false;
+                            play_pickup_sound = true;
+                            t0_pickup_sound = t;
+                        }
+
+                        if start_death_sound {
+                            start_death_sound = false;
+                            play_death_sound = true;
+                            t0_death_sound = t;
+                        }
+
                         if play_footstep_sound {
                             value += 0.5 * play_sfx(t ,t0_footstep_sound, &soundeffects.footstep)
+                        }
+
+                        if play_jump_sound {
+                            value += 0.5 * play_sfx(t ,t0_jump_sound, &soundeffects.jump)
+                        }
+
+                        if play_pickup_sound {
+                            value += 0.5 * play_sfx(t ,t0_pickup_sound, &soundeffects.pickup)
+                        }
+
+                        if play_death_sound {
+                            value += 0.5 * play_sfx(t ,t0_death_sound, &soundeffects.death)
                         }
 
                         for (i, note_played ) in piano_notes.iter().enumerate(){
