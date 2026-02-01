@@ -129,7 +129,7 @@ impl Audio {
         let mut max_value: f32 = 0.0;
 
         let mut music = sound::Music::new();
-        music.track_mask[0] = true;
+        let mut t0_music = time;
 
         let mut soundeffects = sound::SoundEffects::new();
         let mut start_footstep_sound: bool = false;
@@ -215,7 +215,7 @@ impl Audio {
                         }
                         last_time = t;
 
-                        let mut value = play_music(t, &mut music);
+                        let mut value = play_music(t, t0_music, &mut music);
 
                         if start_footstep_sound {
                             start_footstep_sound = false;
@@ -244,6 +244,7 @@ impl Audio {
                             start_death_sound = false;
                             play_death_sound = true;
                             t0_death_sound = t;
+                            t0_music = t + 1.5;
                         }
 
                         if play_footstep_sound {
@@ -264,7 +265,7 @@ impl Audio {
 
                         for (i, note_played ) in piano_notes.iter().enumerate(){
                             if *note_played {
-                               value += 0.5 * square_wave(t, 55. * 1.05946309436_f64.powi(i as i32 - 9));
+                               value += 0.5 * sawtooth_wave(t, 440. * 1.05946309436_f64.powi(i as i32 - 9));
                             }
                         }
 

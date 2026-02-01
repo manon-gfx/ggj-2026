@@ -172,35 +172,43 @@ impl SoundEffects {
     }
 }
 
-pub fn play_music(t: f64, music: &mut Music) -> f64 {
+pub fn play_music(t: f64, t0: f64, music: &mut Music) -> f64 {
     let mut signal = 0.0;
 
-    let beat_in_game = (t * MusicSettings::TEMPO); // total beats since start of game
-    let beat_in_loop =
-        beat_in_game % (MusicSettings::BAR_LENGTH * MusicSettings::LOOP_LENGTH) as f64; // current beat in the loop
+    if t > t0 {
+        let beat_in_game = ((t - t0) * MusicSettings::TEMPO); // total beats since start of game
+        let beat_in_loop =
+            beat_in_game % (MusicSettings::BAR_LENGTH * MusicSettings::LOOP_LENGTH) as f64; // current beat in the loop
 
-    if beat_in_game > 32. {
-        music.track_mask[4] = true;
-    }
-    if beat_in_game > 64. {
-        music.track_mask[1] = true;
-    }
-    if beat_in_game > 96. {
-        music.track_mask[2] = true;
-    }
-    if beat_in_game > 128. {
-        music.track_mask[3] = true;
-    }
+        if beat_in_game < 32. {
+            music.track_mask = vec![false, false, false, false, false];
+        }
+        if beat_in_game > 32. {
+            music.track_mask[0] = true;
+        }
+        if beat_in_game > 64. {
+            music.track_mask[4] = true;
+        }
+        if beat_in_game > 96. {
+            music.track_mask[1] = true;
+        }
+        if beat_in_game > 128. {
+            music.track_mask[2] = true;
+        }
+        if beat_in_game > 160. {
+            music.track_mask[3] = true;
+        }
 
-    for (track, play_track) in music.tracks.iter().zip(music.track_mask.iter()) {
-        if *play_track {
-            let beat_in_track = beat_in_loop % track.length as f64;
-            let idx_in_track = (beat_in_track as f64 / track.length as f64
-                * track.melody.len() as f64)
-                .floor() as usize;
-            let note = track.melody[idx_in_track];
-            if note != REST {
-                signal += track.volume * (track.wave)(t, note);
+        for (track, play_track) in music.tracks.iter().zip(music.track_mask.iter()) {
+            if *play_track {
+                let beat_in_track = beat_in_loop % track.length as f64;
+                let idx_in_track = (beat_in_track as f64 / track.length as f64
+                    * track.melody.len() as f64)
+                    .floor() as usize;
+                let note = track.melody[idx_in_track];
+                if note != REST {
+                    signal += track.volume * (track.wave)(t, note);
+                }
             }
         }
     }
