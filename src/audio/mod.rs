@@ -244,6 +244,7 @@ impl Audio {
                             start_death_sound = false;
                             play_death_sound = true;
                             t0_death_sound = t;
+                            t0_music = t + 1.5;
                         }
 
                         if play_footstep_sound {
@@ -259,7 +260,6 @@ impl Audio {
                         }
 
                         if play_death_sound {
-                            t0_music = t;
                             value += play_sfx(t ,t0_death_sound, &soundeffects.death)
                         }
 
