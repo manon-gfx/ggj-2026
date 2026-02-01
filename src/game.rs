@@ -907,6 +907,14 @@ impl Game {
         }
 
         let color_mask_uvec3 = (self.lerp_color_mask * 8.0).as_uvec3() * 32;
+
+        if let Some(audio) = &self.audio {
+            audio
+                .color_mask_sender
+                .send(color_mask_uvec3)
+                .unwrap();
+        }
+
         let lerped_color_mask =
             color_mask_uvec3.x << 16 | color_mask_uvec3.y << 8 | color_mask_uvec3.z | 0xff000000;
 

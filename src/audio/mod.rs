@@ -68,7 +68,7 @@ pub(crate) struct Audio {
 
     pub key_sender: Sender<(Key, bool)>,
     pub sfx_sender: Sender<(SoundTypes, bool)>,
-    pub color_mask_sender: Sender<Vec3>,
+    pub color_mask_sender: Sender<UVec3>,
 }
 
 impl Audio {
@@ -133,6 +133,7 @@ impl Audio {
 
         let mut music = sound::Music::new();
         let mut t0_music = time;
+        let mut color_mask_music = UVec3::ZERO;
 
         let mut soundeffects = sound::SoundEffects::new();
         let mut start_footstep_sound: bool = false;
@@ -198,7 +199,7 @@ impl Audio {
                     }
 
                     while let Ok(color_mask) = color_mask_recv.try_recv() {
-                        dbg!(color_mask);
+                        color_mask_music = color_mask;
                     }
 
                     let sample_duration = 1.0 / sample_rate as f64;
@@ -222,7 +223,7 @@ impl Audio {
                         }
                         last_time = t;
 
-                        let mut value = play_music(t, t0_music, &mut music);
+                        let mut value = play_music(t, t0_music, &color_mask_music, &mut music);
 
                         if start_footstep_sound {
                             start_footstep_sound = false;
