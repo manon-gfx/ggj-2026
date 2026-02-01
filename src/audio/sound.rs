@@ -173,11 +173,15 @@ impl SoundEffects {
     }
 }
 
-pub fn play_music(t: f64, t0: f64, color_mask: &UVec3, music: &mut Music) -> f64 {
+pub fn play_music(t: f64, t0: &DVec3, color_mask: &UVec3, music: &mut Music) -> f64 {
     let mut signal = 0.0;
 
-    if t > t0 {
-        let beat_in_game = ((t - t0) * MusicSettings::TEMPO); // total beats since start of game
+    if t > t0[0] {
+        let beat_in_game = ((t - t0[0]) * MusicSettings::TEMPO); // total beats since red mask pickup
+        let beats_since_red = ((t - t0[0]) * MusicSettings::TEMPO); // total beats since red mask pickup
+        let beats_since_green = ((t - t0[1]) * MusicSettings::TEMPO); // total beats since red mask pickup
+        let beats_since_blue = ((t - t0[2]) * MusicSettings::TEMPO); // total beats since red mask pickup
+
         let beat_in_loop =
             beat_in_game % (MusicSettings::BAR_LENGTH * MusicSettings::LOOP_LENGTH) as f64; // current beat in the loop
 
@@ -185,19 +189,35 @@ pub fn play_music(t: f64, t0: f64, color_mask: &UVec3, music: &mut Music) -> f64
             music.track_mask = vec![0, 0, 0, 0, 0];
         }
 
-        music.track_mask[0] = color_mask[0];
+        // red melody
+        if t0[0] > 0.0 {
+            music.track_mask[0] = color_mask[0];
 
-        if beat_in_game > 64. {
-            music.track_mask[4] = 256;
+            if beats_since_red > 32. {
+                music.track_mask[4] = 256;
+            }
         }
-        if beat_in_game > 96. {
-            music.track_mask[1] = 256;
+
+        // blue melody
+        if t0[0] > 0.0 && t0[2] > 0.0 {
+            if t - t0[2] < 1. {
+                music.track_mask[1] = color_mask[2];
+            } else {
+                music.track_mask[1] = 256;
+
+                if beats_since_blue > 32. {
+                    music.track_mask[2] = 256;
+                }
+            }
         }
-        if beat_in_game > 128. {
-            music.track_mask[2] = 256;
-        }
-        if beat_in_game > 160. {
-            music.track_mask[3] = 256;
+
+        // green melody
+        if t0[0] > 0.0 && t0[2] > 0.0 && t0[1] > 0.0 {
+            if t - t0[1] < 1. {
+                music.track_mask[3] = color_mask[1];
+            } else {
+                music.track_mask[3] = 256;
+            }
         }
 
         for (track, &track_mask) in music.tracks.iter().zip(music.track_mask.iter()) {

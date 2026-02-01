@@ -132,7 +132,7 @@ impl Audio {
         let mut max_value: f32 = 0.0;
 
         let mut music = sound::Music::new();
-        let mut t0_music = 0.0;
+        let mut t0_music = DVec3::ZERO;
         let mut color_mask_music = UVec3::ZERO;
 
         let mut soundeffects = sound::SoundEffects::new();
@@ -201,9 +201,11 @@ impl Audio {
                     while let Ok(color_mask) = color_mask_recv.try_recv() {
                         color_mask_music = color_mask;
 
-                        // first time the red mask is picked up
-                        if t0_music == 0.0 && color_mask_music[0] > 0 {
-                            t0_music = time + 0.5;
+                        // first time each mask is picked up
+                        for i in 0..3 {
+                            if t0_music[i] == 0.0 && color_mask_music[i] > 0 {
+                                t0_music[i] = time + 1.;
+                            }
                         }
                     }
 
@@ -228,7 +230,7 @@ impl Audio {
                         }
                         last_time = t;
 
-                        let mut value = play_music(t, t0_music, &color_mask_music, &mut music);
+                        let mut value = play_music(t, &t0_music, &color_mask_music, &mut music);
 
                         if start_footstep_sound {
                             start_footstep_sound = false;
@@ -257,23 +259,31 @@ impl Audio {
                             start_death_sound = false;
                             play_death_sound = true;
                             t0_death_sound = t;
-                            t0_music = time + 3.; // hard-coded bit of extra time to allow death music
+
+                            for i in [1, 2, 0] {
+                                dbg!(i);
+
+                                if t0_music[i] > 0.0{
+                                    t0_music[i] = t + 3.;
+                                    break;
+                                }
+                            }
                         }
 
                         if play_footstep_sound {
-                            value += play_sfx(t ,t0_footstep_sound, &soundeffects.footstep)
+                            value += play_sfx(t  as f64,t0_footstep_sound, &soundeffects.footstep)
                         }
 
                         if play_jump_sound {
-                            value += play_sfx(t ,t0_jump_sound, &soundeffects.jump)
+                            value += play_sfx(t as f64 ,t0_jump_sound, &soundeffects.jump)
                         }
 
                         if play_pickup_sound {
-                            value += play_sfx(t ,t0_pickup_sound, &soundeffects.pickup)
+                            value += play_sfx(t as f64 ,t0_pickup_sound, &soundeffects.pickup)
                         }
 
                         if play_death_sound {
-                            value += play_sfx(t ,t0_death_sound, &soundeffects.death)
+                            value += play_sfx(t as f64 ,t0_death_sound, &soundeffects.death)
                         }
 
                         for (i, note_played ) in piano_notes.iter().enumerate(){
