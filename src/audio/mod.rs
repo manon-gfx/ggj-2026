@@ -264,7 +264,7 @@ impl Audio {
 
                         for (i, note_played ) in piano_notes.iter().enumerate(){
                             if *note_played {
-                               value += 0.5 * square_wave(t, 55. * 1.05946309436_f64.powi(i as i32 - 9));
+                               value += 0.5 * sawtooth_wave(t, 440. * 1.05946309436_f64.powi(i as i32 - 9));
                             }
                         }
 
