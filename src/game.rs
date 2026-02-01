@@ -1458,13 +1458,13 @@ impl Game {
                             .player_inventory
                             .masks
                             .iter()
-                            .find(|mask| mask.color == bitmap::RED)
+                            .find(|mask| mask.color == bitmap::GREEN)
                             .is_some(),
                         has_blue_mask: self
                             .player_inventory
                             .masks
                             .iter()
-                            .find(|mask| mask.color == bitmap::RED)
+                            .find(|mask| mask.color == bitmap::BLUE)
                             .is_some(),
                         color_mask: self.color_mask,
                     });
