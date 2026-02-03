@@ -6,6 +6,7 @@ use glam::*;
 bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub struct TileFlags: u32 {
+        const NONE = 0x0;
         const COLLISION = 0x1;
         const SPIKE = 0x2;
 
@@ -71,7 +72,7 @@ impl TileMap {
         for mut row in layout {
             let row_size = row.len();
             if row_size < tile_count_x as usize {
-                for i in 0..(tile_count_x as usize - row_size) {
+                for _i in 0..(tile_count_x as usize - row_size) {
                     // pad for equal size
                     row.push(0);
                 }
@@ -174,6 +175,19 @@ impl TileMap {
         let tile_count_x = tile_max_x - tile_min_x;
         let tile_count_y = tile_max_y - tile_min_y;
 
+        let mut mask_color = TileFlags::NONE;
+        let mut color_mask_alpha = 0xff;
+        if ((color_mask >> 16) & 0xff) > 0 {
+            mask_color = TileFlags::RED;
+            // color_mask_alpha = (lerped_color_mask >> 16) & 0xff;
+        } else if ((color_mask >> 8) & 0xff) > 0 {
+            mask_color = TileFlags::GREEN;
+            // color_mask_alpha = (lerped_color_mask >> 8) & 0xff;
+        } else if (color_mask & 0xff) > 0 {
+            mask_color = TileFlags::BLUE;
+            // color_mask_alpha = (lerped_color_mask) & 0xff;
+        };
+
         for y in 0..tile_count_y {
             for x in 0..tile_count_x {
                 let tx = (tile_min_x + x) as u32;
@@ -197,17 +211,33 @@ impl TileMap {
                     );
                 } else {
                     // leave white tiles white
-                    let color = tile_set.tile_colors[(tile_index - 1) as usize];
-                    let tile_type = &tile_set.tile_types[(tile_index - 1) as usize];
+                    // let color = tile_set.tile_colors[(tile_index - 1) as usize];
+                    let tile_type: &TileFlags = &tile_set.tile_types[(tile_index - 1) as usize];
+
+                    // let is_colored = tile_type.intersects(TileFlags::WHITE);
+                    // tile.draw_tile(
+                    //     target,
+                    //     sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
+                    //     sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
+                    //     is_colored,
+                    //     color,
+                    //     lerped_color_mask,
+                    //     &tile_set.aura_low,
+                    //     &tile_set.aura,
+                    //     aura_transl,
+                    // );
 
                     let is_colored = tile_type.intersects(TileFlags::WHITE);
+                    let is_tile_shown =
+                        !tile_type.intersects(TileFlags::WHITE) || tile_type.intersects(mask_color);
 
-                    tile.draw_tile(
+                    tile.draw_tile_different_colors(
                         target,
                         sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
                         sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
                         is_colored,
-                        color,
+                        is_tile_shown,
+                        tile_type,
                         lerped_color_mask,
                         &tile_set.aura_low,
                         &tile_set.aura,

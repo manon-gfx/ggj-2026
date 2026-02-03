@@ -128,10 +128,10 @@ impl Enemy {
 }
 
 pub fn spawn_enemies(
-    sprite_white: &Sprite,
-    sprite_red: &Sprite,
+    _sprite_white: &Sprite,
+    _sprite_red: &Sprite,
     sprite_green: &Sprite,
-    sprite_blue: &Sprite,
+    _sprite_blue: &Sprite,
 ) -> Vec<Enemy> {
     vec![Enemy::new(
         vec2(2263.0, 2176.0),

@@ -1,5 +1,5 @@
 [package]
-name = "pixl"
+name = "chromaskit"
 version = "0.1.0"
 edition = "2024"
 

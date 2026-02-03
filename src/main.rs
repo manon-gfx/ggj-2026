@@ -27,6 +27,8 @@ const ENABLE_VALIDATION_LAYER: bool = false;
 // Set to 1 for single buffering or to 3 for triple buffering
 const IN_FLIGHT_COUNT: u32 = 2;
 
+
+
 fn main() {
     // Tell Windows not to apply unnecessary DPI scaling to this application
     #[cfg(target_os = "windows")]
@@ -355,10 +357,10 @@ fn main() {
                     gilrs::Button::East => game.on_key_down(game::Key::MaskRed),
                     gilrs::Button::West => game.on_key_down(game::Key::MaskBlue),
 
-                    gilrs::Button::DPadUp => game.on_key_down(game::Key::Up),
-                    gilrs::Button::DPadDown => game.on_key_down(game::Key::Down),
-                    gilrs::Button::DPadLeft => game.on_key_down(game::Key::Left),
-                    gilrs::Button::DPadRight => game.on_key_down(game::Key::Right),
+                    gilrs::Button::DPadUp => game.on_key_down(game::Key::MoveUp),
+                    gilrs::Button::DPadDown => game.on_key_down(game::Key::MoveDown),
+                    gilrs::Button::DPadLeft => game.on_key_down(game::Key::MoveLeft),
+                    gilrs::Button::DPadRight => game.on_key_down(game::Key::MoveRight),
                     _ => {}
                 },
                 gilrs::EventType::ButtonReleased(button, _code) => match button {
@@ -367,10 +369,10 @@ fn main() {
                     gilrs::Button::East => game.on_key_up(game::Key::MaskRed),
                     gilrs::Button::West => game.on_key_up(game::Key::MaskBlue),
 
-                    gilrs::Button::DPadUp => game.on_key_up(game::Key::Up),
-                    gilrs::Button::DPadDown => game.on_key_up(game::Key::Down),
-                    gilrs::Button::DPadLeft => game.on_key_up(game::Key::Left),
-                    gilrs::Button::DPadRight => game.on_key_up(game::Key::Right),
+                    gilrs::Button::DPadUp => game.on_key_up(game::Key::MoveUp),
+                    gilrs::Button::DPadDown => game.on_key_up(game::Key::MoveDown),
+                    gilrs::Button::DPadLeft => game.on_key_up(game::Key::MoveLeft),
+                    gilrs::Button::DPadRight => game.on_key_up(game::Key::MoveRight),
                     _ => {}
                 },
                 gilrs::EventType::AxisChanged(axis, value, _code) => match axis {
@@ -428,22 +430,46 @@ fn main() {
                 game.on_key_up(key);
             }
         };
-        handle_key_events(minifb::Key::Up, game::Key::Up);
-        handle_key_events(minifb::Key::Down, game::Key::Down);
-        handle_key_events(minifb::Key::Left, game::Key::Left);
-        handle_key_events(minifb::Key::Right, game::Key::Right);
-        handle_key_events(minifb::Key::Z, game::Key::Jump);
-        handle_key_events(minifb::Key::S, game::Key::S);
-        handle_key_events(minifb::Key::Space, game::Key::Space);
-        handle_key_events(minifb::Key::LeftBracket, game::Key::LeftBracket);
+
+        // music mode = V
+        // Level editor = B
+        // Saving in level editor = N
+        // Mute audio in game = M
+        // Masks: J, K & L
+
+        handle_key_events(minifb::Key::W, game::Key::MoveUp);
+        handle_key_events(minifb::Key::S, game::Key::MoveDown);
+        handle_key_events(minifb::Key::A, game::Key::MoveLeft);
+        handle_key_events(minifb::Key::D, game::Key::MoveRight);
+        handle_key_events(minifb::Key::Space, game::Key::Jump);
+
+        handle_key_events(minifb::Key::N, game::Key::SaveLevelEdit);
+        handle_key_events(minifb::Key::B, game::Key::EditMode);
+        handle_key_events(minifb::Key::M, game::Key::MuteAudio);
+        handle_key_events(minifb::Key::LeftBracket, game::Key::SelectPrev);
         handle_key_events(minifb::Key::RightBracket, game::Key::RightBracket);
 
-        // Toggle masks
-        handle_key_events(minifb::Key::R, game::Key::MaskRed);
-        handle_key_events(minifb::Key::G, game::Key::MaskGreen);
-        handle_key_events(minifb::Key::B, game::Key::MaskBlue);
+        // handle_key_events(minifb::Key::Up, game::Key::MoveUp);
+        // handle_key_events(minifb::Key::Down, game::Key::MoveDown);
+        // handle_key_events(minifb::Key::Left, game::Key::MoveLeft);
+        // handle_key_events(minifb::Key::Right, game::Key::MoveRight);
+        // handle_key_events(minifb::Key::Z, game::Key::Jump);
+        // handle_key_events(minifb::Key::S, game::Key::SaveLevelEdit);
+        // handle_key_events(minifb::Key::Space, game::Key::EditMode);
+        // handle_key_events(minifb::Key::LeftBracket, game::Key::SelectPrev);
+        // handle_key_events(minifb::Key::RightBracket, game::Key::RightBracket);
 
-        handle_key_events(minifb::Key::M, game::Key::M);
+        // // Toggle masks
+        // handle_key_events(minifb::Key::R, game::Key::MaskRed);
+        // handle_key_events(minifb::Key::G, game::Key::MaskGreen);
+        // handle_key_events(minifb::Key::B, game::Key::MaskBlue);
+
+
+        handle_key_events(minifb::Key::J, game::Key::MaskRed);
+        handle_key_events(minifb::Key::K, game::Key::MaskBlue);
+        handle_key_events(minifb::Key::L, game::Key::MaskGreen);
+
+        handle_key_events(minifb::Key::V, game::Key::MusicMode);
         handle_key_events(minifb::Key::A, game::Key::MusicC3);
         handle_key_events(minifb::Key::W, game::Key::MusicCs3);
         // handle_key_events(minifb::Key::S, game::Key::MusicD3);

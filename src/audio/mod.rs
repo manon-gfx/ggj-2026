@@ -1,7 +1,5 @@
 use glam::*;
-use std::collections::HashMap;
 use std::sync::{
-    Arc,
     mpsc::{Receiver, Sender, channel},
 };
 
@@ -11,7 +9,7 @@ use sound::{play_music, play_sfx};
 
 use crate::audio::sound::SoundTypes;
 use crate::audio::sound::{
-    SoundEffects, sawtooth_wave, sine_wave, square_wave, triangle_wave, white_noise,
+    sawtooth_wave
 };
 use crate::game::Key;
 
@@ -111,7 +109,7 @@ impl Audio {
         let settings: AudioSettings = AudioSettings::default();
         let (settings_sender, settings_recv) = channel();
 
-        let (shit_sender, shit_recv) = channel();
+        let (_shit_sender, shit_recv) = channel();
         let (key_sender, key_recv) = channel();
         let (sfx_sender, sfx_recv) = channel();
         let (color_mask_sender, color_mask_recv) = channel();
@@ -158,7 +156,7 @@ impl Audio {
                         match key {
                             Key::MusicC3 => piano_notes[0] = down,
                             Key::MusicCs3 => piano_notes[1] = down,
-                            Key::S => piano_notes[2] = down,
+                            Key::SaveLevelEdit => piano_notes[2] = down,
                             Key::MusicDs3 => piano_notes[3] = down,
                             Key::MusicE3 => piano_notes[4] = down,
                             Key::MusicF3 => piano_notes[5] = down,
@@ -216,13 +214,13 @@ impl Audio {
                         context.settings = settings;
                     }
 
-                    let mut kaas = vec![0.0; data.len() / channels as usize];
+                    // let mut kaas = vec![0.0; data.len() / channels as usize];
 
                     let settings = &context.settings;
                     //write stream data here
                     let mut t = time;
 
-                    for (wtf_i, frame) in data.chunks_exact_mut(channels as usize).enumerate() {
+                    for (_wtf_i, frame) in data.chunks_exact_mut(channels as usize).enumerate() {
                         if ((t - last_time) - sample_duration).abs() > 0.0000000001 {
                             println!("Timing error! t: {}, last_time: {}, sample_duration: {}, diff: {}, err: {}",
                             t,
@@ -319,7 +317,8 @@ impl Audio {
                 },
                 move |err| {
                     //deal with errors I guess
-                    panic!("err: {:?}", err);
+                    // panic!("err: {:?}", err);
+                    println!("err: {:?}", err);
                 },
                 None,
             )

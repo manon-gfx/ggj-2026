@@ -5,6 +5,8 @@ pub use font::Font;
 use glam::IVec2;
 pub use u32 as ColorChannel;
 
+use crate::game::tilemap::TileFlags;
+
 #[derive(Debug, Clone)]
 pub enum BitmapData {
     Owned(Vec<u32>),
@@ -49,9 +51,9 @@ pub fn blend(a: u32, b: u32, alpha: u32) -> u32 {
     let bg = (b >> 8) & 0xff;
     let bb = b & 0xff;
 
-    let red = ((ar * (255 - alpha)) + (br * alpha)) >> 8;
-    let green = ((ag * (255 - alpha)) + (bg * alpha)) >> 8;
-    let blue = ((ab * (255 - alpha)) + (bb * alpha)) >> 8;
+    let red = ((ar * (256 - alpha)) + (br * alpha)) >> 8;
+    let green = ((ag * (256 - alpha)) + (bg * alpha)) >> 8;
+    let blue = ((ab * (256 - alpha)) + (bb * alpha)) >> 8;
 
     let red = red.clamp(0, 255);
     let green = green.clamp(0, 255);
@@ -607,7 +609,112 @@ impl Bitmap {
 
                         let c = if is_colored {
                             let prev = *pixels.get_unchecked_mut(index);
+                            // if (blend3(prev, c, color_mask & visible_mask) & 0xff000000) != 0xff000000{
+                            //     println!("c: {:#x}", blend3(prev, c, color_mask & visible_mask));
+                            // }
                             blend3(prev, c, color_mask & visible_mask)
+                            // blend3(prev, c, 0xffff0000)
+                            // c
+                        } else {
+                            c
+                        };
+
+                        *pixels.get_unchecked_mut(index) = c;
+                    }
+                }
+            }
+        }
+    }
+
+    // With color masks
+    pub fn draw_tile_different_colors(
+        &self,
+        target: &mut Self,
+        x: i32,
+        y: i32,
+        is_colored: bool,
+        is_tile_shown: bool,
+        _tile_type: &TileFlags,
+        lerped_color_mask: u32,
+        aura_low: &Bitmap,
+        aura: &Bitmap,
+        aura_transl: IVec2,
+    ) {
+        let low_brightness =
+            aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
+        let brightness = aura.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
+        let rmask = (lerped_color_mask >> 16) & 0xff;
+        let gmask = (lerped_color_mask >> 8) & 0xff;
+        let bmask = lerped_color_mask & 0xff;
+
+        let mute = if is_colored { 0x0f } else { 0x2f };
+        let mute = (low_brightness).max(mute);
+        let mono_scale = ((brightness * 0xff) >> 8).max(mute);
+
+ 
+        let r_scale = if is_colored {
+            mono_scale
+        } else {
+            ((brightness * rmask) >> 8).max(mute)
+        };
+        let g_scale = if is_colored {
+            mono_scale
+        } else {
+            ((brightness * gmask) >> 8).max(mute)
+        };
+        let b_scale = if is_colored {
+            mono_scale
+        } else {
+            ((brightness * bmask) >> 8).max(mute)
+        };
+
+        let mut sw = self.width as i32;
+        let mut sh = self.height as i32;
+
+        let (sx, tx) = if x < 0 {
+            sw += x;
+            (x.abs(), 0)
+        } else {
+            (0, x)
+        };
+        let (sy, ty) = if y < 0 {
+            sh += y;
+            (y.abs(), 0)
+        } else {
+            (0, y)
+        };
+
+        sw = sw.min(target.width as i32 - tx);
+        sh = sh.min(target.height as i32 - ty);
+
+        for y in 0..sh {
+            let line0 = (ty + y) * (target.stride as i32);
+            let line1 = (sy + y) * (self.stride as i32);
+            for x in 0..sw {
+                unsafe {
+                    let c = *self.pixels().get_unchecked((line1 + sx + x) as usize);
+                    if (c & 0xff000000) != 0 && is_tile_shown {
+                        // let index = (line0 + tx + x) as usize;
+
+                        // let pixels = target.pixels_mut();
+
+                        let r = (c >> 16) & 0xff;
+                        let g = (c >> 8) & 0xff;
+                        let b = c & 0xff;
+
+                        let r = ((r * r_scale) >> 8).min(0xff);
+                        let g = ((g * g_scale) >> 8).min(0xff);
+                        let b = ((b * b_scale) >> 8).min(0xff);
+
+                        let c = (r << 16) | (g << 8) | b;
+
+                        let index = (line0 + tx + x) as usize;
+
+                        let pixels = target.pixels_mut();
+
+                        let c = if is_colored {
+                            let prev = *pixels.get_unchecked_mut(index);
+                            blend(prev, c, (brightness << 6).min(256).max(64))
                         } else {
                             c
                         };
