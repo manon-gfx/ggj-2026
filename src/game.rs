@@ -12,8 +12,9 @@ use crate::game::sprite::Sprite;
 use editor::EditorState;
 use enemy::{Enemy, spawn_enemies};
 use glam::*;
+use std::collections::BTreeMap;
 
-use tilemap::{TileFlags, TileMap, TileSet};
+use tilemap::{TileFlags, TileMap, TileSet, TileStruct};
 
 const GRAVITY: f32 = 600.0;
 const JUMP_IMPULSE: f32 = 150.0;
@@ -22,7 +23,7 @@ const MOVEMENT_ACCELERATION: f32 = 1500.0;
 const MOVEMENT_SPEED_X: f32 = 100.0;
 const FRICTION: f32 = 1500.0;
 
-const DEBUG_MASKS: bool = false;
+const DEBUG_MASKS: bool = true;
 const DEBUG_MODE: bool = false;
 const AUDIO_ON: bool = true;
 
@@ -52,15 +53,15 @@ pub enum Axis {
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(usize)]
 pub enum Key {
-    MoveUp, // Arrow up
-    MoveDown, // Arrow down
-    MoveLeft, // Arrow left
+    MoveUp,    // Arrow up
+    MoveDown,  // Arrow down
+    MoveLeft,  // Arrow left
     MoveRight, // Arrow right
     A,
     SaveLevelEdit, // Save in level editor mode
-    EditMode, // Space
-    SelectPrev, // LeftBracket
-    RightBracket,// RightBracket
+    EditMode,      // Space
+    SelectPrev,    // LeftBracket
+    RightBracket,  // RightBracket
 
     // Mask activation/desactivation
     R,
@@ -93,7 +94,6 @@ pub enum Key {
     MuteAudio,
 
     Count, // I was wondering what this is counting, but found out (the hard way) that it is the number of items in this enum
-    
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -378,13 +378,13 @@ pub struct Game {
     lerp_color_mask: Vec3,
 }
 
-fn wang_hash(seed: u32) -> u32 {
-    let seed = (seed ^ 61) ^ (seed >> 16);
-    let seed = seed.wrapping_mul(9);
-    let seed = seed ^ (seed >> 4);
-    let seed = seed.wrapping_mul(0x27d4eb2d);
-    seed ^ (seed >> 15)
-}
+// fn wang_hash(seed: u32) -> u32 {
+//     let seed = (seed ^ 61) ^ (seed >> 16);
+//     let seed = seed.wrapping_mul(9);
+//     let seed = seed ^ (seed >> 4);
+//     let seed = seed.wrapping_mul(0x27d4eb2d);
+//     seed ^ (seed >> 15)
+// }
 
 fn screen_to_world_space(pos_on_screen: Vec2, camera_pos: Vec2) -> Vec2 {
     pos_on_screen + camera_pos
@@ -413,8 +413,8 @@ fn build_tileset(
     color_lst: Vec<u32>,
     color_start_pos: &Vec<(i32, i32)>,
     rel_coords: &Vec<(i32, i32)>,
-    rel_tile_flags: &Vec<TileFlags>,
-    _size: (usize, usize),
+    rel_tile_flags: Vec<TileFlags>,
+    size: (usize, usize),
 ) -> TileSet {
     let tiles_per_color = rel_coords.len();
     let mut coords = Vec::<(i32, i32)>::with_capacity(color_lst.len() * tiles_per_color);
@@ -437,8 +437,57 @@ fn build_tileset(
             };
         }
     }
-    // println!("tile set coords? {:?}", coords);
     let tiles = build_frame_list(&tileset_sheet, &coords, (8, 8));
+
+    // let mut tile_objs = Vec::<TileStruct>::with_capacity(color_lst.len() * tiles_per_color);
+    let mut tile_objs = BTreeMap::<usize, TileStruct>::new();
+    let tilesheet_stride_in_tiles = tileset_sheet.width / size.0 as usize;
+
+    let mut color_start = Vec::<usize>::with_capacity(color_lst.len());
+    for (i, &c) in color_start_pos.iter().enumerate() {
+        color_start.push(
+            (((c.0) as usize) / size.0) as usize
+                + (((c.1) as usize) / size.1) as usize * tilesheet_stride_in_tiles,
+        ); // start position of each color as an index
+        for (j, &(rel_x, rel_y)) in rel_coords.iter().enumerate() {
+            let mut bmp = Bitmap::new(size.0, size.1);
+            tileset_sheet.draw_on(&mut bmp, -(c.0 + rel_x), -(c.1 + rel_y));
+
+            let flags = if color_lst[i] == bitmap::RED {
+                rel_tile_flags[j] | TileFlags::RED
+            } else if color_lst[i] == bitmap::BLUE {
+                rel_tile_flags[j] | TileFlags::BLUE
+            } else if color_lst[i] == bitmap::GREEN {
+                rel_tile_flags[j] | TileFlags::GREEN
+            } else {
+                rel_tile_flags[j]
+            };
+            let tile_obj = TileStruct {
+                // sprite: bmp,
+                sprite: bmp,
+                index: tiles_per_color * j + i,
+                color: color_lst[i],
+                flags: flags,
+            };
+            // println!("tile_obks keys: {:?}", (((c.0+rel_x) as usize)/size.0) as usize + (((c.1 + rel_y) as usize)/size.1) as usize  * tilesheet_stride_in_tiles);
+
+            tile_objs.insert(
+                (((c.0 + rel_x) as usize) / size.0) as usize
+                    + (((c.1 + rel_y) as usize) / size.1) as usize * tilesheet_stride_in_tiles,
+                tile_obj,
+            );
+        }
+    }
+    // coords
+    //     .iter()
+    //     .map(|(x, y)| {
+    //         let mut bmp = Bitmap::new(size.0, size.1);
+    //         sprite_sheet.draw_on(&mut bmp, -x, -y);
+    //         bmp
+    //     })
+    // .collect::<Vec<_>>()
+
+    // println!("tile_obks: {:?}", tile_objs);
 
     let mut aura_low = Bitmap::new(16, 16);
     for y in 0..aura_low.height {
@@ -474,6 +523,9 @@ fn build_tileset(
         tiles,
         tile_types,
         tile_colors,
+        tile_objs,
+        unique_tile_colors: color_lst,
+        color_start,
         aura,
         aura_low: aura2,
     }
@@ -518,6 +570,36 @@ impl Game {
             (40, 16), // spike
             (48, 16), // spike
             (56, 16), // spike
+            (40, 0),  // small platform
+            (48, 0),  // small platform
+            (56, 0),  // small platform
+            (64, 0),  // small platform
+            (32, 8),  // filled h platform
+            (40, 8),  // filled h platform
+            (48, 8),  // filled h platform
+            (64, 8),  // filled v platform
+            (64, 16),  // filled v platform
+            (64, 24),  // filled v platform
+            (0, 0),   // upper left corner block
+            (8, 0),   // top block
+            (16, 0),   // top block
+            (24, 0),  // upper right corner block
+            (0, 8),   // left block
+            (8, 8),   // middle block
+            (16, 8),   // middle block
+            (24, 8),  // right block
+            (0, 16),   // left block
+            (8, 16),   // middle block
+            (16, 16),   // middle block
+            (24, 16),  // right block
+            (0, 24),  // lower left corner block
+            (8, 24),  // bottom block
+            (16, 24),  // bottom block
+            (24, 24), // lower right corner
+            (32, 24), // middle vertical spike/lava etc.
+            (40, 24), // bottom vertical spike/lava etc.
+            (48, 24), // top vertical spike/lava etc.
+            (56, 24), // top vertical spike/lava etc. filled
         ];
         let tile_flags_per_color = vec![
             TileFlags::COLLISION,
@@ -525,18 +607,49 @@ impl Game {
             TileFlags::SPIKE,
             TileFlags::SPIKE,
             TileFlags::SPIKE,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE | TileFlags::COLLISION,
+            TileFlags::SPIKE | TileFlags::COLLISION,
         ];
 
-        let tile_set = build_tileset(
+        let tile_set: TileSet = build_tileset(
             &tile_sheet,
             tile_colors_once,
             &color_start_coords,
             &tile_coords_per_color,
-            &tile_flags_per_color,
+            tile_flags_per_color,
             (8, 8),
         );
 
-        let tile_map = TileMap::from_file("assets/level0.txt");
+        // let tile_map = TileMap::from_file("assets/level0.txt");
+        let tile_map = TileMap::from_file("assets/level0.csv");
 
         // Inventory
         let bag_sprite = Bitmap::load("assets/sprites/bag.png");
@@ -612,7 +725,7 @@ impl Game {
             ),
             sprite_key_keyboard: Bitmap::load("assets/sprites/red-r.png"), // not used
             sprite_key_controller: Bitmap::load("assets/sprites/red-b.png"), // not used
-            keyboard_key_name: ".".to_string(), // not used
+            keyboard_key_name: ".".to_string(),                            // not used
             visible: true,
         };
 
@@ -620,26 +733,26 @@ impl Game {
             position: vec2(1809.0, 2176.0),
             aabb: Aabb {
                 min: Vec2::ZERO,
-                max: vec2(8.0, 8.0)
+                max: vec2(8.0, 8.0),
             },
-                color: crate::bitmap::WHITE,
-                sprite_scene_off: Bitmap::load("assets/sprites/savepoint_off.png"),
-                sprite_scene_on: Bitmap::load("assets/sprites/savepoint_on.png"),
-                activated: false,
-                visible: true                
+            color: crate::bitmap::WHITE,
+            sprite_scene_off: Bitmap::load("assets/sprites/savepoint_off.png"),
+            sprite_scene_on: Bitmap::load("assets/sprites/savepoint_on.png"),
+            activated: false,
+            visible: true,
         };
 
         let savepoint_2 = SaveGamePoint {
             position: vec2(2105.0, 2013.0),
             aabb: Aabb {
                 min: Vec2::ZERO,
-                max: vec2(8.0, 8.0)
+                max: vec2(8.0, 8.0),
             },
-                color: crate::bitmap::WHITE,
-                sprite_scene_off: Bitmap::load("assets/sprites/savepoint_off.png"),
-                sprite_scene_on: Bitmap::load("assets/sprites/savepoint_on.png"),
-                activated: false,
-                visible: true                
+            color: crate::bitmap::WHITE,
+            sprite_scene_off: Bitmap::load("assets/sprites/savepoint_off.png"),
+            sprite_scene_on: Bitmap::load("assets/sprites/savepoint_on.png"),
+            activated: false,
+            visible: true,
         };
 
         let player_sprite_sheet = Bitmap::load("assets/sprite/spritesheet_animation.png");
@@ -911,8 +1024,7 @@ impl Game {
         match key {
             Key::EditMode => self.editor_mode = !self.editor_mode,
             Key::MusicMode => self.music_mode = !self.music_mode,
-            Key::MuteAudio => 
-            {
+            Key::MuteAudio => {
                 if let Some(_audio) = &self.audio {
                     self.audio = None;
                     println!("turning audio off");
@@ -920,7 +1032,6 @@ impl Game {
                     self.audio = Some(Audio::new());
                     println!("turning audio on");
                 }
-                
             }
             _ => {}
         }
@@ -1071,21 +1182,30 @@ impl Game {
                             self.player_inventory.position_on_screen.y as i32 + 12,
                         )
                 } else {
-                    screen.draw_str(&self.font, self.player_inventory.masks[i].keyboard_key_name.as_str() ,  
-                    self.player_inventory.position_on_screen.x as i32
-                    + (i as i32 + 2) * self.player_inventory.tile_size + 6,
-                    self.player_inventory.position_on_screen.y as i32 + 18, 
-                    self.player_inventory.masks[i].color);
+                    screen.draw_str(
+                        &self.font,
+                        self.player_inventory.masks[i].keyboard_key_name.as_str(),
+                        self.player_inventory.position_on_screen.x as i32
+                            + (i as i32 + 2) * self.player_inventory.tile_size
+                            + 6,
+                        self.player_inventory.position_on_screen.y as i32 + 18,
+                        self.player_inventory.masks[i].color,
+                    );
 
-                    screen.draw_rectangle(  
-                    self.player_inventory.position_on_screen.x as i32
-                    + (((i as f32 + 2.25) * (self.player_inventory.tile_size as f32)) as i32),
-                    self.player_inventory.position_on_screen.y as i32 + self.player_inventory.tile_size, 
-                    self.player_inventory.position_on_screen.x as i32
-                    + (((i as f32 + 2.75) * (self.player_inventory.tile_size as f32)) as i32),
-                    self.player_inventory.position_on_screen.y as i32 + 3*(self.player_inventory.tile_size >>1), 
-                    false,
-                    self.player_inventory.masks[i].color);
+                    screen.draw_rectangle(
+                        self.player_inventory.position_on_screen.x as i32
+                            + (((i as f32 + 2.25) * (self.player_inventory.tile_size as f32))
+                                as i32),
+                        self.player_inventory.position_on_screen.y as i32
+                            + self.player_inventory.tile_size,
+                        self.player_inventory.position_on_screen.x as i32
+                            + (((i as f32 + 2.75) * (self.player_inventory.tile_size as f32))
+                                as i32),
+                        self.player_inventory.position_on_screen.y as i32
+                            + 3 * (self.player_inventory.tile_size >> 1),
+                        false,
+                        self.player_inventory.masks[i].color,
+                    );
                     // self.player_inventory.masks[i].sprite_key_keyboard.draw_on(
                     //     screen,
                     //     self.player_inventory.position_on_screen.x as i32
@@ -1134,19 +1254,18 @@ impl Game {
             screen.draw_str(&self.font, "U WON :)", 100, 50, bitmap::GREEN);
             self.save_state = None;
 
-        // Reset game objects
-        for savepoint in self.savepoint_objects.iter_mut() {
-            savepoint.activated = false;
-        }
-
+            // Reset game objects
+            for savepoint in self.savepoint_objects.iter_mut() {
+                savepoint.activated = false;
+            }
 
             // Some(SaveState {
-        //     color_mask: Self::START_COLOR_MASK,
-        // player_position: Self::PLAYER_START_POS,
-        // has_blue_mask: false,
-        // has_red_mask: false,
-        // has_green_mask: false,
-        // });
+            //     color_mask: Self::START_COLOR_MASK,
+            // player_position: Self::PLAYER_START_POS,
+            // has_blue_mask: false,
+            // has_red_mask: false,
+            // has_green_mask: false,
+            // });
 
             if self.winning_sequence_duration < 0.0 {
                 self.reset_game();
@@ -1219,9 +1338,8 @@ impl Game {
                 if self.input_state.is_key_down(Key::MoveRight) {
                     movement_axis += 1.0;
                 }
-            } else { 
+            } else {
                 self.player_uses_controller = true;
-
             }
 
             // do game things here
@@ -1344,18 +1462,21 @@ impl Game {
                 let tiles_left = [
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_left[0],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_left[1],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_left[2],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
@@ -1370,18 +1491,21 @@ impl Game {
                 let tiles_right = [
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_right[0],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_right[1],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_right[2],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
@@ -1433,18 +1557,21 @@ impl Game {
                 let tiles_below = [
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_below[0],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_below[1],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_below[2],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
@@ -1459,18 +1586,21 @@ impl Game {
                 let tiles_above = [
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_above[0],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_above[1],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_above[2],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
@@ -1541,16 +1671,17 @@ impl Game {
 
         self.player.draw(screen, self.camera, self.color_mask);
 
-
         // Loop over masks
         for savepoint in self.savepoint_objects.iter_mut() {
             if savepoint.visible {
                 let pos: Vec2 = world_space_to_screen_space(savepoint.position, self.camera);
-                if savepoint.activated{
-                    savepoint.sprite_scene_on
+                if savepoint.activated {
+                    savepoint
+                        .sprite_scene_on
                         .draw_on(screen, pos.x as i32, pos.y as i32);
                 } else {
-                    savepoint.sprite_scene_off
+                    savepoint
+                        .sprite_scene_off
                         .draw_on(screen, pos.x as i32, pos.y as i32);
                 }
                 // Save and turn on if position overlaps with player
@@ -1558,20 +1689,20 @@ impl Game {
                     .aabb_world_space()
                     .overlaps(&self.player.aabb_world_space())
                 {
-                    if !savepoint.activated{
+                    if !savepoint.activated {
                         savepoint.activated = true;
-                        savepoint.sprite_scene_on
+                        savepoint
+                            .sprite_scene_on
                             .draw_on(screen, pos.x as i32, pos.y as i32);
 
-
-                    if let Some(audio) = &self.audio {
-                        audio
-                            .sfx_sender
-                            .send((SoundTypes::PickupSound, true))
-                            .unwrap();
-                    }
+                        if let Some(audio) = &self.audio {
+                            audio
+                                .sfx_sender
+                                .send((SoundTypes::PickupSound, true))
+                                .unwrap();
+                        }
                     };
-                  
+
                     self.save_state = Some(SaveState {
                         player_position: self.player.position,
                         has_red_mask: self
@@ -1594,7 +1725,6 @@ impl Game {
                             .is_some(),
                         color_mask: self.color_mask,
                     });
-
                 }
             }
         }
@@ -1615,7 +1745,7 @@ impl Game {
                     mask.visible = false;
 
                     // Special case for the golden mask
-                    if (mask.color == bitmap::YELLOW) {
+                    if mask.color == bitmap::YELLOW {
                         self.player.is_winner = true;
                         return;
                     }

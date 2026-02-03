@@ -651,7 +651,6 @@ impl Bitmap {
         let mute = (low_brightness).max(mute);
         let mono_scale = ((brightness * 0xff) >> 8).max(mute);
 
- 
         let r_scale = if is_colored {
             mono_scale
         } else {

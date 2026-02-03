@@ -65,12 +65,14 @@ impl Enemy {
         let flags = [
             tile_map.sample_tile_type_ws(
                 sample_points[0],
+                &tile_set.tile_objs,
                 &tile_set.tile_types,
                 &tile_set.tile_colors,
                 self.color_mask,
             ),
             tile_map.sample_tile_type_ws(
                 sample_points[1],
+                &tile_set.tile_objs,
                 &tile_set.tile_types,
                 &tile_set.tile_colors,
                 self.color_mask,

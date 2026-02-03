@@ -1,16 +1,12 @@
 use glam::*;
-use std::sync::{
-    mpsc::{Receiver, Sender, channel},
-};
+use std::sync::mpsc::{Receiver, Sender, channel};
 
 pub mod notes;
 pub mod sound;
 use sound::{play_music, play_sfx};
 
 use crate::audio::sound::SoundTypes;
-use crate::audio::sound::{
-    sawtooth_wave
-};
+use crate::audio::sound::sawtooth_wave;
 use crate::game::Key;
 
 #[derive(Clone)]
@@ -133,7 +129,7 @@ impl Audio {
         let mut t0_music = DVec4::ZERO; // red, green, blue, death
         let mut color_mask_music = UVec3::ZERO;
 
-        let mut soundeffects = sound::SoundEffects::new();
+        let soundeffects = sound::SoundEffects::new();
         let mut start_footstep_sound: bool = false;
         let mut stop_footstep_sound: bool = false;
         let mut start_jump_sound: bool = false;
@@ -318,7 +314,7 @@ impl Audio {
                 move |err| {
                     //deal with errors I guess
                     // panic!("err: {:?}", err);
-                    println!("err: {:?}", err);
+                    println!("[audio/mod.rs] err: {:?}", err);
                 },
                 None,
             )

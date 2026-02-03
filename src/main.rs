@@ -27,8 +27,6 @@ const ENABLE_VALIDATION_LAYER: bool = false;
 // Set to 1 for single buffering or to 3 for triple buffering
 const IN_FLIGHT_COUNT: u32 = 2;
 
-
-
 fn main() {
     // Tell Windows not to apply unnecessary DPI scaling to this application
     #[cfg(target_os = "windows")]
@@ -463,7 +461,6 @@ fn main() {
         // handle_key_events(minifb::Key::R, game::Key::MaskRed);
         // handle_key_events(minifb::Key::G, game::Key::MaskGreen);
         // handle_key_events(minifb::Key::B, game::Key::MaskBlue);
-
 
         handle_key_events(minifb::Key::J, game::Key::MaskRed);
         handle_key_events(minifb::Key::K, game::Key::MaskBlue);
