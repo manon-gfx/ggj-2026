@@ -33,8 +33,10 @@ pub struct TileSet {
     pub tile_objs: BTreeMap<usize, TileStruct>,
     pub unique_tile_colors: Vec<bitmap::ColorChannel>,
     pub color_start: Vec<usize>,
-    pub aura: Bitmap,
-    pub aura_low: Bitmap,
+    // pub aura: Bitmap,
+    // pub aura_low: Bitmap,
+    pub brightness_low: Vec<u32>,
+    pub brightness: Vec<u32>
 }
 
 #[derive(Debug)]
@@ -301,8 +303,10 @@ impl TileMap {
                         is_tile_shown,
                         tile_type,
                         lerped_color_mask,
-                        &tile_set.aura_low,
-                        &tile_set.aura,
+                        // &tile_set.aura_low,
+                        // &tile_set.aura,
+                        &tile_set.brightness_low,
+                        &tile_set.brightness,
                         aura_transl,
                     );
                 }

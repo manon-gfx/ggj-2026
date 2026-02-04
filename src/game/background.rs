@@ -23,11 +23,12 @@ impl Background {
         screen: &mut Bitmap,
         camera: Vec2,
         lerped_color_mask: u32,
-        aura_low: &Bitmap,
-        aura: &Bitmap,
+        brightness_low: &Vec<u32>,
+        brightness: &Vec<u32>,
         aura_transl: IVec2,
     ) {
-        let offset_scales = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5];
+        let offset_scales = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5];  
+
         for (i, layer) in self.layers.iter().enumerate() {
             let w = layer.width as i32;
             let h = layer.height as i32;
@@ -44,8 +45,8 @@ impl Background {
                     1.0,
                     1.0,
                     lerped_color_mask,
-                    aura_low,
-                    aura,
+                    &brightness_low,
+                    &brightness,
                     aura_transl,
                 );
             }

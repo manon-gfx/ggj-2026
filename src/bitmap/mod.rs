@@ -195,6 +195,19 @@ impl Bitmap {
         self.pixels_mut().fill(color);
     }
 
+    // row_major flat 16x16 brightness array to 256x256 image coords 
+    fn aura_brightness_from_vector(x: i32, y: i32, brightness_vec: &Vec<u32>) -> u32{
+        // brightness_vec[((y.clamp(0, 255) >> 4)  * 16  + (x.clamp(0, 255)>> 4)  ) as usize]
+        if x < 0 || y < 0 || x > 255 || y > 255{
+            0
+        }
+        else {
+            brightness_vec[((y as usize >> 4)  * 16  + (x as usize >> 4)  ) ]
+
+        }
+        
+    }
+
     pub fn draw_on_scaled(&self, target: &mut Self, x: i32, y: i32, scale_x: f32, scale_y: f32) {
         if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
             return;
@@ -264,17 +277,21 @@ impl Bitmap {
         is_colored: bool,
         visible_mask: u32,
         color_mask: ColorChannel,
-        aura_low: &Bitmap,
-        aura: &Bitmap,
+        brightness_low: &Vec<u32>,
+        brightness_high: &Vec<u32>,
         aura_transl: IVec2,
     ) {
         if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
             return;
         }
 
-        let low_brightness =
-            aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
-        let brightness = aura.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.x) & 0xffff;
+        // let low_brightness =
+        //     aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
+        // let brightness = aura.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.x) & 0xffff;
+        // let low_brightness = Self::aura_brightness_from_vector(x + 4 - aura_transl.x, y + 4 - aura_transl.y, brightness_low);
+        // let brightness = Self::aura_brightness_from_vector(x + 4 - aura_transl.x, y + 4 - aura_transl.y, brightness_high);
+        let low_brightness = brightness_low[(((y + 4 - aura_transl.y).min(255).max(0) >> 4)  * 16  + ((x + 4 - aura_transl.x).min(255).max(0)>> 4)  ) as usize];
+        let brightness = brightness_high[(((y + 4 - aura_transl.y).min(255).max(0) >> 4)  * 16  + ((x + 4 - aura_transl.x).min(255).max(0)>> 4)  ) as usize];
 
         let rmask = (color_mask >> 16) & 0xff;
         let gmask = (color_mask >> 8) & 0xff;
@@ -443,6 +460,7 @@ impl Bitmap {
         }
     }
 
+
     pub fn draw_background(
         &self,
         target: &mut Self,
@@ -451,8 +469,8 @@ impl Bitmap {
         scale_x: f32,
         scale_y: f32,
         color_mask: ColorChannel,
-        aura_low: &Bitmap,
-        aura: &Bitmap,
+        brightness_low: &Vec<u32>,
+        brightness_high: &Vec<u32>,
         aura_transl: IVec2,
     ) {
         if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
@@ -468,12 +486,14 @@ impl Bitmap {
         let swf = self.width as f32 * scale_x;
         let shf = self.height as f32 * scale_y;
 
-        let du = ((1.0 / swf) * 65535.0) as i32 * self.width as i32;
-        let dv = ((1.0 / shf) * 65535.0) as i32 * self.height as i32;
+        // let du = ((1.0 / swf) * 65535.0) as i32 * self.width as i32;
+        // let dv = ((1.0 / shf) * 65535.0) as i32 * self.height as i32;
+        let du = ((1.0 / scale_x) * 65535.0) as i32;
+        let dv = ((1.0 / scale_y) * 65535.0) as i32;
 
         let mut sw = swf.abs() as i32;
         let mut sh = shf.abs() as i32;
-
+        
         let (sx, tx) = if x < 0 {
             sw += x;
             (x.abs(), 0)
@@ -507,9 +527,10 @@ impl Bitmap {
         for y in 0..sh {
             let mut u = if du < 0 { (sw - 1) * -du } else { sx * du };
             for x in 0..sw {
-                let low_brightness = (aura_low.load_pixel(aura_x + x, aura_y + y) & 0xffff) >> 2;
-                let brightness = (aura.load_pixel(aura_x + x, aura_y + y) & 0xffff) >> 2;
-
+                // let low_brightness = (aura_low.load_pixel(aura_x + x, aura_y + y) & 0xffff) >> 2;
+                // let brightness = (aura.load_pixel(aura_x + x, aura_y + y) & 0xffff) >> 2;
+                let low_brightness = brightness_low[(((aura_y + y).min(255).max(0) >> 4)  * 16  + ((aura_x + x).min(255).max(0)>> 4)  ) as usize] >>2;
+                let brightness = brightness_high[(((aura_y + y).min(255).max(0) >> 4)  * 16  + ((aura_x + x).min(255).max(0)>> 4)  ) as usize] >>2;
                 unsafe {
                     let color: u32 =
                         *srcline.add(((v >> 16) * self.width as i32 + (u >> 16)) as usize);
@@ -636,13 +657,24 @@ impl Bitmap {
         is_tile_shown: bool,
         _tile_type: &TileFlags,
         lerped_color_mask: u32,
-        aura_low: &Bitmap,
-        aura: &Bitmap,
+        // aura_low: &Bitmap,
+        // aura: &Bitmap,
+        brightness_low: &Vec<u32>,
+        brightness_high: &Vec<u32>,
         aura_transl: IVec2,
     ) {
-        let low_brightness =
-            aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
-        let brightness = aura.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
+        // some small rounding differences here or there but saves looking stuff up in a scaled bitmap so...
+
+        // let low_brightness_old_ =
+        //     aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
+        // let low_brightness = Self::aura_brightness_from_vector(x + 4 - aura_transl.x, y + 4 - aura_transl.y, brightness_low);
+        // let brightness = Self::aura_brightness_from_vector(x + 4 - aura_transl.x, y + 4 - aura_transl.y, brightness_high);
+        let low_brightness = brightness_low[(((y + 4 - aura_transl.y).min(255).max(0) >> 4)  * 16  + ((x + 4 - aura_transl.x).min(255).max(0)>> 4)  ) as usize];
+        let brightness = brightness_high[(((y + 4 - aura_transl.y).min(255).max(0) >> 4)  * 16  + ((x + 4 - aura_transl.x).min(255).max(0)>> 4)  ) as usize];
+
+        
+
+
         let rmask = (lerped_color_mask >> 16) & 0xff;
         let gmask = (lerped_color_mask >> 8) & 0xff;
         let bmask = lerped_color_mask & 0xff;

@@ -23,8 +23,8 @@ const MOVEMENT_ACCELERATION: f32 = 1500.0;
 const MOVEMENT_SPEED_X: f32 = 100.0;
 const FRICTION: f32 = 1500.0;
 
-const DEBUG_MASKS: bool = true;
-const DEBUG_MODE: bool = false;
+const DEBUG_MASKS: bool = false;
+const DEBUG_MODE: bool = true;
 const AUDIO_ON: bool = true;
 
 #[derive(Debug)]
@@ -490,17 +490,34 @@ fn build_tileset(
     // println!("tile_obks: {:?}", tile_objs);
 
     let mut aura_low = Bitmap::new(16, 16);
+    let mut p_vec_sqrd = Vec::<f32>::new();
     for y in 0..aura_low.height {
         let v = y as f32 / aura_low.height as f32;
         for x in 0..aura_low.width {
             let u = x as f32 / aura_low.height as f32;
             let uv = vec2(u, v);
             let p = uv * 2.0 - 1.0;
-            let brightness = (1.0 - (p.length_squared() * 1.2)).clamp(0.0, 1.0);
+            let brightness: f32 = (1.0 - (p.length_squared() * 1.2)).clamp(0.0, 1.0);
             // let brightness = (brightness * 8.0) as u32;
+
             aura_low.plot(x as i32, y as i32, (brightness * 384.0) as u32 | 0xff000000);
+
         }
     }
+    for y in 0..aura_low.height {
+        let v = 0.125*y as f32 -1.0; // aura_low.height as f32;
+        for x in 0..aura_low.width {
+            let u = 0.125* x as f32 - 1.0; // / aura_low.height as f32;
+            let p = vec2(u, v);
+            // let p = uv * 2.0 - 1.0;
+            p_vec_sqrd.push(p.length_squared());
+            // let brightness: f32 = (1.0 - (p.length_squared() * 1.2)).clamp(0.0, 1.0);
+        }
+    }
+    let brightness_high = p_vec_sqrd.iter().map(|&p| (((1.0 - (p * 1.2)).clamp(0.0, 1.0))*384.0) as u32  & 0xffff).collect();
+    let brightness_low = p_vec_sqrd.iter().map(|&p| (((1.0 - (p * 5.0)).clamp(0.0, 1.0))*150.0) as u32  & 0xffff).collect();
+    // println!("brightness high: {:?}",  brightness_high);
+
     let mut aura = Bitmap::new(256, 256);
     aura_low.draw_on_scaled(&mut aura, 0, 0, 16.0, 16.0);
 
@@ -526,8 +543,10 @@ fn build_tileset(
         tile_objs,
         unique_tile_colors: color_lst,
         color_start,
-        aura,
-        aura_low: aura2,
+        // aura,
+        // aura_low: aura2,
+        brightness_low,
+        brightness: brightness_high,
     }
 }
 
@@ -1119,8 +1138,8 @@ impl Game {
             screen,
             self.camera,
             lerped_color_mask,
-            &self.tile_set.aura_low,
-            &self.tile_set.aura,
+            &self.tile_set.brightness_low,
+            &self.tile_set.brightness,
             aura_translation,
         );
 
@@ -1233,8 +1252,8 @@ impl Game {
                 screen,
                 self.camera,
                 lerped_color_mask & 0xffffff,
-                &self.tile_set.aura_low,
-                &self.tile_set.aura,
+                &self.tile_set.brightness_low,
+                &self.tile_set.brightness,
                 aura_translation,
             );
         }
