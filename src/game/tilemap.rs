@@ -72,13 +72,8 @@ impl TileMap {
         let mut tile_indices: Vec<u32> = Vec::new();
         let tile_count_y = layout.len() as u32;
         for mut row in layout {
-            let row_size = row.len();
-            if row_size < tile_count_x as usize {
-                for i in 0..(tile_count_x as usize - row_size) {
-                    // pad for equal size
-                    row.push(0);
-                }
-            }
+            assert!(row.len() <= tile_count_x as usize);
+            row.resize(tile_count_x as usize, 0);
             tile_indices.append(&mut row);
         }
 
@@ -92,12 +87,6 @@ impl TileMap {
 
     pub fn world_to_tile_index(&self, position: Vec2) -> IVec2 {
         (position / self.tile_size as f32).as_ivec2()
-    }
-    pub fn tile_index_to_world_coord(&self, tile_index: IVec2) -> Vec2 {
-        (tile_index * self.tile_size as i32).as_vec2()
-    }
-    pub fn round_world_coord_to_tile(&self, position: Vec2) -> Vec2 {
-        (position / self.tile_size as f32).floor() * self.tile_size as f32
     }
 
     pub fn sample_world_pos(

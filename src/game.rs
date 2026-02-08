@@ -60,16 +60,10 @@ pub enum Key {
     Down,
     Left,
     Right,
-    A,
     S,
     Space,
     LeftBracket,
     RightBracket,
-
-    // Mask activation/desactivation
-    R,
-    G,
-    B,
 
     M,
     MusicC3,
@@ -113,18 +107,14 @@ pub enum MouseButton {
 #[derive(Debug, Clone)]
 struct PlayerInventory {
     tile_size: i32,
-    width: i32,
-    height: i32,
     position_on_screen: Vec2,
-    background_color: u32,
-    bag_sprite: Bitmap,
     masks: Vec<MaskObject>,
 }
 
 #[derive(Debug, Clone)]
-struct Aabb {
-    min: Vec2,
-    max: Vec2,
+pub struct Aabb {
+    pub min: Vec2,
+    pub max: Vec2,
 }
 
 impl Aabb {
@@ -293,6 +283,7 @@ impl InputState {
     fn is_key_pressed(&self, key: Key) -> bool {
         self.key_pressed[key as usize]
     }
+    #[allow(dead_code)]
     fn is_key_released(&self, key: Key) -> bool {
         self.key_released[key as usize]
     }
@@ -307,6 +298,7 @@ impl InputState {
     fn is_mouse_pressed(&self, button: MouseButton) -> bool {
         self.mouse_pressed[button as usize]
     }
+    #[allow(dead_code)]
     fn is_mouse_released(&self, button: MouseButton) -> bool {
         self.mouse_released[button as usize]
     }
@@ -374,14 +366,6 @@ pub struct Game {
 
     color_mask: crate::bitmap::ColorChannel,
     lerp_color_mask: Vec3,
-}
-
-fn wang_hash(seed: u32) -> u32 {
-    let seed = (seed ^ 61) ^ (seed >> 16);
-    let seed = seed.wrapping_mul(9);
-    let seed = seed ^ (seed >> 4);
-    let seed = seed.wrapping_mul(0x27d4eb2d);
-    seed ^ (seed >> 15)
 }
 
 fn build_frame_list(
@@ -515,9 +499,6 @@ impl Game {
             aura_low: aura2,
         };
         let tile_map = TileMap::from_file("assets/level0.txt");
-
-        // Inventory
-        let bag_sprite = Bitmap::load("assets/sprites/bag.png");
 
         // Game objects for masks
         pub const MASK_SPRITE_SIZE: f32 = 16.0;
@@ -738,11 +719,7 @@ impl Game {
             },
             player_inventory: PlayerInventory {
                 tile_size: 16,
-                width: 256,
-                height: 64,
                 position_on_screen: vec2(0.0, 180.0),
-                background_color: 0xffffefd5,
-                bag_sprite: bag_sprite,
                 masks: Vec::new(),
             },
             is_player_walking: false,
@@ -1059,12 +1036,6 @@ impl Game {
 
         // If we won, play winning sequence
         if self.player.is_winner {
-            let desired_position = vec2(
-                self.player.position.x,
-                self.player.position.y - self.player.win_sprite.frames[0].height as f32,
-            );
-            let desired_scale_scalar = 2.0;
-
             // Just won
             if !self.winning_sequence_is_playing {}
 
@@ -1131,8 +1102,8 @@ impl Game {
             self.jump_key_hint_delay -= delta_time;
 
             // after x seconds of no jumping, show key
-            if (self.jump_key_hint_delay < 0.0) {
-                if (self.player_uses_controller) {
+            if self.jump_key_hint_delay < 0.0 {
+                if self.player_uses_controller {
                     screen.draw_str(&self.font, "Press (Y) to jump", 80, 60, 0xdcaf00);
                 } else {
                     screen.draw_str(&self.font, "Press (Z) to jump", 80, 60, 0xdcaf00);
