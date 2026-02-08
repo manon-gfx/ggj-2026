@@ -344,10 +344,7 @@ fn main() {
 
     let mut swap_index = 0;
     while window.is_open() {
-        while let Some(gilrs::Event {
-            id, event, time, ..
-        }) = gilrs.next_event()
-        {
+        while let Some(gilrs::Event { event, .. }) = gilrs.next_event() {
             match event {
                 gilrs::EventType::ButtonPressed(button, _code) => match button {
                     gilrs::Button::North => game.on_key_down(game::Key::Jump),
@@ -451,12 +448,12 @@ fn main() {
         handle_key_events(minifb::Key::M, game::Key::M);
         handle_key_events(minifb::Key::A, game::Key::MusicC3);
         handle_key_events(minifb::Key::W, game::Key::MusicCs3);
-        // handle_key_events(minifb::Key::S, game::Key::MusicD3);
+        handle_key_events(minifb::Key::S, game::Key::MusicD3);
         handle_key_events(minifb::Key::E, game::Key::MusicDs3);
         handle_key_events(minifb::Key::D, game::Key::MusicE3);
         handle_key_events(minifb::Key::F, game::Key::MusicF3);
         handle_key_events(minifb::Key::T, game::Key::MusicFs3);
-        // handle_key_events(minifb::Key::G, game::Key::MusicG3);
+        handle_key_events(minifb::Key::G, game::Key::MusicG3);
         handle_key_events(minifb::Key::Y, game::Key::MusicGs3);
         handle_key_events(minifb::Key::H, game::Key::MusicA3);
         handle_key_events(minifb::Key::U, game::Key::MusicAs3);

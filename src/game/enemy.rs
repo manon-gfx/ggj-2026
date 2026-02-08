@@ -1,6 +1,6 @@
 use super::{Aabb, TileMap, TileSet, tilemap::TileFlags};
 use crate::{
-    bitmap::{self, Bitmap, GREEN},
+    bitmap::{self, Bitmap},
     game::{camera::Camera, sprite::Sprite, world_space_to_screen_space},
 };
 use glam::*;
@@ -86,12 +86,6 @@ impl Enemy {
         // self.sprite.seconds_per_frame = 1.0 / 4.0;
         self.sprite.tick(delta_time);
     }
-    pub fn visual_aabb_world_space(&self) -> Aabb {
-        Aabb {
-            min: self.visual_box.min + self.position,
-            max: self.visual_box.max + self.position,
-        }
-    }
     pub fn hitbox_aabb_world_space(&self) -> Aabb {
         Aabb {
             min: self.hitbox.min + self.position,
@@ -128,10 +122,10 @@ impl Enemy {
 }
 
 pub fn spawn_enemies(
-    sprite_white: &Sprite,
-    sprite_red: &Sprite,
+    _sprite_white: &Sprite,
+    _sprite_red: &Sprite,
     sprite_green: &Sprite,
-    sprite_blue: &Sprite,
+    _sprite_blue: &Sprite,
 ) -> Vec<Enemy> {
     vec![Enemy::new(
         vec2(2263.0, 2176.0),

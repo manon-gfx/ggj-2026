@@ -339,7 +339,7 @@ fn wang_hash(seed: u32) -> u32 {
     seed
 }
 
-pub fn white_noise(t: f64, freq: f64) -> f64 {
+pub fn white_noise(t: f64, _freq: f64) -> f64 {
     let rand_u32 = wang_hash((t * 44_100.) as u32);
     let rand_0_1 = (rand_u32 as f64) / (u32::MAX as f64);
     1. - 2. * rand_0_1

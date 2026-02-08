@@ -1,70 +1,28 @@
 use glam::*;
-use std::collections::HashMap;
-use std::sync::{
-    Arc,
-    mpsc::{Receiver, Sender, channel},
-};
+use std::sync::mpsc::{Sender, channel};
 
 pub mod notes;
 pub mod sound;
 use sound::{play_music, play_sfx};
 
 use crate::audio::sound::SoundTypes;
-use crate::audio::sound::{
-    SoundEffects, sawtooth_wave, sine_wave, square_wave, triangle_wave, white_noise,
-};
+use crate::audio::sound::sawtooth_wave;
 use crate::game::Key;
 
 #[derive(Clone)]
 struct AudioSettings {
     volume: f32,
-    panning: f32,
-    frequency: f32,
-    note: u32,
 }
 impl Default for AudioSettings {
     fn default() -> Self {
-        Self {
-            volume: 0.5,
-            panning: 0.5,
-            frequency: 440.0,
-            note: 69,
-        }
+        Self { volume: 0.5 }
     }
-}
-
-fn note_to_freq(note: u32) -> f64 {
-    let note = note.max(20);
-    // original -> 1.059_463_094_359_295_264_561_825_294_946_3
-    //8.0 * f64::powi(1.059_463_094_359_295_3, note as i32)
-    440.0 * f64::powf(2.0, (note as f64 - 69.0) / 12.0)
-}
-
-fn approx_exp(val: f64) -> f64 {
-    let mut x = 1.0 + val / 4.0;
-    x *= x;
-    x *= x;
-    x
-}
-fn approx_exp32(val: f32) -> f32 {
-    let mut x = 1.0 + val / 4.0;
-    x *= x;
-    x *= x;
-    x
 }
 
 pub(crate) struct Audio {
     _host: cpal::Host,     //raii
     _device: cpal::Device, //raii
     _stream: cpal::Stream, //raii
-
-    config: cpal::SupportedStreamConfig,
-
-    settings: AudioSettings,
-
-    settings_sender: Sender<AudioSettings>,
-
-    pub shit_recv: Receiver<Vec<f32>>,
 
     pub key_sender: Sender<(Key, bool)>,
     pub sfx_sender: Sender<(SoundTypes, bool)>,
@@ -109,21 +67,16 @@ impl Audio {
         assert!(sample_format == cpal::SampleFormat::F32);
 
         let settings: AudioSettings = AudioSettings::default();
-        let (settings_sender, settings_recv) = channel();
-
-        let (shit_sender, shit_recv) = channel();
         let (key_sender, key_recv) = channel();
         let (sfx_sender, sfx_recv) = channel();
         let (color_mask_sender, color_mask_recv) = channel();
 
         struct StreamContext {
             settings: AudioSettings,
-            settings_recv: Receiver<AudioSettings>,
         }
 
-        let mut context = StreamContext {
+        let context = StreamContext {
             settings: settings.clone(),
-            settings_recv,
         };
 
         let mut last_time = 0.0;
@@ -135,7 +88,7 @@ impl Audio {
         let mut t0_music = DVec4::ZERO; // red, green, blue, death
         let mut color_mask_music = UVec3::ZERO;
 
-        let mut soundeffects = sound::SoundEffects::new();
+        let soundeffects = sound::SoundEffects::new();
         let mut start_footstep_sound: bool = false;
         let mut stop_footstep_sound: bool = false;
         let mut start_jump_sound: bool = false;
@@ -158,12 +111,12 @@ impl Audio {
                         match key {
                             Key::MusicC3 => piano_notes[0] = down,
                             Key::MusicCs3 => piano_notes[1] = down,
-                            Key::S => piano_notes[2] = down,
+                            Key::MusicD3 => piano_notes[2] = down,
                             Key::MusicDs3 => piano_notes[3] = down,
                             Key::MusicE3 => piano_notes[4] = down,
                             Key::MusicF3 => piano_notes[5] = down,
                             Key::MusicFs3 => piano_notes[6] = down,
-                            Key::G => piano_notes[7] = down,
+                            Key::MusicG3 => piano_notes[7] = down,
                             Key::MusicGs3 => piano_notes[8] = down,
                             Key::MusicA3 => piano_notes[9] = down,
                             Key::MusicAs3 => piano_notes[10] = down,
@@ -212,17 +165,11 @@ impl Audio {
                     let sample_duration = 1.0 / sample_rate as f64;
                     let chunk_time = (data.len() / channels as usize) as f64 / sample_rate as f64;
 
-                    if let Ok(settings) = context.settings_recv.try_recv() {
-                        context.settings = settings;
-                    }
-
-                    let mut kaas = vec![0.0; data.len() / channels as usize];
-
                     let settings = &context.settings;
                     //write stream data here
                     let mut t = time;
 
-                    for (wtf_i, frame) in data.chunks_exact_mut(channels as usize).enumerate() {
+                    for frame in data.chunks_exact_mut(channels as usize) {
                         if ((t - last_time) - sample_duration).abs() > 0.0000000001 {
                             println!("Timing error! t: {}, last_time: {}, sample_duration: {}, diff: {}, err: {}",
                             t,
@@ -330,12 +277,7 @@ impl Audio {
             _host: host,
             _device: device,
             _stream: stream,
-            config: supported_config,
 
-            settings,
-
-            settings_sender,
-            shit_recv,
             key_sender,
             sfx_sender,
             color_mask_sender,
