@@ -33,6 +33,12 @@ pub struct Music {
     pub track_mask: Vec<u32>,
 }
 
+impl Default for Music {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Music {
     pub fn new() -> Self {
         let melody_track = Track {
@@ -124,6 +130,12 @@ pub struct SoundEffects {
     pub pickup: Sound,
 }
 
+impl Default for SoundEffects {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SoundEffects {
     pub fn new() -> Self {
         let footstep = Sound {
@@ -165,10 +177,10 @@ impl SoundEffects {
         };
 
         Self {
-            footstep: footstep,
-            jump: jump,
-            death: death,
-            pickup: pickup,
+            footstep,
+            jump,
+            death,
+            pickup,
         }
     }
 }
@@ -240,8 +252,7 @@ pub fn play_music(t: f64, t0: &DVec4, color_mask: &UVec3, music: &mut Music) -> 
         for (track, &track_mask) in music.tracks.iter().zip(music.track_mask.iter()) {
             if track_mask > 0 {
                 let beat_in_track = beat_in_loop % track.length as f64;
-                let idx_in_track = (beat_in_track as f64 / track.length as f64
-                    * track.melody.len() as f64)
+                let idx_in_track = (beat_in_track / track.length as f64 * track.melody.len() as f64)
                     .floor() as usize;
                 let note = track.melody[idx_in_track];
                 if note != REST {
@@ -292,7 +303,7 @@ pub fn sawtooth_wave(t: f64, freq: f64) -> f64 {
 
 pub fn custom_wave(t: f64, freq: f64, ttable: &[f64], ytable: &[f64]) -> f64 {
     let t_rel = (freq * t) % 1.;
-    interp(&ttable, &ytable, t_rel, &InterpMode::default())
+    interp(ttable, ytable, t_rel, &InterpMode::default())
 }
 
 pub const TRIANGLETTABLE: [f64; 5] = [0.0, 0.25, 0.50, 0.75, 1.0];
@@ -303,27 +314,27 @@ pub const SINETTABLE: [f64; 21] = [
     0.80, 0.85, 0.90, 0.95, 1.0,
 ];
 pub const SINEYTABLE: [f64; 21] = [
-    0.0000000000000000,
-    0.3090169883750000,
-    0.5877852522920000,
-    0.8090169883750000,
-    0.9510565162950000,
-    1.0000000000000000,
-    0.9510565162950000,
-    0.8090169883750000,
-    0.5877852522920000,
-    0.3090169883750000,
-    0.0000000000000000,
-    -0.3090169883750000,
-    -0.5877852522920000,
-    -0.8090169883750000,
-    -0.9510565162950000,
-    -1.0000000000000000,
-    -0.9510565162950000,
-    -0.8090169883750000,
-    -0.5877852522920000,
-    -0.3090169883750000,
-    0.0000000000000000,
+    0.000_000_000_000,
+    0.309_016_988_375,
+    0.587_785_252_292,
+    0.809_016_988_375,
+    0.951_056_516_295,
+    1.000_000_000_000,
+    0.951_056_516_295,
+    0.809_016_988_375,
+    0.587_785_252_292,
+    0.309_016_988_375,
+    0.000_000_000_000,
+    -0.309_016_988_375,
+    -0.587_785_252_292,
+    -0.809_016_988_375,
+    -0.951_056_516_295,
+    -1.000_000_000_000,
+    -0.951_056_516_295,
+    -0.809_016_988_375,
+    -0.587_785_252_292,
+    -0.309_016_988_375,
+    0.000_000_000_000,
 ];
 
 pub fn sine_wave(t: f64, freq: f64) -> f64 {
@@ -335,8 +346,7 @@ fn wang_hash(seed: u32) -> u32 {
     let seed = seed.overflowing_mul(9).0;
     let seed = seed ^ (seed >> 4);
     let seed = seed.overflowing_mul(0x27d4eb2d).0;
-    let seed = seed ^ (seed >> 15);
-    seed
+    seed ^ (seed >> 15)
 }
 
 pub fn white_noise(t: f64, _freq: f64) -> f64 {

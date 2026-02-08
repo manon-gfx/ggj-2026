@@ -223,8 +223,8 @@ impl Bitmap {
             (0, y)
         };
 
-        sw = (sw as i32).min(target.width as i32 - tx);
-        sh = (sh as i32).min(target.height as i32 - ty);
+        sw = sw.min(target.width as i32 - tx);
+        sh = sh.min(target.height as i32 - ty);
 
         let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * dv };
 
@@ -249,7 +249,7 @@ impl Bitmap {
                 u += du;
             }
             v += dv;
-            dstline = unsafe { dstline.add(target.width as usize) };
+            dstline = unsafe { dstline.add(target.width) };
         }
     }
 
@@ -310,8 +310,8 @@ impl Bitmap {
             (0, y)
         };
 
-        sw = (sw as i32).min(target.width as i32 - tx);
-        sh = (sh as i32).min(target.height as i32 - ty);
+        sw = sw.min(target.width as i32 - tx);
+        sh = sh.min(target.height as i32 - ty);
 
         let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * dv };
 
@@ -352,7 +352,7 @@ impl Bitmap {
                 u += du;
             }
             v += dv;
-            dstline = unsafe { dstline.add(target.width as usize) };
+            dstline = unsafe { dstline.add(target.width) };
         }
     }
 
@@ -406,8 +406,8 @@ impl Bitmap {
             (0, y)
         };
 
-        sw = (sw as i32).min(target.width as i32 - tx);
-        sh = (sh as i32).min(target.height as i32 - ty);
+        sw = sw.min(target.width as i32 - tx);
+        sh = sh.min(target.height as i32 - ty);
 
         let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * dv };
 
@@ -441,7 +441,7 @@ impl Bitmap {
                 u += du;
             }
             v += dv;
-            dstline = unsafe { dstline.add(target.width as usize) };
+            dstline = unsafe { dstline.add(target.width) };
         }
     }
 
@@ -490,8 +490,8 @@ impl Bitmap {
             (0, y)
         };
 
-        sw = (sw as i32).min(target.width as i32 - tx);
-        sh = (sh as i32).min(target.height as i32 - ty);
+        sw = sw.min(target.width as i32 - tx);
+        sh = sh.min(target.height as i32 - ty);
 
         let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * dv };
 
@@ -538,7 +538,7 @@ impl Bitmap {
                 u += du;
             }
             v += dv;
-            dstline = unsafe { dstline.add(target.width as usize) };
+            dstline = unsafe { dstline.add(target.width) };
         }
     }
 

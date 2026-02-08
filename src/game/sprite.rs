@@ -56,14 +56,12 @@ impl Sprite {
             0
         } else if color_mask == bitmap::YELLOW {
             4
+        } else if components.x > components.y {
+            if components.x > components.z { 1 } else { 3 }
+        } else if components.y > components.z {
+            2
         } else {
-            if components.x > components.y {
-                if components.x > components.z { 1 } else { 3 }
-            } else if components.y > components.z {
-                2
-            } else {
-                3
-            }
+            3
         };
 
         let bitmap = &self.frames[self.frame_index];
