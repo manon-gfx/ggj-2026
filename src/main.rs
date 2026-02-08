@@ -440,6 +440,9 @@ fn main() {
         handle_key_events(minifb::Key::Equal, game::Key::EditorZoomIn);
         handle_key_events(minifb::Key::Minus, game::Key::EditorZoomOut);
 
+        handle_key_events(minifb::Key::Key1, game::Key::Key1);
+        handle_key_events(minifb::Key::Key2, game::Key::Key2);
+
         // Toggle masks
         handle_key_events(minifb::Key::R, game::Key::MaskRed);
         handle_key_events(minifb::Key::G, game::Key::MaskGreen);
