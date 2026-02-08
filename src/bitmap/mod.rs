@@ -465,7 +465,7 @@ impl Bitmap {
         let gmask = (color_mask >> 8) & 0xff;
         let bmask = color_mask & 0xff;
 
-        let mute = 0x0f;
+        let mute = 0x3f;
 
         let swf = self.width as f32 * scale_x;
         let shf = self.height as f32 * scale_y;
@@ -509,8 +509,8 @@ impl Bitmap {
         for y in 0..sh {
             let mut u = if du < 0 { (sw - 1) * -du } else { sx * du };
             for x in 0..sw {
-                let low_brightness = (aura_low.load_pixel(aura_x + x, aura_y + y) & 0xffff) >> 2;
-                let brightness = (aura.load_pixel(aura_x + x, aura_y + y) & 0xffff) >> 2;
+                let low_brightness = (aura_low.load_pixel(aura_x + x, aura_y + y) & 0xffff) >> 1;
+                let brightness = (aura.load_pixel(aura_x + x, aura_y + y) & 0xffff) >> 1;
 
                 unsafe {
                     let color: u32 =
