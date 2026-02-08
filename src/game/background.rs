@@ -40,7 +40,7 @@ impl Background {
                 layer.draw_background(
                     screen,
                     background_offset.x as i32 + offset_x,
-                    -116 as i32 + offset_y,
+                    -116 + offset_y,
                     1.0,
                     1.0,
                     lerped_color_mask,
