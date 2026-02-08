@@ -1,4 +1,5 @@
 pub mod background;
+pub mod camera;
 pub mod editor;
 pub mod enemy;
 pub mod sprite;
@@ -8,6 +9,7 @@ use crate::audio::Audio;
 use crate::audio::sound::SoundTypes;
 use crate::bitmap::{self, Bitmap, Font};
 use crate::game::background::Background;
+use crate::game::camera::{Camera, world_space_to_screen_space};
 use crate::game::sprite::Sprite;
 use editor::EditorState;
 use enemy::{Enemy, spawn_enemies};
@@ -93,6 +95,9 @@ pub enum Key {
     MaskBlue,
     Jump,
 
+    EditorZoomIn,
+    EditorZoomOut,
+
     Count,
 }
 
@@ -140,14 +145,25 @@ impl Aabb {
     }
 }
 
-fn draw_aabb(screen: &mut Bitmap, aabb: &Aabb, camera_pos: Vec2, color: u32) {
-    let min = world_space_to_screen_space(aabb.min, camera_pos);
-    let max = world_space_to_screen_space(aabb.max, camera_pos);
+fn draw_aabb_ws(screen: &mut Bitmap, aabb: &Aabb, camera: &Camera, color: u32) {
+    let min = world_space_to_screen_space(aabb.min, camera);
+    let max = world_space_to_screen_space(aabb.max, camera);
+
     screen.draw_rectangle(
         min.x as i32,
         min.y as i32,
         max.x as i32,
         max.y as i32,
+        false,
+        color,
+    );
+}
+fn draw_aabb_ss(screen: &mut Bitmap, aabb: &Aabb, color: u32) {
+    screen.draw_rectangle(
+        aabb.min.x as i32,
+        aabb.min.y as i32,
+        aabb.max.x as i32,
+        aabb.max.y as i32,
         false,
         color,
     );
@@ -216,8 +232,8 @@ impl Player {
         }
     }
 
-    fn draw(&self, screen: &mut Bitmap, camera: Vec2, color_mask: u32) {
-        let scale = vec2(if self.velocity.x < 0.0 { -1.0 } else { 1.0 }, 1.0);
+    fn draw(&self, screen: &mut Bitmap, camera: &Camera, color_mask: u32) {
+        let scale = vec2(if self.velocity.x < 0.0 { -1.0 } else { 1.0 }, 1.0) * camera.zoom;
         let screen_pos = world_space_to_screen_space(self.position, camera);
 
         if self.is_winner {
@@ -229,14 +245,12 @@ impl Player {
         } else if !self.on_ground {
             self.jump_sprite
                 .draw_player(screen, screen_pos, scale, color_mask);
+        } else if self.velocity.x.abs() < 0.001 {
+            self.idle_sprite
+                .draw_player(screen, screen_pos, scale, color_mask);
         } else {
-            if self.velocity.x.abs() < 0.001 {
-                self.idle_sprite
-                    .draw_player(screen, screen_pos, scale, color_mask);
-            } else {
-                self.walk_sprite
-                    .draw_player(screen, screen_pos, scale, color_mask);
-            }
+            self.walk_sprite
+                .draw_player(screen, screen_pos, scale, color_mask);
         }
     }
 }
@@ -317,7 +331,7 @@ pub struct Game {
     tile_map: TileMap,
 
     actual_camera: Vec2,
-    camera: Vec2,
+    camera: Camera,
 
     input_state: InputState,
 
@@ -368,13 +382,6 @@ fn wang_hash(seed: u32) -> u32 {
     let seed = seed ^ (seed >> 4);
     let seed = seed.wrapping_mul(0x27d4eb2d);
     seed ^ (seed >> 15)
-}
-
-fn screen_to_world_space(pos_on_screen: Vec2, camera_pos: Vec2) -> Vec2 {
-    pos_on_screen + camera_pos
-}
-fn world_space_to_screen_space(pos_in_world: Vec2, camera_pos: Vec2) -> Vec2 {
-    pos_in_world - camera_pos
 }
 
 fn build_frame_list(
@@ -684,7 +691,10 @@ impl Game {
             font: Font::new_default(),
 
             actual_camera: vec2(2000.0, 2000.0),
-            camera: vec2(2000.0, 2000.0),
+            camera: Camera {
+                position: vec2(2000.0, 2000.0),
+                zoom: 1.0,
+            },
 
             input_state: InputState::default(),
 
@@ -848,7 +858,12 @@ impl Game {
         }
 
         match key {
-            Key::Space => self.editor_mode = (!self.editor_mode) && ALLOW_EDITOR,
+            Key::Space => {
+                self.editor_mode = (!self.editor_mode) && ALLOW_EDITOR;
+                if !self.editor_mode {
+                    self.camera.zoom = 1.0;
+                }
+            }
             Key::M => self.music_mode = (!self.music_mode) && ALLOW_KEYBOAD_MODE,
             _ => {}
         }
@@ -905,13 +920,16 @@ impl Game {
         } else {
             let target = self.player.aabb_world_space().center() - screen_offset;
             let target = target + self.player.velocity * vec2(0.35, 0.1);
-            let peak = vec2(self.input_state.axis_state(Axis::RightStickX), self.input_state.axis_state(Axis::RightStickY));
+            let peak = vec2(
+                self.input_state.axis_state(Axis::RightStickX),
+                self.input_state.axis_state(Axis::RightStickY),
+            );
             target + peak * PEAK_SCALE
         };
         self.actual_camera = self.actual_camera.lerp(target, delta_time * 4.0);
 
         if !self.editor_mode {
-            self.camera = self.actual_camera.round()
+            self.camera.position = self.actual_camera.round()
         }
 
         {
@@ -931,32 +949,42 @@ impl Game {
             color_mask_uvec3.x << 16 | color_mask_uvec3.y << 8 | color_mask_uvec3.z | 0xff000000;
 
         let aura_translation =
-            world_space_to_screen_space(self.player.position, self.camera) - vec2(128.0, 128.0);
+            world_space_to_screen_space(self.player.position, &self.camera) - vec2(128.0, 128.0);
         let aura_translation = aura_translation.as_ivec2();
 
         self.background.draw(
             screen,
-            self.camera,
+            self.camera.position,
             lerped_color_mask,
             &self.tile_set.aura_low,
             &self.tile_set.aura,
             aura_translation,
         );
 
-        self.tile_map.draw(
-            &self.tile_set,
-            screen,
-            self.camera,
-            self.color_mask,
-            lerped_color_mask,
-            aura_translation,
-            self.editor_mode,
-        );
+        if self.editor_mode {
+            self.tile_map
+                .editor_draw(&self.tile_set, screen, &self.camera);
+        } else {
+            self.tile_map.draw(
+                &self.tile_set,
+                screen,
+                self.camera.position,
+                lerped_color_mask,
+                aura_translation,
+            );
+        }
 
         // draw inventory on top
         // TODO: Could make inventory-overlay its own bitmap and draw items on that and then draw the inventory on the screen
         if self.editor_mode {
             screen.draw_str(&self.font, "editor_mode", 191, 10, 0xffff00);
+            screen.draw_str(
+                &self.font,
+                &format!("zoom: {}", self.camera.zoom),
+                191,
+                20,
+                0xffff00,
+            );
             self.editor_state.tick(
                 delta_time,
                 screen,
@@ -1021,7 +1049,7 @@ impl Game {
 
             enemy.draw(
                 screen,
-                self.camera,
+                &self.camera,
                 lerped_color_mask & 0xffffff,
                 &self.tile_set.aura_low,
                 &self.tile_set.aura,
@@ -1047,7 +1075,7 @@ impl Game {
                 self.reset_game();
             } else {
                 self.player.tick(delta_time);
-                self.player.draw(screen, self.camera, self.color_mask); // draw with golden mask
+                self.player.draw(screen, &self.camera, self.color_mask); // draw with golden mask
 
                 // TODO: I was thinking we could lerp to bigger scale & higher position but it needs fixing with aligning with pixels --> looks jerky now
                 // Lerp to pos
@@ -1092,7 +1120,7 @@ impl Game {
                     self.player.velocity.y += GRAVITY * delta_time;
                     self.player.position.y += self.player.velocity.y * delta_time;
                     self.player.tick(delta_time);
-                    self.player.draw(screen, self.camera, self.color_mask);
+                    self.player.draw(screen, &self.camera, self.color_mask);
                 }
                 return;
             }
@@ -1447,14 +1475,19 @@ impl Game {
             self.was_player_walking = self.is_player_walking;
         }
 
-        self.player.draw(screen, self.camera, self.color_mask);
+        self.player.draw(screen, &self.camera, self.color_mask);
 
         // Loop over masks
         for mask in self.mask_game_objects.iter_mut() {
             if mask.visible {
-                let pos = world_space_to_screen_space(mask.position, self.camera);
-                mask.sprite_scene
-                    .draw_on(screen, pos.x as i32, pos.y as i32);
+                let pos = world_space_to_screen_space(mask.position, &self.camera);
+                mask.sprite_scene.draw_on_scaled(
+                    screen,
+                    pos.x as i32,
+                    pos.y as i32,
+                    self.camera.zoom,
+                    self.camera.zoom,
+                );
 
                 // Add to collection
                 if mask
@@ -1465,7 +1498,7 @@ impl Game {
                     mask.visible = false;
 
                     // Special case for the golden mask
-                    if (mask.color == bitmap::YELLOW) {
+                    if mask.color == bitmap::YELLOW {
                         self.player.is_winner = true;
                         return;
                     }
@@ -1478,20 +1511,17 @@ impl Game {
                             .player_inventory
                             .masks
                             .iter()
-                            .find(|mask| mask.color == bitmap::RED)
-                            .is_some(),
+                            .any(|mask| mask.color == bitmap::RED),
                         has_green_mask: self
                             .player_inventory
                             .masks
                             .iter()
-                            .find(|mask| mask.color == bitmap::GREEN)
-                            .is_some(),
+                            .any(|mask| mask.color == bitmap::GREEN),
                         has_blue_mask: self
                             .player_inventory
                             .masks
                             .iter()
-                            .find(|mask| mask.color == bitmap::BLUE)
-                            .is_some(),
+                            .any(|mask| mask.color == bitmap::BLUE),
                         color_mask: self.color_mask,
                     });
 
@@ -1522,7 +1552,6 @@ impl Game {
                 0xffff00,
             );
         }
-
         // reset state
         self.input_state.reset();
     }
