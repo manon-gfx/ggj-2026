@@ -403,12 +403,12 @@ impl Game {
             (128, 96),
             (128, 128),
             // Spikes
-            (32, 0 + 16),
+            (32, 16),
             (32, 32 + 16),
             (32, 64 + 16),
             (32, 96 + 16),
             (32, 128 + 16),
-            (128, 0 + 16),
+            (128, 16),
             (128, 32 + 16),
             (128, 64 + 16),
             (128, 96 + 16),
@@ -828,10 +828,10 @@ impl Game {
         self.input_state.key_state[key as usize] = true;
         self.input_state.key_pressed[key as usize] = true;
 
-        if self.music_mode {
-            if let Some(audio) = &self.audio {
-                audio.key_sender.send((key, true)).unwrap();
-            }
+        if self.music_mode
+            && let Some(audio) = &self.audio
+        {
+            audio.key_sender.send((key, true)).unwrap();
         }
 
         match key {
@@ -849,10 +849,10 @@ impl Game {
         self.input_state.key_state[key as usize] = false;
         self.input_state.key_released[key as usize] = true;
 
-        if self.music_mode {
-            if let Some(audio) = &self.audio {
-                audio.key_sender.send((key, false)).unwrap();
-            }
+        if self.music_mode
+            && let Some(audio) = &self.audio
+        {
+            audio.key_sender.send((key, false)).unwrap();
         }
     }
 
@@ -1014,14 +1014,13 @@ impl Game {
         for enemy in self.enemies.iter_mut() {
             enemy.tick(delta_time, &self.tile_map, &self.tile_set);
 
-            if !enemy.is_colored() || (self.color_mask & enemy.color_mask) & 0xffffff != 0 {
-                if self
+            if (!enemy.is_colored() || (self.color_mask & enemy.color_mask) & 0xffffff != 0)
+                && self
                     .player
                     .aabb_world_space()
                     .overlaps(&enemy.hitbox_aabb_world_space())
-                {
-                    self.player.is_dead = true;
-                }
+            {
+                self.player.is_dead = true;
             }
 
             enemy.draw(
@@ -1037,8 +1036,6 @@ impl Game {
         // If we won, play winning sequence
         if self.player.is_winner {
             // Just won
-            if !self.winning_sequence_is_playing {}
-
             self.winning_sequence_duration -= delta_time;
             screen.draw_str(&self.font, "U WON :)", 100, 50, bitmap::GREEN);
 
@@ -1195,38 +1192,35 @@ impl Game {
                 }
             } else {
                 // Current situ: activating a new mask disables old mask (can't wear two masks)
-                if self.input_state.is_key_pressed(Key::MaskRed) {
-                    if let Some(red_mask) = self
+                if self.input_state.is_key_pressed(Key::MaskRed)
+                    && let Some(red_mask) = self
                         .player_inventory
                         .masks
                         .iter()
                         .find(|&x| x.color == bitmap::RED)
-                    {
-                        // self.toggle_color_mask(red_mask.color);
-                        self.set_color_mask(red_mask.color);
-                    };
+                {
+                    // self.toggle_color_mask(red_mask.color);
+                    self.set_color_mask(red_mask.color);
                 }
-                if self.input_state.is_key_pressed(Key::MaskGreen) {
-                    if let Some(green_mask) = self
+                if self.input_state.is_key_pressed(Key::MaskGreen)
+                    && let Some(green_mask) = self
                         .player_inventory
                         .masks
                         .iter()
                         .find(|&x| x.color == bitmap::GREEN)
-                    {
-                        // self.toggle_color_mask(green_mask.color);
-                        self.set_color_mask(green_mask.color);
-                    };
+                {
+                    // self.toggle_color_mask(green_mask.color);
+                    self.set_color_mask(green_mask.color);
                 }
-                if self.input_state.is_key_pressed(Key::MaskBlue) {
-                    if let Some(blue_mask) = self
+                if self.input_state.is_key_pressed(Key::MaskBlue)
+                    && let Some(blue_mask) = self
                         .player_inventory
                         .masks
                         .iter()
                         .find(|&x| x.color == bitmap::BLUE)
-                    {
-                        // self.toggle_color_mask(blue_mask.color);
-                        self.set_color_mask(blue_mask.color);
-                    };
+                {
+                    // self.toggle_color_mask(blue_mask.color);
+                    self.set_color_mask(blue_mask.color);
                 }
             }
 

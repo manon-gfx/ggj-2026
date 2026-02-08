@@ -54,7 +54,7 @@ impl TileMap {
             if char == ',' {
                 let tile_index: u32 = accumulator
                     .parse::<u32>()
-                    .expect(&format!("Could not parse! :({})", &accumulator));
+                    .unwrap_or_else(|_| panic!("Could not parse! :({})", &accumulator));
                 row_content.push(tile_index);
                 accumulator = String::new();
             } else if char == '\r' {
@@ -92,8 +92,8 @@ impl TileMap {
     pub fn sample_world_pos(
         &self,
         position: Vec2,
-        tile_flags: &Vec<TileFlags>,
-        tile_colors: &Vec<bitmap::ColorChannel>,
+        tile_flags: &[TileFlags],
+        tile_colors: &[bitmap::ColorChannel],
         color_mask: &bitmap::ColorChannel,
     ) -> u32 {
         let color_mask = color_mask & 0xffffff;
@@ -124,8 +124,8 @@ impl TileMap {
     pub fn sample_tile_type_ws(
         &self,
         position: Vec2,
-        tile_flags: &Vec<TileFlags>,
-        tile_colors: &Vec<bitmap::ColorChannel>,
+        tile_flags: &[TileFlags],
+        tile_colors: &[bitmap::ColorChannel],
         color_mask: bitmap::ColorChannel,
     ) -> TileFlags {
         let tile_index = self.sample_world_pos(position, tile_flags, tile_colors, &color_mask);
