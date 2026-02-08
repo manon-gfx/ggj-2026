@@ -198,11 +198,13 @@ impl Bitmap {
             return;
         }
 
-        let swf = self.width as f32 * scale_x;
-        let shf = self.height as f32 * scale_y;
+        let wf = self.width as f32;
+        let hf = self.height as f32;
+        let swf = wf * scale_x;
+        let shf = hf * scale_y;
 
-        let du = ((1.0 / swf) * 65535.0) as i32 * self.width as i32;
-        let dv = ((1.0 / shf) * 65535.0) as i32 * self.height as i32;
+        let du = ((wf / swf) * 65536.0) as i32;
+        let dv = ((hf / shf) * 65536.0) as i32;
 
         let mut sw = swf.abs() as i32;
         let mut sh = shf.abs() as i32;
@@ -224,7 +226,7 @@ impl Bitmap {
         sw = (sw as i32).min(target.width as i32 - tx);
         sh = (sh as i32).min(target.height as i32 - ty);
 
-        let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * du };
+        let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * dv };
 
         let srcline = self.pixels.as_ptr();
         let mut dstline = unsafe {
@@ -311,7 +313,7 @@ impl Bitmap {
         sw = (sw as i32).min(target.width as i32 - tx);
         sh = (sh as i32).min(target.height as i32 - ty);
 
-        let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * du };
+        let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * dv };
 
         let srcline = self.pixels.as_ptr();
         let mut dstline = unsafe {
@@ -379,11 +381,13 @@ impl Bitmap {
         ];
         let color_set = color_table[color_index as usize];
 
-        let swf = self.width as f32 * scale_x;
-        let shf = self.height as f32 * scale_y;
+        let wf = self.width as f32;
+        let hf = self.height as f32;
+        let swf = wf * scale_x;
+        let shf = hf * scale_y;
 
-        let du = ((1.0 / swf) * 65535.0) as i32 * self.width as i32;
-        let dv = ((1.0 / shf) * 65535.0) as i32 * self.height as i32;
+        let du = ((wf / swf) * 65536.0) as i32;
+        let dv = ((hf / shf) * 65536.0) as i32;
 
         let mut sw = swf.abs() as i32;
         let mut sh = shf.abs() as i32;
@@ -405,7 +409,7 @@ impl Bitmap {
         sw = (sw as i32).min(target.width as i32 - tx);
         sh = (sh as i32).min(target.height as i32 - ty);
 
-        let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * du };
+        let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * dv };
 
         let srcline = self.pixels.as_ptr();
         let mut dstline = unsafe {
@@ -489,7 +493,7 @@ impl Bitmap {
         sw = (sw as i32).min(target.width as i32 - tx);
         sh = (sh as i32).min(target.height as i32 - ty);
 
-        let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * du };
+        let mut v = if dv < 0 { (sh - 1) * -dv } else { sy * dv };
 
         let srcline = self.pixels.as_ptr();
         let mut dstline = unsafe {

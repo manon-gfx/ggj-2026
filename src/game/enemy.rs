@@ -1,7 +1,7 @@
 use super::{Aabb, TileMap, TileSet, tilemap::TileFlags};
 use crate::{
     bitmap::{self, Bitmap, GREEN},
-    game::{sprite::Sprite, world_space_to_screen_space},
+    game::{camera::Camera, sprite::Sprite, world_space_to_screen_space},
 };
 use glam::*;
 
@@ -101,7 +101,7 @@ impl Enemy {
     pub fn draw(
         &self,
         screen: &mut Bitmap,
-        camera: Vec2,
+        camera: &Camera,
         lerped_color_mask: u32,
         aura_low: &Bitmap,
         aura: &Bitmap,
@@ -110,7 +110,7 @@ impl Enemy {
         let scale_x = if self.going_left { -1.0 } else { 1.0 };
 
         let position = world_space_to_screen_space(self.position, camera);
-        let scale = vec2(scale_x, 1.0);
+        let scale = vec2(scale_x, 1.0) * camera.zoom;
         let is_colored = self.color_mask != 0xffffff;
 
         self.sprite.draw_colored(

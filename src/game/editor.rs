@@ -1,8 +1,10 @@
-use super::{Aabb, MouseButton, draw_aabb};
+use super::{Aabb, MouseButton, draw_aabb_ws};
 use crate::{
     Bitmap,
     game::{
-        InputState, Key, screen_to_world_space,
+        InputState, Key,
+        camera::{Camera, screen_to_world_space},
+        draw_aabb_ss,
         tilemap::{TileMap, TileSet},
     },
 };
@@ -25,7 +27,7 @@ impl EditorState {
         screen: &mut Bitmap,
         tile_map: &mut TileMap,
         tile_set: &TileSet,
-        camera: &mut Vec2,
+        camera: &mut Camera,
         input_state: &InputState,
     ) {
         if input_state.is_key_pressed(Key::S) {
@@ -33,17 +35,26 @@ impl EditorState {
             println!("Level Saved!");
         }
 
+        if input_state.is_key_pressed(Key::EditorZoomIn) {
+            camera.zoom = (camera.zoom * 2.0).min(2.0);
+        }
+        if input_state.is_key_pressed(Key::EditorZoomOut) {
+            camera.zoom = (camera.zoom * 0.5).max(0.125);
+        }
+
+        let editor_speed = 150.0 / camera.zoom;
+
         if input_state.is_key_down(Key::Left) {
-            camera.x -= delta_time * 150.0;
+            camera.position.x -= delta_time * editor_speed;
         }
         if input_state.is_key_down(Key::Right) {
-            camera.x += delta_time * 150.0;
+            camera.position.x += delta_time * editor_speed;
         }
         if input_state.is_key_down(Key::Up) {
-            camera.y -= delta_time * 150.0;
+            camera.position.y -= delta_time * editor_speed;
         }
         if input_state.is_key_down(Key::Down) {
-            camera.y += delta_time * 150.0;
+            camera.position.y += delta_time * editor_speed;
         }
 
         if input_state.is_key_pressed(Key::LeftBracket) {
@@ -65,14 +76,14 @@ impl EditorState {
 
         if input_state.mouse.y < 192.0 {
             if input_state.is_mouse_down(MouseButton::Left) {
-                let mouse_ws = screen_to_world_space(input_state.mouse, *camera);
+                let mouse_ws = screen_to_world_space(input_state.mouse, camera);
                 let mouse_ws = mouse_ws.as_uvec2();
                 let mouse_ts = mouse_ws / tile_map.tile_size;
                 tile_map.tiles[(mouse_ts.x + mouse_ts.y * tile_map.width) as usize] =
                     self.selected_tile + 1;
             }
             if input_state.is_mouse_down(MouseButton::Right) {
-                let mouse_ws = screen_to_world_space(input_state.mouse, *camera);
+                let mouse_ws = screen_to_world_space(input_state.mouse, camera);
                 let mouse_ws = mouse_ws.as_uvec2();
                 let mouse_ts = mouse_ws / tile_map.tile_size;
                 tile_map.tiles[(mouse_ts.x + mouse_ts.y * tile_map.width) as usize] = 0;
@@ -81,9 +92,9 @@ impl EditorState {
 
         let aabb = Aabb {
             min: vec2(-1.0, -1.0),
-            max: vec2(tile_map.width as f32, tile_map.height as f32) * tile_map.tile_size as f32,
+            max: vec2(tile_map.width as f32, tile_map.height as f32) * (tile_map.tile_size as f32),
         };
-        draw_aabb(screen, &aabb, *camera, 0x00ff00);
+        draw_aabb_ws(screen, &aabb, camera, 0x00ff00);
 
         screen.draw_rectangle(0, 192, 255, 207, true, 0x0);
         screen.draw_rectangle(0, 192, 255, 207, false, 0xffffffff);
@@ -94,7 +105,7 @@ impl EditorState {
                 max: vec2(16.0 + i as f32 * 10.0, 192.0 + 12.0),
             };
             if i == self.selected_tile as usize {
-                draw_aabb(screen, &aabb, Vec2::ZERO, 0xffffff);
+                draw_aabb_ss(screen, &aabb, 0xffffff);
             }
 
             if input_state.is_mouse_pressed(MouseButton::Left)
