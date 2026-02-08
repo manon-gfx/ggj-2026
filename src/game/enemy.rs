@@ -16,22 +16,17 @@ pub struct Enemy {
 }
 
 impl Enemy {
-    pub fn new(
-        position: Vec2,
-        going_left: bool, /*, sprite: Sprite*/
-        sprite: &Sprite,
-        color_mask: u32,
-    ) -> Self {
+    pub fn new(position: Vec2, going_left: bool, sprite: &Sprite, color_mask: u32) -> Self {
         Self {
             position,
             going_left,
             visual_box: Aabb {
                 min: vec2(0.0, 0.0),
-                max: vec2(7.0, 7.0),
+                max: vec2(15.0, 7.0),
             },
             hitbox: Aabb {
                 min: vec2(1.0, 1.0),
-                max: vec2(6.0, 6.0),
+                max: vec2(14.0, 6.0),
             },
             sprite: sprite.clone(),
             color_mask: color_mask & 0xffffff,
