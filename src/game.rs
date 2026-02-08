@@ -11,7 +11,7 @@ use crate::bitmap::{self, Bitmap, Font};
 use crate::game::background::Background;
 use crate::game::camera::{Camera, world_space_to_screen_space};
 use crate::game::sprite::Sprite;
-use editor::EditorState;
+use editor::{EditorState, ObjectType};
 use enemy::{Enemy, spawn_enemies};
 use glam::*;
 
@@ -64,6 +64,9 @@ pub enum Key {
     Space,
     LeftBracket,
     RightBracket,
+
+    Key1,
+    Key2,
 
     M,
     MusicC3,
@@ -120,6 +123,12 @@ pub struct Aabb {
 impl Aabb {
     fn center(&self) -> Vec2 {
         (self.min + self.max) * 0.5
+    }
+    fn translate(&self, translation: Vec2) -> Self {
+        Self {
+            min: self.min + translation,
+            max: self.max + translation,
+        }
     }
     fn overlaps(&self, other: &Aabb) -> bool {
         self.min.x <= other.max.x
@@ -683,7 +692,7 @@ impl Game {
 
             save_state: None,
 
-            editor_state: EditorState::default(),
+            editor_state: EditorState::new(&enemy_sprite_sheet),
 
             background: Background::new(),
             tile_set,
@@ -841,6 +850,44 @@ impl Game {
                 self.editor_mode = (!self.editor_mode) && ALLOW_EDITOR;
                 if !self.editor_mode {
                     self.camera.zoom = 1.0;
+
+                    self.enemies.clear();
+                    for spawn in self.editor_state.object_spawns.iter() {
+                        match spawn.object_type {
+                            ObjectType::WhiteHedgehog => {
+                                self.enemies.push(Enemy::new(
+                                    spawn.position,
+                                    false,
+                                    &self.enemy_sprite_white,
+                                    0xffffff,
+                                ));
+                            }
+                            ObjectType::RedHedgehog => {
+                                self.enemies.push(Enemy::new(
+                                    spawn.position,
+                                    false,
+                                    &self.enemy_sprite_red,
+                                    bitmap::RED,
+                                ));
+                            }
+                            ObjectType::GreenHedgehog => {
+                                self.enemies.push(Enemy::new(
+                                    spawn.position,
+                                    false,
+                                    &self.enemy_sprite_green,
+                                    bitmap::GREEN,
+                                ));
+                            }
+                            ObjectType::BlueHedgehog => {
+                                self.enemies.push(Enemy::new(
+                                    spawn.position,
+                                    false,
+                                    &self.enemy_sprite_blue,
+                                    bitmap::BLUE,
+                                ));
+                            }
+                        }
+                    }
                 }
             }
             Key::M => self.music_mode = (!self.music_mode) && ALLOW_KEYBOAD_MODE,
@@ -957,6 +1004,13 @@ impl Game {
         // TODO: Could make inventory-overlay its own bitmap and draw items on that and then draw the inventory on the screen
         if self.editor_mode {
             screen.draw_str(&self.font, "editor_mode", 191, 10, 0xffff00);
+            screen.draw_str(
+                &self.font,
+                &format!("{:?}", &self.editor_state.editor_mode),
+                191,
+                30,
+                0xffff00,
+            );
             screen.draw_str(
                 &self.font,
                 &format!("zoom: {}", self.camera.zoom),
@@ -1097,22 +1151,22 @@ impl Game {
             }
         }
 
-        // Draw key hint if we didnt jump yet
-        if self.check_if_should_show_jump_key {
-            self.jump_key_hint_delay -= delta_time;
-
-            // after x seconds of no jumping, show key
-            if self.jump_key_hint_delay < 0.0 {
-                if self.player_uses_controller {
-                    screen.draw_str(&self.font, "Press (Y) to jump", 80, 60, 0xdcaf00);
-                } else {
-                    screen.draw_str(&self.font, "Press (Z) to jump", 80, 60, 0xdcaf00);
-                }
-            }
-        }
-
         // Some things we only need to do if we aren't dead
         if !self.editor_mode {
+            // Draw key hint if we didnt jump yet
+            if self.check_if_should_show_jump_key {
+                self.jump_key_hint_delay -= delta_time;
+
+                // after x seconds of no jumping, show key
+                if self.jump_key_hint_delay < 0.0 {
+                    if self.player_uses_controller {
+                        screen.draw_str(&self.font, "Press (Y) to jump", 80, 60, 0xdcaf00);
+                    } else {
+                        screen.draw_str(&self.font, "Press (Z) to jump", 80, 60, 0xdcaf00);
+                    }
+                }
+            }
+
             self.is_player_walking = false;
 
             let mut movement_axis = self.input_state.axis_state(Axis::LeftStickX);
