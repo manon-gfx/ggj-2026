@@ -9,15 +9,9 @@ use crate::{
     },
 };
 use glam::*;
-
+#[derive(Default)]
 pub struct EditorState {
     pub selected_tile: u32,
-}
-
-impl Default for EditorState {
-    fn default() -> Self {
-        Self { selected_tile: 0 }
-    }
 }
 
 impl EditorState {
@@ -57,15 +51,13 @@ impl EditorState {
             camera.position.y += delta_time * editor_speed;
         }
 
-        if input_state.is_key_pressed(Key::LeftBracket) {
-            if self.selected_tile > 0 {
-                self.selected_tile -= 1;
-            }
+        if input_state.is_key_pressed(Key::LeftBracket) && self.selected_tile > 0 {
+            self.selected_tile -= 1;
         }
-        if input_state.is_key_pressed(Key::RightBracket) {
-            if self.selected_tile < (tile_set.tiles.len() - 1) as u32 {
-                self.selected_tile += 1;
-            }
+        if input_state.is_key_pressed(Key::RightBracket)
+            && self.selected_tile < (tile_set.tiles.len() - 1) as u32
+        {
+            self.selected_tile += 1;
         }
 
         screen.plot(

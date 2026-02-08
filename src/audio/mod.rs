@@ -40,11 +40,7 @@ impl Audio {
 
         let supported_config = supported_configs_range
             .find(|config| {
-                if config.sample_format() == cpal::SampleFormat::F32 && config.channels() == 2 {
-                    true
-                } else {
-                    false
-                }
+                config.sample_format() == cpal::SampleFormat::F32 && config.channels() == 2
             })
             .expect("Failed to find a suitable audio format");
         let supported_config = if let Some(cfg) = supported_config.try_with_sample_rate(48000) {
