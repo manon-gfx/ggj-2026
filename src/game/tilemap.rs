@@ -1,5 +1,8 @@
 use super::Aabb;
-use crate::bitmap::{self, Bitmap};
+use crate::{
+    bitmap::{self, Bitmap},
+    game::camera::Camera,
+};
 use bitflags::bitflags;
 use glam::*;
 
@@ -144,15 +147,60 @@ impl TileMap {
         }
     }
 
+    pub fn editor_draw(&self, tile_set: &TileSet, target: &mut Bitmap, camera: &Camera) {
+        let tile_size = self.tile_size as f32;
+        let draw_tile_size = self.tile_size as f32 * camera.zoom;
+
+        let mut draw_tiles_max_x = (target.width as f32 / draw_tile_size).ceil() as i32 + 1;
+        let mut draw_tiles_max_y = (target.height as f32 / draw_tile_size).ceil() as i32 + 1;
+
+        let start_tile_x = (camera.position.x / tile_size) as i32;
+        let start_tile_y = (camera.position.y / tile_size) as i32;
+
+        let camera_offset = (camera.position % tile_size) * camera.zoom;
+
+        let mut draw_tiles_min_x = 0;
+        let mut draw_tiles_min_y = 0;
+
+        if start_tile_x < 0 {
+            draw_tiles_min_x -= start_tile_x;
+        }
+        if start_tile_y < 0 {
+            draw_tiles_min_y -= start_tile_y;
+        }
+
+        if draw_tiles_max_x >= self.width as i32 {
+            draw_tiles_max_x = self.width as i32 - 1;
+        }
+        if draw_tiles_max_y >= self.height as i32 {
+            draw_tiles_max_y = self.height as i32 - 1;
+        }
+
+        for y in draw_tiles_min_y..draw_tiles_max_y {
+            // NOTE(manon): Flooring before int-cast is necessary to properly handle negative numbers
+            let draw_y = (draw_tile_size * y as f32 - camera_offset.y).floor() as i32;
+            for x in draw_tiles_min_x..draw_tiles_max_x {
+                let draw_x = (draw_tile_size * x as f32 - camera_offset.x).floor() as i32;
+
+                let tile_y = (start_tile_y + y) as u32;
+                let tile_x = (start_tile_x + x) as u32;
+
+                let tile_id = self.tiles[(tile_y * self.width + tile_x) as usize];
+                if tile_id != 0 {
+                    let tile_bmp = &tile_set.tiles[(tile_id - 1) as usize];
+                    tile_bmp.draw_on_scaled(target, draw_x, draw_y, camera.zoom, camera.zoom);
+                }
+            }
+        }
+    }
+
     pub fn draw(
         &self,
         tile_set: &TileSet,
         target: &mut Bitmap,
         camera: Vec2,
-        color_mask: crate::bitmap::ColorChannel,
         lerped_color_mask: u32,
         aura_transl: IVec2,
-        editor_mode: bool,
     ) {
         let screen_size = vec2(target.width as f32, target.height as f32);
         let bounds = Aabb {
@@ -189,31 +237,23 @@ impl TileMap {
                 }
 
                 let tile = &tile_set.tiles[(tile_index - 1) as usize];
-                if editor_mode {
-                    tile.draw_on(
-                        target,
-                        sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
-                        sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
-                    );
-                } else {
-                    // leave white tiles white
-                    let color = tile_set.tile_colors[(tile_index - 1) as usize];
-                    let tile_type = &tile_set.tile_types[(tile_index - 1) as usize];
+                // leave white tiles white
+                let color = tile_set.tile_colors[(tile_index - 1) as usize];
+                let tile_type = &tile_set.tile_types[(tile_index - 1) as usize];
 
-                    let is_colored = tile_type.intersects(TileFlags::WHITE);
+                let is_colored = tile_type.intersects(TileFlags::WHITE);
 
-                    tile.draw_tile(
-                        target,
-                        sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
-                        sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
-                        is_colored,
-                        color,
-                        lerped_color_mask,
-                        &tile_set.aura_low,
-                        &tile_set.aura,
-                        aura_transl,
-                    );
-                }
+                tile.draw_tile(
+                    target,
+                    sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
+                    sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
+                    is_colored,
+                    color,
+                    lerped_color_mask,
+                    &tile_set.aura_low,
+                    &tile_set.aura,
+                    aura_transl,
+                );
             }
         }
     }

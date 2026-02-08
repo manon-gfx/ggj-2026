@@ -189,6 +189,9 @@ fn main() {
         handle_key_events(minifb::Key::LeftBracket, game::Key::LeftBracket);
         handle_key_events(minifb::Key::RightBracket, game::Key::RightBracket);
 
+        handle_key_events(minifb::Key::Equal, game::Key::EditorZoomIn);
+        handle_key_events(minifb::Key::Minus, game::Key::EditorZoomOut);
+
         // Toggle masks
         handle_key_events(minifb::Key::R, game::Key::MaskRed);
         handle_key_events(minifb::Key::G, game::Key::MaskGreen);
