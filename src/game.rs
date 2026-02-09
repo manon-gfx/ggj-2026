@@ -14,8 +14,9 @@ use crate::game::sprite::Sprite;
 use editor::{EditorState, ObjectType};
 use enemy::{Enemy, spawn_enemies};
 use glam::*;
+use std::collections::BTreeMap;
 
-use tilemap::{TileFlags, TileMap, TileSet};
+use tilemap::{TileFlags, TileMap, TileSet, TileStruct};
 
 const GRAVITY: f32 = 600.0;
 const JUMP_IMPULSE: f32 = 150.0;
@@ -56,19 +57,20 @@ pub enum Axis {
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[repr(usize)]
 pub enum Key {
-    Up,
-    Down,
-    Left,
-    Right,
-    S,
-    Space,
-    LeftBracket,
-    RightBracket,
+    MoveUp,    // Arrow up
+    MoveDown,  // Arrow down
+    MoveLeft,  // Arrow left
+    MoveRight, // Arrow right
+    A,
+    SaveLevelEdit, // Save in level editor mode
+    EditMode,      // Space
+    SelectPrev,    // LeftBracket
+    SelectNext,  // RightBracket
 
     Key1,
     Key2,
 
-    M,
+    MusicMode, // M
     MusicC3,
     MusicCs3,
     MusicD3,
@@ -91,11 +93,12 @@ pub enum Key {
     MaskGreen,
     MaskBlue,
     Jump,
+    MuteAudio,
 
     EditorZoomIn,
     EditorZoomOut,
 
-    Count,
+    Count, // I was wondering what this is counting, but found out (the hard way) that it is the number of items in this enum
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -177,10 +180,29 @@ struct MaskObject {
     sprite_inventory: Bitmap,
     sprite_inventory_activated: Bitmap,
     sprite_key_keyboard: Bitmap,
+    keyboard_key_name: String,
     sprite_key_controller: Bitmap,
     visible: bool,
 }
 impl MaskObject {
+    fn aabb_world_space(&self) -> Aabb {
+        Aabb {
+            min: self.aabb.min + self.position,
+            max: self.aabb.max + self.position,
+        }
+    }
+}
+
+struct SaveGamePoint {
+    position: Vec2,
+    aabb: Aabb,
+    color: crate::bitmap::ColorChannel,
+    sprite_scene_off: Bitmap,
+    sprite_scene_on: Bitmap,
+    activated: bool,
+    visible: bool,
+}
+impl SaveGamePoint {
     fn aabb_world_space(&self) -> Aabb {
         Aabb {
             min: self.aabb.min + self.position,
@@ -345,6 +367,7 @@ pub struct Game {
     save_state: Option<SaveState>,
 
     mask_game_objects: Vec<MaskObject>,
+    savepoint_objects: Vec<SaveGamePoint>,
     enemies: Vec<Enemy>,
 
     enemy_sprite_red: Sprite,
@@ -391,48 +414,149 @@ fn build_frame_list(
         .collect::<Vec<_>>()
 }
 
+fn build_tileset(
+    tileset_sheet: &Bitmap,
+    color_lst: Vec<u32>,
+    color_start_pos: &Vec<(i32, i32)>,
+    rel_coords: &Vec<(i32, i32)>,
+    rel_tile_flags: Vec<TileFlags>,
+    size: (usize, usize),
+) -> TileSet {
+    let tiles_per_color = rel_coords.len();
+    let mut coords = Vec::<(i32, i32)>::with_capacity(color_lst.len() * tiles_per_color);
+    let mut tile_types: Vec<TileFlags> =
+        Vec::<TileFlags>::with_capacity(color_lst.len() * tiles_per_color);
+    let mut tile_colors = Vec::<u32>::with_capacity(color_lst.len() * tiles_per_color);
+    for (j, &(rel_x, rel_y)) in rel_coords.iter().enumerate() {
+        for (i, &c) in color_start_pos.iter().enumerate() {
+            // println!("tile set coords? {:?}", c);
+            coords.push((c.0 + rel_x, c.1 + rel_y));
+            tile_colors.push(color_lst[i]);
+            if color_lst[i] == bitmap::RED {
+                tile_types.push(rel_tile_flags[j] | TileFlags::RED);
+            } else if color_lst[i] == bitmap::BLUE {
+                tile_types.push(rel_tile_flags[j] | TileFlags::BLUE);
+            } else if color_lst[i] == bitmap::GREEN {
+                tile_types.push(rel_tile_flags[j] | TileFlags::GREEN);
+            } else {
+                tile_types.push(rel_tile_flags[j]);
+            };
+        }
+    }
+    let tiles = build_frame_list(&tileset_sheet, &coords, (8, 8));
+
+    // let mut tile_objs = Vec::<TileStruct>::with_capacity(color_lst.len() * tiles_per_color);
+    let mut tile_objs = BTreeMap::<usize, TileStruct>::new();
+    let tilesheet_stride_in_tiles = tileset_sheet.width / size.0 as usize;
+
+    let mut color_start = Vec::<usize>::with_capacity(color_lst.len());
+    for (i, &c) in color_start_pos.iter().enumerate() {
+        color_start.push(
+            (((c.0) as usize) / size.0) as usize
+                + (((c.1) as usize) / size.1) as usize * tilesheet_stride_in_tiles,
+        ); // start position of each color as an index
+        for (j, &(rel_x, rel_y)) in rel_coords.iter().enumerate() {
+            let mut bmp = Bitmap::new(size.0, size.1);
+            tileset_sheet.draw_on(&mut bmp, -(c.0 + rel_x), -(c.1 + rel_y));
+
+            let flags = if color_lst[i] == bitmap::RED {
+                rel_tile_flags[j] | TileFlags::RED
+            } else if color_lst[i] == bitmap::BLUE {
+                rel_tile_flags[j] | TileFlags::BLUE
+            } else if color_lst[i] == bitmap::GREEN {
+                rel_tile_flags[j] | TileFlags::GREEN
+            } else {
+                rel_tile_flags[j]
+            };
+            let tile_obj = TileStruct {
+                sprite: bmp,
+                index: tiles_per_color * j + i,
+                color: color_lst[i],
+                flags: flags,
+            };
+
+            tile_objs.insert(
+                (((c.0 + rel_x) as usize) / size.0) as usize
+                    + (((c.1 + rel_y) as usize) / size.1) as usize * tilesheet_stride_in_tiles,
+                tile_obj,
+            );
+        }
+    }
+
+    let mut aura_low = Bitmap::new(16, 16);
+    let mut p_vec_sqrd = Vec::<f32>::new();
+    for y in 0..aura_low.height {
+        let v = y as f32 / aura_low.height as f32;
+        for x in 0..aura_low.width {
+            let u = x as f32 / aura_low.height as f32;
+            let uv = vec2(u, v);
+            let p = uv * 2.0 - 1.0;
+            let brightness: f32 = (1.0 - (p.length_squared() * 1.2)).clamp(0.0, 1.0);
+            // let brightness = (brightness * 8.0) as u32;
+
+            aura_low.plot(x as i32, y as i32, (brightness * 384.0) as u32 | 0xff000000);
+        }
+    }
+    for y in 0..aura_low.height {
+        let v = 0.125 * y as f32 - 1.0; // aura_low.height as f32;
+        for x in 0..aura_low.width {
+            let u = 0.125 * x as f32 - 1.0; // / aura_low.height as f32;
+            let p = vec2(u, v);
+            // let p = uv * 2.0 - 1.0;
+            p_vec_sqrd.push(p.length_squared());
+            // let brightness: f32 = (1.0 - (p.length_squared() * 1.2)).clamp(0.0, 1.0);
+        }
+    }
+    let brightness_high = p_vec_sqrd
+        .iter()
+        .map(|&p| (((1.0 - (p * 1.2)).clamp(0.0, 1.0)) * 384.0) as u32 & 0xffff)
+        .collect();
+    let brightness_low = p_vec_sqrd
+        .iter()
+        .map(|&p| (((1.0 - (p * 5.0)).clamp(0.0, 1.0)) * 150.0) as u32 & 0xffff)
+        .collect();
+    // println!("brightness high: {:?}",  brightness_high);
+
+    let mut aura = Bitmap::new(256, 256);
+    aura_low.draw_on_scaled(&mut aura, 0, 0, 16.0, 16.0);
+
+    let mut aura_low = Bitmap::new(16, 16);
+    for y in 0..aura_low.height {
+        let v = y as f32 / aura_low.height as f32;
+        for x in 0..aura_low.width {
+            let u = x as f32 / aura_low.height as f32;
+            let uv = vec2(u, v);
+            let p = uv * 2.0 - 1.0;
+            let brightness = (1.0 - (p.length_squared() * 5.0)).clamp(0.0, 1.0);
+            aura_low.plot(x as i32, y as i32, (brightness * 150.0) as u32 | 0xff000000);
+        }
+    }
+
+    let mut aura2 = Bitmap::new(256, 256);
+    aura_low.draw_on_scaled(&mut aura2, 0, 0, 16.0, 16.0);
+
+    TileSet {
+        tiles,
+        tile_types,
+        tile_colors,
+        tile_objs,
+        unique_tile_colors: color_lst,
+        color_start,
+        // aura,
+        // aura_low: aura2,
+        brightness_low,
+        brightness: brightness_high,
+    }
+}
+
 impl Game {
     // consts
     const PLAYER_START_POS: Vec2 = vec2(2200.0, 2110.0);
     const START_COLOR_MASK: bitmap::ColorChannel = bitmap::BLACK;
 
     pub fn new() -> Self {
-        let tile_sheet = Bitmap::load("assets/level_tiles_8x8.png");
-        let coords = [
-            // Terrain Blocks
-            (32, 0),
-            (32, 32),
-            (32, 64),
-            (32, 96),
-            (32, 128),
-            (128, 0),
-            (128, 32),
-            (128, 64),
-            (128, 96),
-            (128, 128),
-            // Spikes
-            (32, 16),
-            (32, 32 + 16),
-            (32, 64 + 16),
-            (32, 96 + 16),
-            (32, 128 + 16),
-            (128, 16),
-            (128, 32 + 16),
-            (128, 64 + 16),
-            (128, 96 + 16),
-            (128, 128 + 16),
-        ];
-        let tile_colors = vec![
-            bitmap::BLACK,
-            bitmap::RED,
-            bitmap::BLUE,
-            bitmap::GREEN,
-            bitmap::YELLOW,
-            bitmap::CYAN,
-            bitmap::MAGENTA,
-            bitmap::GREY,
-            bitmap::ORANGE,
-            bitmap::PURPLE,
+        let tile_sheet = Bitmap::load("assets/level_tiles_8x8_v2.png");
+        let tile_colors_once = vec![
             bitmap::BLACK,
             bitmap::RED,
             bitmap::BLUE,
@@ -444,11 +568,83 @@ impl Game {
             bitmap::ORANGE,
             bitmap::PURPLE,
         ];
-        let tile_types = vec![
+
+        let color_start_coords = vec![
+            // first col
+            (0, 0),
+            (0, 32),
+            (0, 64),
+            (0, 96),
+            (0, 128),
+            (96, 0),
+            (96, 32),
+            (96, 64),
+            (96, 96),
+            (96, 128),
+        ];
+        let tile_coords_per_color = vec![
+            (32, 0),  // basic block
+            (32, 16), // spike
+            (40, 16), // spike
+            (48, 16), // spike
+            (56, 16), // spike
+            (40, 0),  // small platform
+            (48, 0),  // small platform
+            (56, 0),  // small platform
+            (64, 0),  // small platform
+            (32, 8),  // filled h platform
+            (40, 8),  // filled h platform
+            (48, 8),  // filled h platform
+            (64, 8),  // filled v platform
+            (64, 16), // filled v platform
+            (64, 24), // filled v platform
+            (0, 0),   // upper left corner block
+            (8, 0),   // top block
+            (16, 0),  // top block
+            (24, 0),  // upper right corner block
+            (0, 8),   // left block
+            (8, 8),   // middle block
+            (16, 8),  // middle block
+            (24, 8),  // right block
+            (0, 16),  // left block
+            (8, 16),  // middle block
+            (16, 16), // middle block
+            (24, 16), // right block
+            (0, 24),  // lower left corner block
+            (8, 24),  // bottom block
+            (16, 24), // bottom block
+            (24, 24), // lower right corner
+            (32, 24), // middle vertical spike/lava etc.
+            (40, 24), // bottom vertical spike/lava etc.
+            (48, 24), // top vertical spike/lava etc.
+            (56, 24), // top vertical spike/lava etc. filled
+        ];
+        let tile_flags_per_color = vec![
             TileFlags::COLLISION,
-            TileFlags::COLLISION | TileFlags::RED,
-            TileFlags::COLLISION | TileFlags::BLUE,
-            TileFlags::COLLISION | TileFlags::GREEN,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+            TileFlags::SPIKE,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
+            TileFlags::COLLISION,
             TileFlags::COLLISION,
             TileFlags::COLLISION,
             TileFlags::COLLISION,
@@ -456,57 +652,25 @@ impl Game {
             TileFlags::COLLISION,
             TileFlags::COLLISION,
             TileFlags::SPIKE,
-            TileFlags::SPIKE | TileFlags::RED,
-            TileFlags::SPIKE | TileFlags::BLUE,
-            TileFlags::SPIKE | TileFlags::GREEN,
             TileFlags::SPIKE,
-            TileFlags::SPIKE,
-            TileFlags::SPIKE,
-            TileFlags::SPIKE,
-            TileFlags::SPIKE,
-            TileFlags::SPIKE,
+            TileFlags::SPIKE | TileFlags::COLLISION,
+            TileFlags::SPIKE | TileFlags::COLLISION,
         ];
 
-        let tiles = build_frame_list(&tile_sheet, &coords, (8, 8));
+        let tile_set: TileSet = build_tileset(
+            &tile_sheet,
+            tile_colors_once,
+            &color_start_coords,
+            &tile_coords_per_color,
+            tile_flags_per_color,
+            (8, 8),
+        );
 
-        let mut aura_low = Bitmap::new(16, 16);
-        for y in 0..aura_low.height {
-            let v = y as f32 / aura_low.height as f32;
-            for x in 0..aura_low.width {
-                let u = x as f32 / aura_low.height as f32;
-                let uv = vec2(u, v);
-                let p = uv * 2.0 - 1.0;
-                let brightness = (1.0 - (p.length_squared() * 1.2)).clamp(0.0, 1.0);
-                // let brightness = (brightness * 8.0) as u32;
-                aura_low.plot(x as i32, y as i32, (brightness * 384.0) as u32 | 0xff000000);
-            }
-        }
-        let mut aura = Bitmap::new(256, 256);
-        aura_low.draw_on_scaled(&mut aura, 0, 0, 16.0, 16.0);
+        // let tile_map = TileMap::from_file("assets/level0.txt");
+        let tile_map = TileMap::from_file("assets/level0.csv");
 
-        let mut aura_low = Bitmap::new(16, 16);
-        for y in 0..aura_low.height {
-            let v = y as f32 / aura_low.height as f32;
-            for x in 0..aura_low.width {
-                let u = x as f32 / aura_low.height as f32;
-                let uv = vec2(u, v);
-                let p = uv * 2.0 - 1.0;
-                let brightness = (1.0 - (p.length_squared() * 5.0)).clamp(0.0, 1.0);
-                aura_low.plot(x as i32, y as i32, (brightness * 150.0) as u32 | 0xff000000);
-            }
-        }
-
-        let mut aura2 = Bitmap::new(256, 256);
-        aura_low.draw_on_scaled(&mut aura2, 0, 0, 16.0, 16.0);
-
-        let tile_set = TileSet {
-            tiles,
-            tile_types,
-            tile_colors,
-            aura,
-            aura_low: aura2,
-        };
-        let tile_map = TileMap::from_file("assets/level0.txt");
+        // Inventory
+        let bag_sprite = Bitmap::load("assets/sprites/bag.png");
 
         // Game objects for masks
         pub const MASK_SPRITE_SIZE: f32 = 16.0;
@@ -523,6 +687,7 @@ impl Game {
                 "assets/sprites/red_mask_in_bag_activated.png",
             ),
             sprite_key_keyboard: Bitmap::load("assets/sprites/red-r.png"),
+            keyboard_key_name: "J".to_string(),
             sprite_key_controller: Bitmap::load("assets/sprites/red-b.png"),
             visible: true,
         };
@@ -540,6 +705,7 @@ impl Game {
                 "assets/sprites/green_mask_in_bag_activated.png",
             ),
             sprite_key_keyboard: Bitmap::load("assets/sprites/green-g.png"),
+            keyboard_key_name: "L".to_string(),
             sprite_key_controller: Bitmap::load("assets/sprites/green-a.png"),
 
             visible: true,
@@ -558,6 +724,7 @@ impl Game {
                 "assets/sprites/blue_mask_in_bag_activated.png",
             ),
             sprite_key_keyboard: Bitmap::load("assets/sprites/blue-b.png"),
+            keyboard_key_name: "K".to_string(),
             sprite_key_controller: Bitmap::load("assets/sprites/blue-x.png"),
             visible: true,
         };
@@ -576,6 +743,33 @@ impl Game {
             ),
             sprite_key_keyboard: Bitmap::load("assets/sprites/red-r.png"), // not used
             sprite_key_controller: Bitmap::load("assets/sprites/red-b.png"), // not used
+            keyboard_key_name: ".".to_string(),                            // not used
+            visible: true,
+        };
+
+        let savepoint_1 = SaveGamePoint {
+            position: vec2(1809.0, 2176.0),
+            aabb: Aabb {
+                min: Vec2::ZERO,
+                max: vec2(8.0, 8.0),
+            },
+            color: crate::bitmap::WHITE,
+            sprite_scene_off: Bitmap::load("assets/sprites/savepoint_off.png"),
+            sprite_scene_on: Bitmap::load("assets/sprites/savepoint_on.png"),
+            activated: false,
+            visible: true,
+        };
+
+        let savepoint_2 = SaveGamePoint {
+            position: vec2(2105.0, 2013.0),
+            aabb: Aabb {
+                min: Vec2::ZERO,
+                max: vec2(8.0, 8.0),
+            },
+            color: crate::bitmap::WHITE,
+            sprite_scene_off: Bitmap::load("assets/sprites/savepoint_off.png"),
+            sprite_scene_on: Bitmap::load("assets/sprites/savepoint_on.png"),
+            activated: false,
             visible: true,
         };
 
@@ -697,6 +891,7 @@ impl Game {
 
             // Add game objects
             mask_game_objects: vec![red_mask, green_mask, blue_mask, golden_mask],
+            savepoint_objects: vec![savepoint_1, savepoint_2],
             enemies: vec![],
 
             enemy_sprite_white,
@@ -840,7 +1035,7 @@ impl Game {
         }
 
         match key {
-            Key::Space => {
+            Key::EditMode => {
                 self.editor_mode = (!self.editor_mode) && ALLOW_EDITOR;
                 if !self.editor_mode {
                     self.camera.zoom = 1.0;
@@ -884,7 +1079,17 @@ impl Game {
                     }
                 }
             }
-            Key::M => self.music_mode = (!self.music_mode) && ALLOW_KEYBOAD_MODE,
+
+            Key::MusicMode => self.music_mode = (!self.music_mode) && ALLOW_KEYBOAD_MODE,
+            Key::MuteAudio => {
+                if let Some(_audio) = &self.audio {
+                    self.audio = None;
+                    println!("turning audio off");
+                } else {
+                    self.audio = Some(Audio::new());
+                    println!("turning audio on");
+                }
+            }
             _ => {}
         }
     }
@@ -976,8 +1181,8 @@ impl Game {
             screen,
             self.camera.position,
             lerped_color_mask,
-            &self.tile_set.aura_low,
-            &self.tile_set.aura,
+            &self.tile_set.brightness_low,
+            &self.tile_set.brightness,
             aura_translation,
         );
 
@@ -989,8 +1194,10 @@ impl Game {
                 &self.tile_set,
                 screen,
                 self.camera.position,
+                self.color_mask,
                 lerped_color_mask,
                 aura_translation,
+                self.editor_mode,
             );
         }
 
@@ -1051,12 +1258,26 @@ impl Game {
                             self.player_inventory.position_on_screen.y as i32 + 12,
                         )
                 } else {
-                    self.player_inventory.masks[i].sprite_key_keyboard.draw_on(
-                        screen,
+                    screen.draw_str(
+                        &self.font,
+                        self.player_inventory.masks[i].keyboard_key_name.as_str(),
                         self.player_inventory.position_on_screen.x as i32
-                            + (i as i32 + 1) * self.player_inventory.tile_size,
-                        self.player_inventory.position_on_screen.y as i32 + 12,
-                    )
+                            + (i as i32 + 1) * self.player_inventory.tile_size + 5,
+                        self.player_inventory.position_on_screen.y as i32 + 19,
+                        self.player_inventory.masks[i].color,
+                    );
+                    screen.draw_rectangle(
+                        self.player_inventory.position_on_screen.x as i32
+                            + ((i as i32 + 1) * (self.player_inventory.tile_size as i32)) + 2,
+                        self.player_inventory.position_on_screen.y as i32
+                            + self.player_inventory.tile_size + 1,
+                        self.player_inventory.position_on_screen.x as i32
+                            + ((i as i32 + 2) * (self.player_inventory.tile_size as i32)) - 4,
+                        self.player_inventory.position_on_screen.y as i32
+                            + 3* (self.player_inventory.tile_size >> 1) + 2,
+                        false,
+                        self.player_inventory.masks[i].color,
+                    );
                 }
             }
         }
@@ -1077,8 +1298,8 @@ impl Game {
                 screen,
                 &self.camera,
                 lerped_color_mask & 0xffffff,
-                &self.tile_set.aura_low,
-                &self.tile_set.aura,
+                &self.tile_set.brightness_low,
+                &self.tile_set.brightness,
                 aura_translation,
             );
         }
@@ -1088,6 +1309,20 @@ impl Game {
             // Just won
             self.winning_sequence_duration -= delta_time;
             screen.draw_str(&self.font, "U WON :)", 100, 50, bitmap::GREEN);
+            self.save_state = None;
+
+            // Reset game objects
+            for savepoint in self.savepoint_objects.iter_mut() {
+                savepoint.activated = false;
+            }
+
+            // Some(SaveState {
+            //     color_mask: Self::START_COLOR_MASK,
+            // player_position: Self::PLAYER_START_POS,
+            // has_blue_mask: false,
+            // has_red_mask: false,
+            // has_green_mask: false,
+            // });
 
             if self.winning_sequence_duration < 0.0 {
                 self.reset_game();
@@ -1155,22 +1390,27 @@ impl Game {
                     if self.player_uses_controller {
                         screen.draw_str(&self.font, "Press (Y) to jump", 80, 60, 0xdcaf00);
                     } else {
-                        screen.draw_str(&self.font, "Press (Z) to jump", 80, 60, 0xdcaf00);
+                        screen.draw_str(&self.font, "Press (Z) or (Space) to jump", 80, 60, 0xdcaf00);
                     }
                 }
             }
 
             self.is_player_walking = false;
 
+            // controller input
             let mut movement_axis = self.input_state.axis_state(Axis::LeftStickX);
             if movement_axis.abs() < 0.1 {
+                self.player_uses_controller = false;
+
                 // keyboard input
-                if self.input_state.is_key_down(Key::Left) {
+                if self.input_state.is_key_down(Key::MoveLeft) {
                     movement_axis -= 1.0;
                 }
-                if self.input_state.is_key_down(Key::Right) {
+                if self.input_state.is_key_down(Key::MoveRight) {
                     movement_axis += 1.0;
                 }
+            } else {
+                self.player_uses_controller = true;
             }
 
             // do game things here
@@ -1295,18 +1535,21 @@ impl Game {
                 let tiles_left = [
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_left[0],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_left[1],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_left[2],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
@@ -1321,18 +1564,21 @@ impl Game {
                 let tiles_right = [
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_right[0],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_right[1],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_right[2],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
@@ -1384,18 +1630,21 @@ impl Game {
                 let tiles_below = [
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_below[0],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_below[1],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_below[2],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
@@ -1410,18 +1659,21 @@ impl Game {
                 let tiles_above = [
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_above[0],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_above[1],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
                     ),
                     self.tile_map.sample_tile_type_ws(
                         samples_positions_above[2],
+                        &self.tile_set.tile_objs,
                         &self.tile_set.tile_types,
                         &self.tile_set.tile_colors,
                         self.color_mask,
@@ -1491,6 +1743,64 @@ impl Game {
         }
 
         self.player.draw(screen, &self.camera, self.color_mask);
+
+        // Loop over savepoints
+        for savepoint in self.savepoint_objects.iter_mut() {
+            if savepoint.visible {
+                let pos: Vec2 = world_space_to_screen_space(savepoint.position, &self.camera);
+                if savepoint.activated {
+                    savepoint
+                        .sprite_scene_on
+                        .draw_on(screen, pos.x as i32, pos.y as i32);
+                } else {
+                    savepoint
+                        .sprite_scene_off
+                        .draw_on(screen, pos.x as i32, pos.y as i32);
+                }
+                // Save and turn on if position overlaps with player
+                if savepoint
+                    .aabb_world_space()
+                    .overlaps(&self.player.aabb_world_space())
+                {
+                    if !savepoint.activated {
+                        savepoint.activated = true;
+                        savepoint
+                            .sprite_scene_on
+                            .draw_on(screen, pos.x as i32, pos.y as i32);
+
+                        if let Some(audio) = &self.audio {
+                            audio
+                                .sfx_sender
+                                .send((SoundTypes::PickupSound, true))
+                                .unwrap();
+                        }
+                    };
+
+                    self.save_state = Some(SaveState {
+                        player_position: self.player.position,
+                        has_red_mask: self
+                            .player_inventory
+                            .masks
+                            .iter()
+                            .find(|mask| mask.color == bitmap::RED)
+                            .is_some(),
+                        has_green_mask: self
+                            .player_inventory
+                            .masks
+                            .iter()
+                            .find(|mask| mask.color == bitmap::GREEN)
+                            .is_some(),
+                        has_blue_mask: self
+                            .player_inventory
+                            .masks
+                            .iter()
+                            .find(|mask| mask.color == bitmap::BLUE)
+                            .is_some(),
+                        color_mask: self.color_mask,
+                    });
+                }
+            }
+        }
 
         // Loop over masks
         for mask in self.mask_game_objects.iter_mut() {

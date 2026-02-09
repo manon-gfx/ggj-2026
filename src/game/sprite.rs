@@ -26,8 +26,8 @@ impl Sprite {
         is_colored: bool,
         visible_mask: u32,
         lerped_color_mask: u32,
-        aura_low: &Bitmap,
-        aura: &Bitmap,
+        brightness_low: &Vec<u32>,
+        brightness_high: &Vec<u32>,
         aura_transl: IVec2,
     ) {
         let bitmap = &self.frames[self.frame_index];
@@ -40,8 +40,8 @@ impl Sprite {
             is_colored,
             visible_mask,
             lerped_color_mask,
-            aura_low,
-            aura,
+            brightness_low,
+            brightness_high,
             aura_transl,
         );
     }

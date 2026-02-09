@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 use super::Aabb;
 use crate::{
     bitmap::{self, Bitmap},
@@ -5,10 +6,12 @@ use crate::{
 };
 use bitflags::bitflags;
 use glam::*;
+use std::collections::BTreeMap;
 
 bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub struct TileFlags: u32 {
+        const NONE = 0x0;
         const COLLISION = 0x1;
         const SPIKE = 0x2;
 
@@ -25,20 +28,34 @@ impl TileFlags {
     }
 }
 
+#[derive(Debug)]
 pub struct TileSet {
     pub tiles: Vec<Bitmap>,
     pub tile_colors: Vec<bitmap::ColorChannel>,
     pub tile_types: Vec<TileFlags>,
-    pub aura: Bitmap,
-    pub aura_low: Bitmap,
+    pub tile_objs: BTreeMap<usize, TileStruct>,
+    pub unique_tile_colors: Vec<bitmap::ColorChannel>,
+    pub color_start: Vec<usize>,
+    // pub aura: Bitmap,
+    // pub aura_low: Bitmap,
+    pub brightness_low: Vec<u32>,
+    pub brightness: Vec<u32>,
 }
 
+#[derive(Debug)]
+pub struct TileStruct {
+    pub index: usize, // what number in the level files corresponds to this tile
+    pub sprite: Bitmap,
+    pub color: bitmap::ColorChannel,
+    pub flags: TileFlags,
+}
 pub struct TileMap {
     pub tile_size: u32,
 
     pub width: u32,
     pub height: u32,
-    pub tiles: Vec<u32>,
+    pub tiles: Vec<i32>,
+    pub unsupported_tile: TileStruct,
 }
 
 impl TileMap {
@@ -47,16 +64,28 @@ impl TileMap {
         let level_layout_file =
             std::fs::read_to_string(path).expect("Could not load level file :(");
         let mut accumulator = String::new();
-        let mut row_content: Vec<u32> = Vec::new();
-        let mut layout: Vec<Vec<u32>> = Vec::new();
-        let mut tile_count_x = 0;
+        let mut row_content: Vec<i32> = Vec::new();
+        let mut layout: Vec<Vec<i32>> = Vec::new();
+        let mut tile_count_x: u32 = 0;
         for char in level_layout_file.chars() {
-            if char == ',' {
-                let tile_index: u32 = accumulator
-                    .parse::<u32>()
-                    .unwrap_or_else(|_| panic!("Could not parse! :({})", &accumulator));
-                row_content.push(tile_index);
+            if char == ',' || char == '\n' {
+                let tile_index: i32 = accumulator // i32 needed because I found a mapmaking tool that exports to csv, but it renders empty space as "-1" and the first tile as "0"
+                    .parse::<i32>()
+                    .unwrap_or_else(|_| {
+                        panic!(
+                            "Could not parse! :({}), line: {:?}, digit: {:?}",
+                            &accumulator,
+                            layout.len(),
+                            row_content.len()
+                        )
+                    });
+                row_content.push(tile_index as i32);
                 accumulator = String::new();
+                if char == '\n' {
+                    layout.push(row_content.clone());
+                    tile_count_x = tile_count_x.max(row_content.len() as u32);
+                    row_content.clear();
+                }
             } else if char == '\r' {
                 continue;
             } else if char == '\n' {
@@ -69,19 +98,27 @@ impl TileMap {
         }
 
         // Create flat tile vector
-        let mut tile_indices: Vec<u32> = Vec::new();
-        let tile_count_y = layout.len() as u32;
+        let mut tile_indices: Vec<i32> = Vec::new();
+        let tile_count_y: u32 = layout.len() as u32;
         for mut row in layout {
             assert!(row.len() <= tile_count_x as usize);
             row.resize(tile_count_x as usize, 0);
             tile_indices.append(&mut row);
         }
 
+        let unsupported_tile = TileStruct {
+            index: 0,
+            sprite: Bitmap::load("assets/sprites/unsupported_tile.png"),
+            color: bitmap::BLACK,
+            flags: TileFlags::NONE,
+        };
+
         Self {
             tile_size: 8,
             width: tile_count_x,
             height: tile_count_y,
             tiles: tile_indices,
+            unsupported_tile,
         }
     }
 
@@ -92,10 +129,11 @@ impl TileMap {
     pub fn sample_world_pos(
         &self,
         position: Vec2,
-        tile_flags: &[TileFlags],
-        tile_colors: &[bitmap::ColorChannel],
+        tile_objs: &BTreeMap<usize, TileStruct>,
+        tile_flags: &Vec<TileFlags>,
+        tile_colors: &Vec<bitmap::ColorChannel>,
         color_mask: &bitmap::ColorChannel,
-    ) -> u32 {
+    ) -> TileFlags {
         let color_mask = color_mask & 0xffffff;
         let tile_pos = self.world_to_tile_index(position);
         if tile_pos.x < 0
@@ -103,37 +141,61 @@ impl TileMap {
             || tile_pos.x >= self.width as i32
             || tile_pos.y >= self.height as i32
         {
-            0
+            TileFlags::NONE
         } else {
             let tile_index = self.tiles[(tile_pos.x + tile_pos.y * self.width as i32) as usize];
             //  If the tile is non-empty and non-white, and this color is masked out, treat as if there is no tile here
-            if tile_index != 0 {
-                if tile_flags[(tile_index - 1) as usize].is_colored()
-                    && tile_colors[(tile_index - 1) as usize] & color_mask == 0
+
+            if tile_index != -1 && tile_objs.contains_key(&((tile_index) as usize)) {
+                let tile_flags = tile_objs[&((tile_index) as usize)].flags;
+                if tile_flags.is_colored()
+                    && tile_objs[&((tile_index) as usize)].color & color_mask == 0
                 {
-                    0
+                    TileFlags::NONE
                 } else {
-                    tile_index
+                    tile_flags
                 }
             } else {
-                tile_index
+                // if tile_index != 0 {
+                //     // println!(
+                //     //     "No tile found for key (sample world pos): {:?}",
+                //     //     (tile_index - 1)
+                //     // );
+                // }
+                TileFlags::NONE
             }
+            //     if tile_index != 0 {
+            //         if tile_objs
+            //             .contains_key(&((tile_index - 1) as usize))
+            //         {
+            //             if tile_objs[&((tile_index - 1) as usize)]
+            //                 .flags
+            //                 .is_colored()
+            //                 && tile_objs[&((tile_index - 1) as usize)].color & color_mask == 0
+            //             {
+            //                 0
+            //             } else {
+            //                 tile_index
+            //             }
+            //         } else {
+            //             println!("No tile found for key: {:?}", (tile_index - 1));
+            //             0
+            //         }
+            //     } else {
+            //         tile_index
+            //     }
         }
     }
 
     pub fn sample_tile_type_ws(
         &self,
         position: Vec2,
-        tile_flags: &[TileFlags],
-        tile_colors: &[bitmap::ColorChannel],
+        tile_objs: &BTreeMap<usize, TileStruct>,
+        tile_flags: &Vec<TileFlags>,
+        tile_colors: &Vec<bitmap::ColorChannel>,
         color_mask: bitmap::ColorChannel,
     ) -> TileFlags {
-        let tile_index = self.sample_world_pos(position, tile_flags, tile_colors, &color_mask);
-        if tile_index == 0 {
-            TileFlags::empty()
-        } else {
-            tile_flags[(tile_index - 1) as usize]
-        }
+        self.sample_world_pos(position, tile_objs, tile_flags, tile_colors, &color_mask)
     }
 
     pub fn editor_draw(&self, tile_set: &TileSet, target: &mut Bitmap, camera: &Camera) {
@@ -165,6 +227,7 @@ impl TileMap {
             draw_tiles_max_y = self.height as i32 - 1;
         }
 
+
         for y in draw_tiles_min_y..draw_tiles_max_y {
             // NOTE(manon): Flooring before int-cast is necessary to properly handle negative numbers
             let draw_y = (draw_tile_size * y as f32 - camera_offset.y).floor() as i32;
@@ -175,8 +238,14 @@ impl TileMap {
                 let tile_x = (start_tile_x + x) as u32;
 
                 let tile_id = self.tiles[(tile_y * self.width + tile_x) as usize];
-                if tile_id != 0 {
-                    let tile_bmp = &tile_set.tiles[(tile_id - 1) as usize];
+                // skip empty space (stored as -1 in the csv by the Tiled tile editor)
+                if tile_id != -1 {
+                    let tile_bmp = if tile_set.tile_objs.contains_key(&((tile_id) as usize)) {
+                        &tile_set.tile_objs[&((tile_id) as usize)].sprite
+                    } else {
+                        // println!("No tile found for key (draw): {:?}", (tile_index - 1));
+                        &self.unsupported_tile.sprite
+                    };
                     tile_bmp.draw_on_scaled(target, draw_x, draw_y, camera.zoom, camera.zoom);
                 }
             }
@@ -188,8 +257,10 @@ impl TileMap {
         tile_set: &TileSet,
         target: &mut Bitmap,
         camera: Vec2,
+        color_mask: crate::bitmap::ColorChannel,
         lerped_color_mask: u32,
         aura_transl: IVec2,
+        editor_mode: bool,
     ) {
         let screen_size = vec2(target.width as f32, target.height as f32);
         let bounds = Aabb {
@@ -211,6 +282,19 @@ impl TileMap {
         let tile_count_x = tile_max_x - tile_min_x;
         let tile_count_y = tile_max_y - tile_min_y;
 
+        let mut mask_color = TileFlags::NONE;
+        // let mut color_mask_alpha = 0xff;
+        if ((color_mask >> 16) & 0xff) > 0 {
+            mask_color = TileFlags::RED;
+            // color_mask_alpha = (lerped_color_mask >> 16) & 0xff;
+        } else if ((color_mask >> 8) & 0xff) > 0 {
+            mask_color = TileFlags::GREEN;
+            // color_mask_alpha = (lerped_color_mask >> 8) & 0xff;
+        } else if (color_mask & 0xff) > 0 {
+            mask_color = TileFlags::BLUE;
+            // color_mask_alpha = (lerped_color_mask) & 0xff;
+        };
+
         for y in 0..tile_count_y {
             for x in 0..tile_count_x {
                 let tx = (tile_min_x + x) as u32;
@@ -221,28 +305,78 @@ impl TileMap {
 
                 let tile_index = self.tiles[(ty * self.width + tx) as usize];
                 // skip empty space
-                if tile_index == 0 {
+                if tile_index == -1 {
                     continue;
                 }
 
-                let tile = &tile_set.tiles[(tile_index - 1) as usize];
-                // leave white tiles white
-                let color = tile_set.tile_colors[(tile_index - 1) as usize];
-                let tile_type = &tile_set.tile_types[(tile_index - 1) as usize];
+                let tile_obj = if tile_set.tile_objs.contains_key(&((tile_index) as usize)) {
+                    &tile_set.tile_objs[&((tile_index) as usize)]
+                } else {
+                    // println!("No tile found for key (draw): {:?}", (tile_index - 1));
+                    &self.unsupported_tile
+                };
+                // match tile_set.tile_objs.get((tile_index - 1) as usize) {
+                //     Some(x) => x,
+                //     None => &TileStruct{index: 0, sprite: self.unsupported_tile, color: bitmap::BLACK, flags: TileFlags::NONE}
+                // };
 
-                let is_colored = tile_type.intersects(TileFlags::WHITE);
+                // let tile_obj = &tile_set.tile_objs[(tile_index - 1) as usize];
 
-                tile.draw_tile(
-                    target,
-                    sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
-                    sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
-                    is_colored,
-                    color,
-                    lerped_color_mask,
-                    &tile_set.aura_low,
-                    &tile_set.aura,
-                    aura_transl,
-                );
+                if editor_mode {
+                    tile_obj.sprite.draw_on(
+                        target,
+                        sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
+                        sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
+                    );
+                } else {
+                    // leave white tiles white
+                    // let color = tile_set.tile_colors[(tile_index - 1) as usize];
+                    let tile_type: &TileFlags = &tile_obj.flags;
+
+                    let is_colored = tile_type.intersects(TileFlags::WHITE);
+                    let is_tile_shown =
+                        !tile_type.intersects(TileFlags::WHITE) || tile_type.intersects(mask_color);
+
+                    tile_obj.sprite.draw_tile_different_colors(
+                        target,
+                        sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
+                        sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
+                        is_colored,
+                        is_tile_shown,
+                        tile_type,
+                        lerped_color_mask,
+                        // &tile_set.aura_low,
+                        // &tile_set.aura,
+                        &tile_set.brightness_low,
+                        &tile_set.brightness,
+                        aura_transl,
+                    );
+                }
+
+                //     let tile = &tile_set.tiles[(tile_index - 1) as usize];
+                //     if editor_mode {
+                //         tile.draw_on(
+                //             target,
+                //             sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
+                //             sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
+                //         );
+                //     } else {
+                //         // leave white tiles white
+                //         // let color = tile_set.tile_colors[(tile_index - 1) as usize];
+                //         let tile_type: &TileFlags = &tile_set.tile_types[(tile_index - 1) as usize];
+
+                //         // let is_colored = tile_type.intersects(TileFlags::WHITE);
+                //         // tile.draw_tile(
+                //         //     target,
+                //         //     sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
+                //         //     sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
+                //         //     is_colored,
+                //         //     color,
+                //         //     lerped_color_mask,
+                //         //     &tile_set.aura_low,
+                //         //     &tile_set.aura,
+                //         //     aura_transl,
+                //         // );
             }
         }
     }

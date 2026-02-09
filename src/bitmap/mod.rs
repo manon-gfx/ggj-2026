@@ -5,6 +5,8 @@ pub use font::Font;
 use glam::IVec2;
 pub use u32 as ColorChannel;
 
+use crate::game::tilemap::TileFlags;
+
 #[derive(Debug, Clone)]
 pub enum BitmapData {
     Owned(Vec<u32>),
@@ -49,9 +51,9 @@ pub fn blend(a: u32, b: u32, alpha: u32) -> u32 {
     let bg = (b >> 8) & 0xff;
     let bb = b & 0xff;
 
-    let red = ((ar * (255 - alpha)) + (br * alpha)) >> 8;
-    let green = ((ag * (255 - alpha)) + (bg * alpha)) >> 8;
-    let blue = ((ab * (255 - alpha)) + (bb * alpha)) >> 8;
+    let red = ((ar * (256 - alpha)) + (br * alpha)) >> 8;
+    let green = ((ag * (256 - alpha)) + (bg * alpha)) >> 8;
+    let blue = ((ab * (256 - alpha)) + (bb * alpha)) >> 8;
 
     let red = red.clamp(0, 255);
     let green = green.clamp(0, 255);
@@ -193,6 +195,16 @@ impl Bitmap {
         self.pixels_mut().fill(color);
     }
 
+    // row major flat 16x16 brightness array to 256x256 image coords
+    fn aura_brightness_from_vector(x: i32, y: i32, brightness_vec: &Vec<u32>) -> u32 {
+        // brightness_vec[((y.clamp(0, 255) >> 4)  * 16  + (x.clamp(0, 255)>> 4)  ) as usize]
+        if x < 0 || y < 0 || x > 255 || y > 255 {
+            0
+        } else {
+            brightness_vec[(y as usize >> 4) * 16 + (x as usize >> 4)]
+        }
+    }
+
     pub fn draw_on_scaled(&self, target: &mut Self, x: i32, y: i32, scale_x: f32, scale_y: f32) {
         if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
             return;
@@ -264,17 +276,25 @@ impl Bitmap {
         is_colored: bool,
         visible_mask: u32,
         color_mask: ColorChannel,
-        aura_low: &Bitmap,
-        aura: &Bitmap,
+        brightness_low: &Vec<u32>,
+        brightness_high: &Vec<u32>,
         aura_transl: IVec2,
     ) {
         if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
             return;
         }
 
-        let low_brightness =
-            aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
-        let brightness = aura.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.x) & 0xffff;
+        // let low_brightness =
+        //     aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
+        // let brightness = aura.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.x) & 0xffff;
+        // let low_brightness = Self::aura_brightness_from_vector(x + 4 - aura_transl.x, y + 4 - aura_transl.y, brightness_low);
+        // let brightness = Self::aura_brightness_from_vector(x + 4 - aura_transl.x, y + 4 - aura_transl.y, brightness_high);
+        let low_brightness = brightness_low[(((y + 4 - aura_transl.y).min(255).max(0) >> 4) * 16
+            + ((x + 4 - aura_transl.x).min(255).max(0) >> 4))
+            as usize];
+        let brightness = brightness_high[(((y + 4 - aura_transl.y).min(255).max(0) >> 4) * 16
+            + ((x + 4 - aura_transl.x).min(255).max(0) >> 4))
+            as usize];
 
         let rmask = (color_mask >> 16) & 0xff;
         let gmask = (color_mask >> 8) & 0xff;
@@ -453,8 +473,8 @@ impl Bitmap {
         scale_x: f32,
         scale_y: f32,
         color_mask: ColorChannel,
-        aura_low: &Bitmap,
-        aura: &Bitmap,
+        brightness_low: &Vec<u32>,
+        brightness_high: &Vec<u32>,
         aura_transl: IVec2,
     ) {
         if scale_x.abs() < 0.001 || scale_y.abs() < 0.001 {
@@ -470,8 +490,10 @@ impl Bitmap {
         let swf = self.width as f32 * scale_x;
         let shf = self.height as f32 * scale_y;
 
-        let du = ((1.0 / swf) * 65535.0) as i32 * self.width as i32;
-        let dv = ((1.0 / shf) * 65535.0) as i32 * self.height as i32;
+        // let du = ((1.0 / swf) * 65535.0) as i32 * self.width as i32;
+        // let dv = ((1.0 / shf) * 65535.0) as i32 * self.height as i32;
+        let du = ((1.0 / scale_x) * 65535.0) as i32;
+        let dv = ((1.0 / scale_y) * 65535.0) as i32;
 
         let mut sw = swf.abs() as i32;
         let mut sh = shf.abs() as i32;
@@ -509,9 +531,15 @@ impl Bitmap {
         for y in 0..sh {
             let mut u = if du < 0 { (sw - 1) * -du } else { sx * du };
             for x in 0..sw {
-                let low_brightness = (aura_low.load_pixel(aura_x + x, aura_y + y) & 0xffff) >> 1;
-                let brightness = (aura.load_pixel(aura_x + x, aura_y + y) & 0xffff) >> 1;
-
+                // look things up in a 16x16 (flattened) array instead of a 256x256 one, just need to rescale (and round) the coordinates
+                let low_brightness = brightness_low[(((aura_y + y).min(255).max(0) >> 4) * 16
+                    + ((aura_x + x).min(255).max(0) >> 4))
+                    as usize]
+                    >> 2;
+                let brightness = brightness_high[(((aura_y + y).min(255).max(0)  >> 4) * 16
+                    + ((aura_x + x).min(255).max(0) >> 4))
+                    as usize]
+                    >> 2;
                 unsafe {
                     let color: u32 =
                         *srcline.add(((v >> 16) * self.width as i32 + (u >> 16)) as usize);
@@ -611,7 +639,123 @@ impl Bitmap {
 
                         let c = if is_colored {
                             let prev = *pixels.get_unchecked_mut(index);
+                            // if (blend3(prev, c, color_mask & visible_mask) & 0xff000000) != 0xff000000{
+                            //     println!("c: {:#x}", blend3(prev, c, color_mask & visible_mask));
+                            // }
                             blend3(prev, c, color_mask & visible_mask)
+                            // blend3(prev, c, 0xffff0000)
+                            // c
+                        } else {
+                            c
+                        };
+
+                        *pixels.get_unchecked_mut(index) = c;
+                    }
+                }
+            }
+        }
+    }
+
+    // With color masks
+    pub fn draw_tile_different_colors(
+        &self,
+        target: &mut Self,
+        x: i32,
+        y: i32,
+        is_colored: bool,
+        is_tile_shown: bool,
+        _tile_type: &TileFlags,
+        lerped_color_mask: u32,
+        // aura_low: &Bitmap,
+        // aura: &Bitmap,
+        brightness_low: &Vec<u32>,
+        brightness_high: &Vec<u32>,
+        aura_transl: IVec2,
+    ) {
+        // some small rounding differences here or there but saves looking stuff up in a scaled bitmap so...
+
+        // let low_brightness_old_ =
+        //     aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
+        // let low_brightness = Self::aura_brightness_from_vector(x + 4 - aura_transl.x, y + 4 - aura_transl.y, brightness_low);
+        // let brightness = Self::aura_brightness_from_vector(x + 4 - aura_transl.x, y + 4 - aura_transl.y, brightness_high);
+        let low_brightness = brightness_low[(((y + 4 - aura_transl.y).min(255).max(0) >> 4) * 16
+            + ((x + 4 - aura_transl.x).min(255).max(0) >> 4))
+            as usize];
+        let brightness = brightness_high[(((y + 4 - aura_transl.y).min(255).max(0) >> 4) * 16
+            + ((x + 4 - aura_transl.x).min(255).max(0) >> 4))
+            as usize];
+
+        let rmask = (lerped_color_mask >> 16) & 0xff;
+        let gmask = (lerped_color_mask >> 8) & 0xff;
+        let bmask = lerped_color_mask & 0xff;
+
+        let mute = if is_colored { 0x0f } else { 0x2f };
+        let mute = (low_brightness).max(mute);
+        let mono_scale = ((brightness * 0xff) >> 8).max(mute);
+
+        let r_scale = if is_colored {
+            mono_scale
+        } else {
+            ((brightness * rmask) >> 8).max(mute)
+        };
+        let g_scale = if is_colored {
+            mono_scale
+        } else {
+            ((brightness * gmask) >> 8).max(mute)
+        };
+        let b_scale = if is_colored {
+            mono_scale
+        } else {
+            ((brightness * bmask) >> 8).max(mute)
+        };
+
+        let mut sw = self.width as i32;
+        let mut sh = self.height as i32;
+
+        let (sx, tx) = if x < 0 {
+            sw += x;
+            (x.abs(), 0)
+        } else {
+            (0, x)
+        };
+        let (sy, ty) = if y < 0 {
+            sh += y;
+            (y.abs(), 0)
+        } else {
+            (0, y)
+        };
+
+        sw = sw.min(target.width as i32 - tx);
+        sh = sh.min(target.height as i32 - ty);
+
+        for y in 0..sh {
+            let line0 = (ty + y) * (target.stride as i32);
+            let line1 = (sy + y) * (self.stride as i32);
+            for x in 0..sw {
+                unsafe {
+                    let c = *self.pixels().get_unchecked((line1 + sx + x) as usize);
+                    if (c & 0xff000000) != 0 && is_tile_shown {
+                        // let index = (line0 + tx + x) as usize;
+
+                        // let pixels = target.pixels_mut();
+
+                        let r = (c >> 16) & 0xff;
+                        let g = (c >> 8) & 0xff;
+                        let b = c & 0xff;
+
+                        let r = ((r * r_scale) >> 8).min(0xff);
+                        let g = ((g * g_scale) >> 8).min(0xff);
+                        let b = ((b * b_scale) >> 8).min(0xff);
+
+                        let c = (r << 16) | (g << 8) | b;
+
+                        let index = (line0 + tx + x) as usize;
+
+                        let pixels = target.pixels_mut();
+
+                        let c = if is_colored {
+                            let prev = *pixels.get_unchecked_mut(index);
+                            blend(prev, c, (brightness << 6).min(256).max(64))
                         } else {
                             c
                         };
