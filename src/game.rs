@@ -469,13 +469,11 @@ fn build_tileset(
                 rel_tile_flags[j]
             };
             let tile_obj = TileStruct {
-                // sprite: bmp,
                 sprite: bmp,
                 index: tiles_per_color * j + i,
                 color: color_lst[i],
                 flags: flags,
             };
-            // println!("tile_obks keys: {:?}", (((c.0+rel_x) as usize)/size.0) as usize + (((c.1 + rel_y) as usize)/size.1) as usize  * tilesheet_stride_in_tiles);
 
             tile_objs.insert(
                 (((c.0 + rel_x) as usize) / size.0) as usize
@@ -484,16 +482,6 @@ fn build_tileset(
             );
         }
     }
-    // coords
-    //     .iter()
-    //     .map(|(x, y)| {
-    //         let mut bmp = Bitmap::new(size.0, size.1);
-    //         sprite_sheet.draw_on(&mut bmp, -x, -y);
-    //         bmp
-    //     })
-    // .collect::<Vec<_>>()
-
-    // println!("tile_obks: {:?}", tile_objs);
 
     let mut aura_low = Bitmap::new(16, 16);
     let mut p_vec_sqrd = Vec::<f32>::new();
