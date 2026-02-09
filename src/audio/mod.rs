@@ -1,5 +1,5 @@
 use glam::*;
-use std::sync::mpsc::{Sender, channel};
+use std::sync::mpsc::{Receiver, Sender, channel};
 
 pub mod notes;
 pub mod sound;
@@ -262,7 +262,8 @@ impl Audio {
                 },
                 move |err| {
                     //deal with errors I guess
-                    panic!("err: {:?}", err);
+                    // panic!("err: {:?}", err);
+                    println!("[audio/mod.rs] err: {:?}", err);
                 },
                 None,
             )
