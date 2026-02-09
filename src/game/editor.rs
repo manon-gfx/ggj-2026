@@ -121,6 +121,10 @@ impl EditorState {
             camera.zoom = (camera.zoom * 0.5).max(0.125);
         }
 
+        if input_state.is_mouse_down(MouseButton::Middle) {
+            camera.position -= input_state.mouse_delta / camera.zoom;
+        }
+
         let editor_speed = 150.0 / camera.zoom;
 
         if input_state.is_key_down(Key::Left) {
