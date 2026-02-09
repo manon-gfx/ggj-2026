@@ -114,6 +114,11 @@ impl EditorState {
             println!("Level Saved!");
         }
 
+        if input_state.mouse_scroll_delta.y != 0.0 {
+            let scroll_amount = (input_state.mouse_scroll_delta.y / 12.0).clamp(-1.0, 1.0);
+            camera.zoom = (camera.zoom * 2.0f32.powf(scroll_amount)).clamp(0.125, 2.0);
+        }
+
         if input_state.is_key_pressed(Key::EditorZoomIn) {
             camera.zoom = (camera.zoom * 2.0).min(2.0);
         }
