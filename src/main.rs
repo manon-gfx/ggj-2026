@@ -183,7 +183,7 @@ fn main() {
         // Movement: WASD or arrow keys
         // Jump: Space or Z
         // Level editor: E (to avoid jump conflict)
-        // Saving in level editor = F or S (ctrl+S might be nice in the future)
+        // Saving in level editor = F (for "File") (Changed to avoid WASD movement conflict, ctrl+S might be nice in the future) 
         // Masks: J, K & L (or R, G & B)
 
         // Mute audio in game = M
