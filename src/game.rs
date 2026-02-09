@@ -257,6 +257,7 @@ impl Player {
 #[derive(Debug)]
 pub struct InputState {
     pub mouse: Vec2,
+    pub mouse_delta: Vec2,
 
     pub axis_state: [f32; Axis::Count as usize],
 
@@ -272,6 +273,7 @@ impl Default for InputState {
     fn default() -> Self {
         Self {
             mouse: Vec2::default(),
+            mouse_delta: Vec2::default(),
 
             axis_state: [0.0; Axis::Count as usize],
 
@@ -342,9 +344,6 @@ pub struct Game {
     background: Background,
 
     save_state: Option<SaveState>,
-
-    mouse_x: f32,
-    mouse_y: f32,
 
     mask_game_objects: Vec<MaskObject>,
     enemies: Vec<Enemy>,
@@ -698,9 +697,6 @@ impl Game {
             tile_set,
             tile_map,
 
-            mouse_x: 0.0,
-            mouse_y: 0.0,
-
             // Add game objects
             mask_game_objects: vec![red_mask, green_mask, blue_mask, golden_mask],
             enemies: vec![],
@@ -823,9 +819,9 @@ impl Game {
     }
 
     pub(crate) fn on_mouse_moved(&mut self, x: f32, y: f32) {
-        self.input_state.mouse = vec2(x, y);
-        self.mouse_x = x;
-        self.mouse_y = y;
+        let new_mouse_pos = vec2(x, y);
+        self.input_state.mouse_delta = new_mouse_pos - self.input_state.mouse;
+        self.input_state.mouse = new_mouse_pos;
     }
     pub(crate) fn on_mouse_button_down(&mut self, button: MouseButton, _x: f32, _y: f32) {
         self.input_state.mouse_state[button as usize] = true;
