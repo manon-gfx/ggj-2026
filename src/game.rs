@@ -21,7 +21,7 @@ const JUMP_SUSTAIN: f32 = 350.0;
 const MOVEMENT_ACCELERATION: f32 = 1500.0;
 const MOVEMENT_SPEED_X: f32 = 100.0;
 const FRICTION: f32 = 1500.0;
-const PEAK_SCALE: f32 = 100.0;
+const PEAK_SCALE: f32 = 60.0;
 
 const DEBUG_MASKS: bool = false;
 const DEBUG_MODE: bool = false;
@@ -308,6 +308,7 @@ impl InputState {
 }
 
 pub struct Game {
+    pub reset_game_bool_hack: bool,
     audio: Option<Audio>,
     music_mode: bool,
 
@@ -679,6 +680,7 @@ impl Game {
         };
 
         let mut game = Self {
+            reset_game_bool_hack: false,
             audio: Some(Audio::new()),
             music_mode: false,
             font: Font::new_default(),
@@ -747,7 +749,7 @@ impl Game {
             death_sequence_duration: 1.5,
             death_sequence_is_playing: false,
 
-            winning_sequence_duration: 2.5,
+            winning_sequence_duration: 5.0,
             winning_sequence_is_playing: false,
 
             color_mask: Self::START_COLOR_MASK,
@@ -787,7 +789,7 @@ impl Game {
         self.death_sequence_duration = 1.5;
         self.death_sequence_is_playing = false;
 
-        self.winning_sequence_duration = 2.5;
+        self.winning_sequence_duration = 5.0;
         self.winning_sequence_is_playing = false;
 
         self.restore_save_game();
@@ -905,7 +907,10 @@ impl Game {
         } else {
             let target = self.player.aabb_world_space().center() - screen_offset;
             let target = target + self.player.velocity * vec2(0.35, 0.1);
-            let peak = vec2(self.input_state.axis_state(Axis::RightStickX), self.input_state.axis_state(Axis::RightStickY));
+            let peak = vec2(
+                self.input_state.axis_state(Axis::RightStickX),
+                -self.input_state.axis_state(Axis::RightStickY),
+            );
             target + peak * PEAK_SCALE
         };
         self.actual_camera = self.actual_camera.lerp(target, delta_time * 4.0);
@@ -1044,7 +1049,8 @@ impl Game {
             screen.draw_str(&self.font, "U WON :)", 100, 50, bitmap::GREEN);
 
             if self.winning_sequence_duration < 0.0 {
-                self.reset_game();
+                self.reset_game_bool_hack = true;
+                // self.reset_game();
             } else {
                 self.player.tick(delta_time);
                 self.player.draw(screen, self.camera, self.color_mask); // draw with golden mask
@@ -1117,7 +1123,7 @@ impl Game {
             self.is_player_walking = false;
 
             let mut movement_axis = self.input_state.axis_state(Axis::LeftStickX);
-            if movement_axis.abs() < 0.1 {
+            if movement_axis.abs() < 0.2 {
                 // keyboard input
                 if self.input_state.is_key_down(Key::Left) {
                     movement_axis -= 1.0;

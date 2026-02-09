@@ -344,6 +344,11 @@ fn main() {
 
     let mut swap_index = 0;
     while window.is_open() {
+        if game.reset_game_bool_hack {
+            drop(game);
+            game = Box::new(Game::new());
+        }
+
         while let Some(gilrs::Event {
             id, event, time, ..
         }) = gilrs.next_event()
@@ -359,6 +364,9 @@ fn main() {
                     gilrs::Button::DPadDown => game.on_key_down(game::Key::Down),
                     gilrs::Button::DPadLeft => game.on_key_down(game::Key::Left),
                     gilrs::Button::DPadRight => game.on_key_down(game::Key::Right),
+
+                    gilrs::Button::RightTrigger => game.on_key_down(game::Key::Jump),
+                    gilrs::Button::LeftTrigger => game.on_key_down(game::Key::Jump),
                     _ => {}
                 },
                 gilrs::EventType::ButtonReleased(button, _code) => match button {
@@ -371,6 +379,9 @@ fn main() {
                     gilrs::Button::DPadDown => game.on_key_up(game::Key::Down),
                     gilrs::Button::DPadLeft => game.on_key_up(game::Key::Left),
                     gilrs::Button::DPadRight => game.on_key_up(game::Key::Right),
+
+                    gilrs::Button::RightTrigger => game.on_key_up(game::Key::Jump),
+                    gilrs::Button::LeftTrigger => game.on_key_up(game::Key::Jump),
                     _ => {}
                 },
                 gilrs::EventType::AxisChanged(axis, value, _code) => match axis {
@@ -422,6 +433,9 @@ fn main() {
             return;
         }
 
+        if window.is_key_pressed(minifb::Key::Enter, minifb::KeyRepeat::No) {
+            game.reset_game_bool_hack = true;
+        }
         let mut handle_key_events = |minifb_key, key| {
             if window.is_key_pressed(minifb_key, minifb::KeyRepeat::No) {
                 game.on_key_down(key);
