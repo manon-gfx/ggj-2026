@@ -5,7 +5,7 @@ use crate::{
         InputState, Key,
         camera::{Camera, screen_to_world_space, world_space_to_screen_space},
         draw_aabb_ss,
-        tilemap::{TileMap, TileSet},
+        tilemap::{TileMap, TileSet, TileStruct},
     },
 };
 use glam::*;
@@ -45,6 +45,8 @@ pub struct EditorState {
 
     // tile mode
     pub(crate) selected_tile: u32,
+    pub(crate) selected_color: u32,
+    pub(crate) selected_tile_type: u32,
 
     // object mode
     pub(crate) selected_object: u32,
@@ -93,6 +95,8 @@ impl EditorState {
         Self {
             editor_mode: Default::default(),
             selected_tile: Default::default(),
+            selected_color: Default::default(),
+            selected_tile_type: Default::default(),
             selected_object: Default::default(),
             object_spawns: Default::default(),
             object_buttons,
@@ -109,9 +113,14 @@ impl EditorState {
         camera: &mut Camera,
         input_state: &InputState,
     ) {
-        if input_state.is_key_pressed(Key::S) {
-            tile_map.store_to_file("assets/level0.txt");
+        if input_state.is_key_pressed(Key::SaveLevelEdit) {
+            // tile_map.store_to_file("assets/level0.txt");
+            tile_map.store_to_file("assets/level0.csv");
             println!("Level Saved!");
+        }
+        if input_state.is_key_pressed(Key::Jump) {
+            let mouse_ws = screen_to_world_space(input_state.mouse, camera);
+            println!("Mouse position: {}", mouse_ws);
         }
 
         if input_state.is_key_pressed(Key::EditorZoomIn) {
@@ -127,16 +136,16 @@ impl EditorState {
 
         let editor_speed = 150.0 / camera.zoom;
 
-        if input_state.is_key_down(Key::Left) {
+        if input_state.is_key_down(Key::MoveLeft) {
             camera.position.x -= delta_time * editor_speed;
         }
-        if input_state.is_key_down(Key::Right) {
+        if input_state.is_key_down(Key::MoveRight) {
             camera.position.x += delta_time * editor_speed;
         }
-        if input_state.is_key_down(Key::Up) {
+        if input_state.is_key_down(Key::MoveUp) {
             camera.position.y -= delta_time * editor_speed;
         }
-        if input_state.is_key_down(Key::Down) {
+        if input_state.is_key_down(Key::MoveDown) {
             camera.position.y += delta_time * editor_speed;
         }
 
@@ -156,22 +165,22 @@ impl EditorState {
 
         match self.editor_mode {
             EditorMode::TileMode => {
-                if input_state.is_key_pressed(Key::LeftBracket) && self.selected_tile > 0 {
+                if input_state.is_key_pressed(Key::SelectPrev) && self.selected_tile > 0 {
                     self.selected_tile -= 1;
                 }
-                if input_state.is_key_pressed(Key::RightBracket)
+                if input_state.is_key_pressed(Key::SelectNext)
                     && self.selected_tile < (tile_set.tiles.len() - 1) as u32
                 {
                     self.selected_tile += 1;
                 }
 
-                if input_state.mouse.y < 192.0 {
+                if input_state.mouse.y < 192.0 && input_state.mouse.x > 12.0 {
                     if input_state.is_mouse_down(MouseButton::Left) {
                         let mouse_ws = screen_to_world_space(input_state.mouse, camera);
                         let mouse_ws = mouse_ws.as_uvec2();
                         let mouse_ts = mouse_ws / tile_map.tile_size;
                         tile_map.tiles[(mouse_ts.x + mouse_ts.y * tile_map.width) as usize] =
-                            self.selected_tile + 1;
+                            self.selected_tile as i32;
                     }
                     if input_state.is_mouse_down(MouseButton::Right) {
                         let mouse_ws = screen_to_world_space(input_state.mouse, camera);
@@ -184,28 +193,67 @@ impl EditorState {
                 screen.draw_rectangle(0, 192, 255, 207, true, 0x0);
                 screen.draw_rectangle(0, 192, 255, 207, false, 0xffffffff);
 
-                for (i, tile) in tile_set.tiles.iter().take(24).enumerate() {
+                for (i, color) in tile_set.unique_tile_colors.iter().enumerate() {
+                    let size = (8, 8);
+
+                    let x0 = 2;
+                    let y0 = 8 + i as i32 * 10;
+                    screen.draw_square(x0, y0, x0 + size.0, y0 + size.1, *color);
                     let aabb = Aabb {
-                        min: vec2(3.0 + i as f32 * 10.0, 192.0 + 3.0),
-                        max: vec2(12.0 + i as f32 * 10.0, 192.0 + 12.0),
+                        min: vec2((x0 - 1) as f32, (y0 - 1) as f32),
+                        max: vec2((x0 + size.0) as f32, (y0 + size.1) as f32),
                     };
-                    if i == self.selected_tile as usize {
+                    if i == self.selected_color as usize {
                         draw_aabb_ss(screen, &aabb, 0xffffff);
                     }
 
                     if input_state.is_mouse_down(MouseButton::Left)
                         && aabb.point_intersects(input_state.mouse)
                     {
-                        self.selected_tile = i as u32;
+                        self.selected_color = i as u32;
+                        self.selected_tile = if tile_set.tile_objs.contains_key(
+                            &(tile_set.color_start[i] + self.selected_tile_type as usize),
+                        ) {
+                            tile_set.color_start[i] as u32 + self.selected_tile_type
+                        } else {
+                            tile_set.color_start[i] as u32
+                        };
                     }
-                    tile.draw_on(screen, 4 + i as i32 * 10, 192 + 4);
+                }
+                let filtered_tiles = tile_set.tile_objs.iter().filter(|&(k, v)| {
+                    v.color == tile_set.unique_tile_colors[self.selected_color as usize]
+                });
+
+                for (j, (key, value)) in filtered_tiles.enumerate() {
+                    let x0 = 8 + j as i32 * 10;
+                    let y0 = 196;
+                    let size = (8, 8);
+                    // screen.draw_square(x0, y0, x0 + size.0, y0 + size.1, *color);
+                    let aabb = Aabb {
+                        min: vec2((x0 - 1) as f32, (y0 - 1) as f32),
+                        max: vec2((x0 + size.0) as f32, (y0 + size.1) as f32),
+                    };
+
+                    let relative_tile_type =
+                        *key - tile_set.color_start[self.selected_color as usize];
+                    if relative_tile_type == self.selected_tile_type as usize {
+                        draw_aabb_ss(screen, &aabb, 0xffffff);
+                    }
+
+                    if input_state.is_mouse_pressed(MouseButton::Left)
+                        && aabb.point_intersects(input_state.mouse)
+                    {
+                        self.selected_tile_type = relative_tile_type as u32;
+                        self.selected_tile = *key as u32;
+                    }
+                    value.sprite.draw_on(screen, x0, y0);
                 }
             }
             EditorMode::ObjectMode => {
-                if input_state.is_key_pressed(Key::LeftBracket) && self.selected_object > 0 {
+                if input_state.is_key_pressed(Key::SelectPrev) && self.selected_object > 0 {
                     self.selected_object -= 1;
                 }
-                if input_state.is_key_pressed(Key::RightBracket)
+                if input_state.is_key_pressed(Key::SelectNext)
                     && self.selected_object < (self.object_buttons.len() - 1) as u32
                 {
                     self.selected_object += 1;

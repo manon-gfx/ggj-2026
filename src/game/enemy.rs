@@ -60,12 +60,14 @@ impl Enemy {
         let flags = [
             tile_map.sample_tile_type_ws(
                 sample_points[0],
+                &tile_set.tile_objs,
                 &tile_set.tile_types,
                 &tile_set.tile_colors,
                 self.color_mask,
             ),
             tile_map.sample_tile_type_ws(
                 sample_points[1],
+                &tile_set.tile_objs,
                 &tile_set.tile_types,
                 &tile_set.tile_colors,
                 self.color_mask,
@@ -92,8 +94,8 @@ impl Enemy {
         screen: &mut Bitmap,
         camera: &Camera,
         lerped_color_mask: u32,
-        aura_low: &Bitmap,
-        aura: &Bitmap,
+        brightness_low: &Vec<u32>,
+        brightness_high: &Vec<u32>,
         aura_transl: IVec2,
     ) {
         let scale_x = if self.going_left { -1.0 } else { 1.0 };
@@ -109,8 +111,8 @@ impl Enemy {
             is_colored,
             self.color_mask,
             lerped_color_mask,
-            aura_low,
-            aura,
+            brightness_low,
+            brightness_high,
             aura_transl,
         );
     }
