@@ -158,11 +158,11 @@ impl TileMap {
             draw_tiles_min_y -= start_tile_y;
         }
 
-        if draw_tiles_max_x >= self.width as i32 {
-            draw_tiles_max_x = self.width as i32 - 1;
+        if start_tile_x + draw_tiles_max_x >= self.width as i32 {
+            draw_tiles_max_x = self.width as i32 - start_tile_x;
         }
-        if draw_tiles_max_y >= self.height as i32 {
-            draw_tiles_max_y = self.height as i32 - 1;
+        if start_tile_y + draw_tiles_max_y >= self.height as i32 {
+            draw_tiles_max_y = self.height as i32 - start_tile_y;
         }
 
         for y in draw_tiles_min_y..draw_tiles_max_y {
