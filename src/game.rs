@@ -258,6 +258,7 @@ impl Player {
 pub struct InputState {
     pub mouse: Vec2,
     pub mouse_delta: Vec2,
+    mouse_scroll_delta: Vec2,
 
     pub axis_state: [f32; Axis::Count as usize],
 
@@ -274,6 +275,7 @@ impl Default for InputState {
         Self {
             mouse: Vec2::default(),
             mouse_delta: Vec2::default(),
+            mouse_scroll_delta: Vec2::default(),
 
             axis_state: [0.0; Axis::Count as usize],
 
@@ -316,6 +318,9 @@ impl InputState {
 
     // Call at the end of every frame
     fn reset(&mut self) {
+        self.mouse_delta = Vec2::ZERO;
+        self.mouse_scroll_delta = Vec2::ZERO;
+
         self.key_pressed.fill(false);
         self.key_released.fill(false);
 
@@ -822,6 +827,9 @@ impl Game {
         let new_mouse_pos = vec2(x, y);
         self.input_state.mouse_delta = new_mouse_pos - self.input_state.mouse;
         self.input_state.mouse = new_mouse_pos;
+    }
+    pub(crate) fn on_mouse_scrolled(&mut self, scroll_x: f32, scroll_y: f32) {
+        self.input_state.mouse_scroll_delta = vec2(scroll_x, scroll_y);
     }
     pub(crate) fn on_mouse_button_down(&mut self, button: MouseButton, _x: f32, _y: f32) {
         self.input_state.mouse_state[button as usize] = true;

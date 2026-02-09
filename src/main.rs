@@ -143,6 +143,9 @@ fn main() {
             mouse_y = (y - blit_y as f32) / scale;
             game.on_mouse_moved(mouse_x, mouse_y);
         }
+        if let Some((scroll_x, scroll_y)) = window.get_scroll_wheel() {
+            game.on_mouse_scrolled(scroll_x, scroll_y);
+        }
 
         let mut handle_mouse_events = |minifb_button, button| {
             let old_state = mouse_state[button as usize];
