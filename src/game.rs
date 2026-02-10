@@ -32,6 +32,7 @@ const DEBUG_MASKS: bool = false;
 const DEBUG_MODE: bool = false;
 const ALLOW_EDITOR: bool = true;
 const ALLOW_KEYBOAD_MODE: bool = true;
+const ENABLE_AUDIO: bool = true;
 
 #[derive(Debug)]
 pub struct SaveState {
@@ -746,7 +747,11 @@ impl Game {
 
         let mut game = Self {
             reset_game_bool_hack: false,
-            audio: Some(Audio::new()),
+            audio: if ENABLE_AUDIO {
+                Some(Audio::new())
+            } else {
+                None
+            },
             music_mode: false,
             font: Font::new_default(),
 
