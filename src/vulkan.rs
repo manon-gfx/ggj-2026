@@ -371,17 +371,25 @@ pub(crate) fn init_vulkan(
     let surface_formats =
         unsafe { surface_loader.get_physical_device_surface_formats(physical_device, surface) }
             .unwrap();
-    let surface_format = surface_formats
+
+    let surface_format = if let Some(surface_format) = surface_formats
         .iter()
-        .map(|sfmt| match sfmt.format {
-            vk::Format::UNDEFINED => vk::SurfaceFormatKHR {
-                format: vk::Format::B8G8R8A8_UNORM,
-                color_space: sfmt.color_space,
-            },
-            _ => *sfmt,
-        })
-        .next()
-        .expect("Unable to find suitable surface format.");
+        .find(|surface_format| surface_format.format == vk::Format::R8G8B8A8_SRGB)
+    {
+        *surface_format
+    } else {
+        surface_formats
+            .iter()
+            .map(|sfmt| match sfmt.format {
+                vk::Format::UNDEFINED => vk::SurfaceFormatKHR {
+                    format: vk::Format::B8G8R8A8_SRGB,
+                    color_space: sfmt.color_space,
+                },
+                _ => *sfmt,
+            })
+            .next()
+            .expect("Unable to find suitable surface format.")
+    };
 
     // Set up a swapchain (an objecect that gives us images that can be shown on the screen)
     let surface_capabilities = unsafe {
@@ -445,7 +453,7 @@ pub(crate) fn init_vulkan(
         .map(|_| {
             let create_info = vk::ImageCreateInfo::default()
                 .image_type(vk::ImageType::TYPE_2D)
-                .format(vk::Format::B8G8R8A8_UNORM)
+                .format(vk::Format::B8G8R8A8_SRGB)
                 .extent(
                     vk::Extent3D::default()
                         .width(render_width as u32)
