@@ -334,6 +334,8 @@ pub struct Game {
     audio: Option<Audio>,
     music_mode: bool,
 
+    test_image: Bitmap,
+
     font: Font,
 
     tile_set: TileSet,
@@ -684,6 +686,7 @@ impl Game {
             reset_game_bool_hack: false,
             audio: Some(Audio::new()),
             music_mode: false,
+            test_image: Bitmap::load("assets/test_image.png"),
             font: Font::new_default(),
 
             actual_camera: vec2(2000.0, 2000.0),
@@ -1580,5 +1583,7 @@ impl Game {
         }
         // reset state
         self.input_state.reset();
+
+        self.test_image.draw_on(screen, 0, 0);
     }
 }
