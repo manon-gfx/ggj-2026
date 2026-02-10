@@ -426,26 +426,26 @@ impl Game {
         let coords = [
             // Terrain Blocks
             (32, 0),
-            (32, 32),
-            (32, 64),
-            (32, 96),
-            (32, 128),
-            (128, 0),
-            (128, 32),
-            (128, 64),
-            (128, 96),
-            (128, 128),
+            (32, 0),
+            (32, 0),
+            (32, 0),
+            (32, 0),
+            (32, 0),
+            (32, 0),
+            (32, 0),
+            (32, 0),
+            (32, 0),
             // Spikes
             (32, 16),
-            (32, 32 + 16),
-            (32, 64 + 16),
-            (32, 96 + 16),
-            (32, 128 + 16),
-            (128, 16),
-            (128, 32 + 16),
-            (128, 64 + 16),
-            (128, 96 + 16),
-            (128, 128 + 16),
+            (32, 16),
+            (32, 16),
+            (32, 16),
+            (32, 16),
+            (32, 16),
+            (32, 16),
+            (32, 16),
+            (32, 16),
+            (32, 16),
         ];
         let tile_colors = vec![
             bitmap::BLACK,
@@ -474,9 +474,9 @@ impl Game {
             TileFlags::COLLISION | TileFlags::RED,
             TileFlags::COLLISION | TileFlags::BLUE,
             TileFlags::COLLISION | TileFlags::GREEN,
-            TileFlags::COLLISION,
-            TileFlags::COLLISION,
-            TileFlags::COLLISION,
+            TileFlags::COLLISION | TileFlags::RED | TileFlags::GREEN,
+            TileFlags::COLLISION | TileFlags::GREEN | TileFlags::BLUE,
+            TileFlags::COLLISION | TileFlags::RED | TileFlags::BLUE,
             TileFlags::COLLISION,
             TileFlags::COLLISION,
             TileFlags::COLLISION,
@@ -484,15 +484,34 @@ impl Game {
             TileFlags::SPIKE | TileFlags::RED,
             TileFlags::SPIKE | TileFlags::BLUE,
             TileFlags::SPIKE | TileFlags::GREEN,
-            TileFlags::SPIKE,
-            TileFlags::SPIKE,
-            TileFlags::SPIKE,
+            TileFlags::SPIKE | TileFlags::RED | TileFlags::GREEN,
+            TileFlags::SPIKE | TileFlags::GREEN | TileFlags::BLUE,
+            TileFlags::SPIKE | TileFlags::RED | TileFlags::BLUE,
             TileFlags::SPIKE,
             TileFlags::SPIKE,
             TileFlags::SPIKE,
         ];
 
-        let tiles = build_frame_list(&tile_sheet, &coords, (8, 8));
+        let mut tiles = build_frame_list(&tile_sheet, &coords, (8, 8));
+
+        for (tile, flags) in tiles.iter_mut().zip(tile_types.iter()) {
+            let mut mask = 0xff000000;
+            if flags.contains(TileFlags::RED) {
+                mask |= 0xff0000;
+            }
+            if flags.contains(TileFlags::GREEN) {
+                mask |= 0x00ff00;
+            }
+            if flags.contains(TileFlags::BLUE) {
+                mask |= 0x0000ff;
+            }
+            if !flags.intersects(TileFlags::WHITE) {
+                mask |= 0xffffff;
+            }
+            for p in tile.pixels_mut() {
+                *p &= mask;
+            }
+        }
 
         let mut aura_low = Bitmap::new(16, 16);
         for y in 0..aura_low.height {
