@@ -27,6 +27,7 @@ const MOVEMENT_SPEED_X: f32 = 100.0;
 const FRICTION: f32 = 1500.0;
 const PEAK_SCALE: f32 = 60.0;
 
+const DEBUG_FREE_MASK_SWITCHING: bool = false;
 const DEBUG_MASKS: bool = false;
 const DEBUG_MODE: bool = false;
 const ALLOW_EDITOR: bool = true;
@@ -1336,6 +1337,19 @@ impl Game {
                 }
                 if self.input_state.is_key_pressed(Key::MaskBlue) {
                     self.toggle_color_mask(0x0000ff);
+                }
+            } else if DEBUG_FREE_MASK_SWITCHING {
+                if self.input_state.is_key_pressed(Key::MaskRed) {
+                    self.set_color_mask(0xff0000);
+                }
+                if self.input_state.is_key_pressed(Key::MaskGreen) {
+                    self.set_color_mask(0x00ff00);
+                }
+                if self.input_state.is_key_pressed(Key::MaskBlue) {
+                    self.set_color_mask(0x0000ff);
+                }
+                if self.input_state.is_key_pressed(Key::Down) {
+                    self.set_color_mask(0x0);
                 }
             } else {
                 // Current situ: activating a new mask disables old mask (can't wear two masks)
