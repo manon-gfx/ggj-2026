@@ -262,7 +262,7 @@ impl Audio {
                 },
                 move |err| {
                     //deal with errors I guess
-                    println!("Failed to initialize the audio system: {:?}", err);
+                    println!("Audio system error: {:?}", err);
                 },
                 None,
             )
