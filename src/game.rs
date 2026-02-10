@@ -5,6 +5,8 @@ pub mod enemy;
 pub mod sprite;
 pub mod tilemap;
 
+use std::rc::Rc;
+
 use crate::audio::Audio;
 use crate::audio::sound::SoundTypes;
 use crate::bitmap::{self, Bitmap, Font};
@@ -189,6 +191,22 @@ impl MaskObject {
     }
 }
 
+struct SaveGamePoint {
+    position: Vec2,
+    aabb: Aabb,
+    sprite_scene_off: Rc<Bitmap>,
+    sprite_scene_on: Rc<Bitmap>,
+    activated: bool,
+}
+impl SaveGamePoint {
+    fn aabb_world_space(&self) -> Aabb {
+        Aabb {
+            min: self.aabb.min + self.position,
+            max: self.aabb.max + self.position,
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Player {
     idle_sprite: Sprite,
@@ -351,6 +369,7 @@ pub struct Game {
     save_state: Option<SaveState>,
 
     mask_game_objects: Vec<MaskObject>,
+    savepoint_objects: Vec<SaveGamePoint>,
     enemies: Vec<Enemy>,
 
     enemy_sprite_red: Sprite,
@@ -585,6 +604,31 @@ impl Game {
             visible: true,
         };
 
+        let sprite_scene_off = Rc::new(Bitmap::load("assets/sprites/savepoint_off.png"));
+        let sprite_scene_on = Rc::new(Bitmap::load("assets/sprites/savepoint_on.png"));
+
+        let savepoint_1 = SaveGamePoint {
+            position: vec2(1809.0, 2176.0),
+            aabb: Aabb {
+                min: Vec2::ZERO,
+                max: vec2(8.0, 8.0),
+            },
+            sprite_scene_off: sprite_scene_off.clone(),
+            sprite_scene_on: sprite_scene_on.clone(),
+            activated: false,
+        };
+
+        let savepoint_2 = SaveGamePoint {
+            position: vec2(2105.0, 2013.0),
+            aabb: Aabb {
+                min: Vec2::ZERO,
+                max: vec2(8.0, 8.0),
+            },
+            sprite_scene_off,
+            sprite_scene_on,
+            activated: false,
+        };
+
         let player_sprite_sheet = Bitmap::load("assets/sprite/spritesheet_animation.png");
 
         let walk_frames = [
@@ -704,6 +748,7 @@ impl Game {
 
             // Add game objects
             mask_game_objects: vec![red_mask, green_mask, blue_mask, golden_mask],
+            savepoint_objects: vec![savepoint_1, savepoint_2],
             enemies: vec![],
 
             enemy_sprite_white,
@@ -931,6 +976,28 @@ impl Game {
 
     pub fn remove_color_mask(&mut self, color_channel: crate::bitmap::ColorChannel) {
         self.color_mask ^= color_channel;
+    }
+
+    pub fn build_save_state(&self) -> SaveState {
+        SaveState {
+            player_position: self.player.position,
+            has_red_mask: self
+                .player_inventory
+                .masks
+                .iter()
+                .any(|mask| mask.color == bitmap::RED),
+            has_green_mask: self
+                .player_inventory
+                .masks
+                .iter()
+                .any(|mask| mask.color == bitmap::GREEN),
+            has_blue_mask: self
+                .player_inventory
+                .masks
+                .iter()
+                .any(|mask| mask.color == bitmap::BLUE),
+            color_mask: self.color_mask,
+        }
     }
 
     pub fn tick(&mut self, delta_time: f32, screen: &mut Bitmap) {
@@ -1503,6 +1570,42 @@ impl Game {
 
         self.player.draw(screen, &self.camera, self.color_mask);
 
+        // Loop over savepoints
+        let mut should_save = false;
+        for savepoint in self.savepoint_objects.iter_mut() {
+            let pos: Vec2 = world_space_to_screen_space(savepoint.position, &self.camera);
+            if savepoint.activated {
+                savepoint
+                    .sprite_scene_on
+                    .draw_on(screen, pos.x as i32, pos.y as i32);
+            } else {
+                savepoint
+                    .sprite_scene_off
+                    .draw_on(screen, pos.x as i32, pos.y as i32);
+            }
+            // Save and turn on if position overlaps with player
+            if savepoint
+                .aabb_world_space()
+                .overlaps(&self.player.aabb_world_space())
+            {
+                if !savepoint.activated {
+                    savepoint.activated = true;
+                    savepoint
+                        .sprite_scene_on
+                        .draw_on(screen, pos.x as i32, pos.y as i32);
+
+                    if let Some(audio) = &self.audio {
+                        audio
+                            .sfx_sender
+                            .send((SoundTypes::PickupSound, true))
+                            .unwrap();
+                    }
+                };
+
+                should_save = true;
+            }
+        }
+
         // Loop over masks
         for mask in self.mask_game_objects.iter_mut() {
             if mask.visible {
@@ -1531,26 +1634,6 @@ impl Game {
 
                     self.player_inventory.masks.push(mask.clone());
 
-                    self.save_state = Some(SaveState {
-                        player_position: self.player.position,
-                        has_red_mask: self
-                            .player_inventory
-                            .masks
-                            .iter()
-                            .any(|mask| mask.color == bitmap::RED),
-                        has_green_mask: self
-                            .player_inventory
-                            .masks
-                            .iter()
-                            .any(|mask| mask.color == bitmap::GREEN),
-                        has_blue_mask: self
-                            .player_inventory
-                            .masks
-                            .iter()
-                            .any(|mask| mask.color == bitmap::BLUE),
-                        color_mask: self.color_mask,
-                    });
-
                     if let Some(audio) = &self.audio {
                         audio
                             .sfx_sender
@@ -1559,6 +1642,10 @@ impl Game {
                     }
                 }
             }
+        }
+
+        if should_save {
+            self.save_state = Some(self.build_save_state());
         }
 
         if DEBUG_MODE {
