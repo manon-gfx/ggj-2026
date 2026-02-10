@@ -262,7 +262,7 @@ impl Bitmap {
         scale_x: f32,
         scale_y: f32,
         is_colored: bool,
-        visible_mask: u32,
+        object_color_mask: u32,
         color_mask: ColorChannel,
         aura_low: &Bitmap,
         aura: &Bitmap,
@@ -272,13 +272,21 @@ impl Bitmap {
             return;
         }
 
+        let blend_mask = {
+            let m = color_mask & object_color_mask;
+            let mr = (m >> 16) & 0xff;
+            let mg = (m >> 8) & 0xff;
+            let mb = m & 0xff;
+            mr.max(mg).max(mb)
+        };
+
         let low_brightness =
             aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
         let brightness = aura.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.x) & 0xffff;
 
-        let rmask = (color_mask >> 16) & 0xff;
-        let gmask = (color_mask >> 8) & 0xff;
-        let bmask = color_mask & 0xff;
+        let rmask = ((color_mask >> 16) & 0xff).max(0x5f);
+        let gmask = ((color_mask >> 8) & 0xff).max(0x5f);
+        let bmask = (color_mask & 0xff).max(0x5f);
 
         let mute = if is_colored { 0x0f } else { 0x2f };
         let mute = (low_brightness).max(mute);
@@ -341,7 +349,7 @@ impl Bitmap {
 
                         let c = if is_colored {
                             let prev = *dstline.add(x as usize);
-                            blend3(prev, c, color_mask & visible_mask)
+                            blend(prev, c, blend_mask)
                         } else {
                             c
                         };
@@ -549,19 +557,27 @@ impl Bitmap {
         x: i32,
         y: i32,
         is_colored: bool,
-        visible_mask: u32,
+        tile_color_mask: u32,
         color_mask: ColorChannel,
         aura_low: &Bitmap,
         aura: &Bitmap,
         aura_transl: IVec2,
     ) {
+        let blend_mask = {
+            let m = color_mask & tile_color_mask;
+            let mr = (m >> 16) & 0xff;
+            let mg = (m >> 8) & 0xff;
+            let mb = m & 0xff;
+            mr.max(mg).max(mb)
+        };
+
         let low_brightness =
             aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
         let brightness = aura.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
 
-        let rmask = (color_mask >> 16) & 0xff;
-        let gmask = (color_mask >> 8) & 0xff;
-        let bmask = color_mask & 0xff;
+        let rmask = ((color_mask >> 16) & 0xff).max(0x5f);
+        let gmask = ((color_mask >> 8) & 0xff).max(0x5f);
+        let bmask = (color_mask & 0xff).max(0x5f);
 
         let mute = if is_colored { 0x0f } else { 0x2f };
         let mute = (low_brightness).max(mute);
@@ -611,7 +627,7 @@ impl Bitmap {
 
                         let c = if is_colored {
                             let prev = *pixels.get_unchecked_mut(index);
-                            blend3(prev, c, color_mask & visible_mask)
+                            blend(prev, c, blend_mask)
                         } else {
                             c
                         };
