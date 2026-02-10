@@ -374,7 +374,7 @@ pub(crate) fn init_vulkan(
 
     let surface_format = if let Some(surface_format) = surface_formats
         .iter()
-        .find(|surface_format| surface_format.format == vk::Format::R8G8B8A8_SRGB)
+        .find(|surface_format| surface_format.format == vk::Format::R8G8B8A8_UNORM)
     {
         *surface_format
     } else {
@@ -453,7 +453,7 @@ pub(crate) fn init_vulkan(
         .map(|_| {
             let create_info = vk::ImageCreateInfo::default()
                 .image_type(vk::ImageType::TYPE_2D)
-                .format(vk::Format::B8G8R8A8_SRGB)
+                .format(vk::Format::B8G8R8A8_UNORM)
                 .extent(
                     vk::Extent3D::default()
                         .width(render_width as u32)
