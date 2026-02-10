@@ -262,7 +262,7 @@ impl Audio {
                 },
                 move |err| {
                     //deal with errors I guess
-                    panic!("err: {:?}", err);
+                    println!("Audio system error: {:?}", err);
                 },
                 None,
             )
