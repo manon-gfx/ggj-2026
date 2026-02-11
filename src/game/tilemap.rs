@@ -227,7 +227,6 @@ impl TileMap {
             draw_tiles_max_y = self.height as i32 - start_tile_y;
         }
 
-
         for y in draw_tiles_min_y..draw_tiles_max_y {
             // NOTE(manon): Flooring before int-cast is necessary to properly handle negative numbers
             let draw_y = (draw_tile_size * y as f32 - camera_offset.y).floor() as i32;
@@ -336,13 +335,13 @@ impl TileMap {
                     let is_colored = tile_type.intersects(TileFlags::WHITE);
                     let is_tile_shown =
                         !tile_type.intersects(TileFlags::WHITE) || tile_type.intersects(mask_color);
-
+                    if is_tile_shown {
                     tile_obj.sprite.draw_tile_different_colors(
                         target,
                         sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
                         sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
                         is_colored,
-                        is_tile_shown,
+                        mask_color,
                         tile_type,
                         lerped_color_mask,
                         // &tile_set.aura_low,
@@ -351,6 +350,7 @@ impl TileMap {
                         &tile_set.brightness,
                         aura_transl,
                     );
+                }
                 }
 
                 //     let tile = &tile_set.tiles[(tile_index - 1) as usize];

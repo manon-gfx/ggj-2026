@@ -536,7 +536,7 @@ impl Bitmap {
                     + ((aura_x + x).min(255).max(0) >> 4))
                     as usize]
                     >> 2;
-                let brightness = brightness_high[(((aura_y + y).min(255).max(0)  >> 4) * 16
+                let brightness = brightness_high[(((aura_y + y).min(255).max(0) >> 4) * 16
                     + ((aura_x + x).min(255).max(0) >> 4))
                     as usize]
                     >> 2;
@@ -663,8 +663,8 @@ impl Bitmap {
         x: i32,
         y: i32,
         is_colored: bool,
-        is_tile_shown: bool,
-        _tile_type: &TileFlags,
+        mask_color: TileFlags,
+        tile_type: &TileFlags,
         lerped_color_mask: u32,
         // aura_low: &Bitmap,
         // aura: &Bitmap,
@@ -690,24 +690,29 @@ impl Bitmap {
         let bmask = lerped_color_mask & 0xff;
 
         let mute = if is_colored { 0x0f } else { 0x2f };
+        // let mute = 0x2f;
         let mute = (low_brightness).max(mute);
-        let mono_scale = ((brightness * 0xff) >> 8).max(mute);
 
-        let r_scale = if is_colored {
-            mono_scale
-        } else {
-            ((brightness * rmask) >> 8).max(mute)
-        };
-        let g_scale = if is_colored {
-            mono_scale
-        } else {
-            ((brightness * gmask) >> 8).max(mute)
-        };
-        let b_scale = if is_colored {
-            mono_scale
-        } else {
-            ((brightness * bmask) >> 8).max(mute)
-        };
+        let mut r_scale = ((brightness * rmask) >> 8).max(mute);
+        let mut g_scale = ((brightness * gmask) >> 8).max(mute);
+        let mut b_scale = ((brightness * bmask) >> 8).max(mute);
+
+        if is_colored {
+            if mask_color.intersects(TileFlags::RED) {
+                g_scale = r_scale;
+                b_scale = r_scale;
+            } else if mask_color.intersects(TileFlags::GREEN) {
+                r_scale = g_scale;
+                b_scale = g_scale;
+            } else if mask_color.intersects(TileFlags::BLUE) {
+                r_scale = b_scale;
+                g_scale = b_scale;
+            } else {
+                r_scale = ((brightness * 0xff) >> 8).max(mute);
+                b_scale = ((brightness * 0xff) >> 8).max(mute);
+                r_scale = ((brightness * 0xff) >> 8).max(mute);
+            }
+        }
 
         let mut sw = self.width as i32;
         let mut sh = self.height as i32;
@@ -734,10 +739,7 @@ impl Bitmap {
             for x in 0..sw {
                 unsafe {
                     let c = *self.pixels().get_unchecked((line1 + sx + x) as usize);
-                    if (c & 0xff000000) != 0 && is_tile_shown {
-                        // let index = (line0 + tx + x) as usize;
-
-                        // let pixels = target.pixels_mut();
+                    if (c & 0xff000000) != 0 { 
 
                         let r = (c >> 16) & 0xff;
                         let g = (c >> 8) & 0xff;
@@ -753,12 +755,12 @@ impl Bitmap {
 
                         let pixels = target.pixels_mut();
 
-                        let c = if is_colored {
-                            let prev = *pixels.get_unchecked_mut(index);
-                            blend(prev, c, (brightness << 6).min(256).max(64))
-                        } else {
-                            c
-                        };
+                        // let c = if is_colored {
+                        //     let prev = *pixels.get_unchecked_mut(index);
+                        //     blend(prev, c, (brightness << 6).min(256).max(64))
+                        // } else {
+                        // c
+                        // };
 
                         *pixels.get_unchecked_mut(index) = c;
                     }
