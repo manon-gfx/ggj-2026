@@ -673,14 +673,11 @@ impl Bitmap {
         aura_transl: IVec2,
     ) {
         // some small rounding differences here or there but saves looking stuff up in a scaled bitmap so...
-
-        // let low_brightness_old_ =
-        //     aura_low.load_pixel(x + 4 - aura_transl.x, y + 4 - aura_transl.y) & 0xffff;
-        // let low_brightness = Self::aura_brightness_from_vector(x + 4 - aura_transl.x, y + 4 - aura_transl.y, brightness_low);
-        // let brightness = Self::aura_brightness_from_vector(x + 4 - aura_transl.x, y + 4 - aura_transl.y, brightness_high);
+        // low_brightness = small white light aura (value between 0 and 150)
         let low_brightness = brightness_low[(((y + 4 - aura_transl.y).min(255).max(0) >> 4) * 16
             + ((x + 4 - aura_transl.x).min(255).max(0) >> 4))
             as usize];
+        // brightness = larger colored aura (value between 0 and 384)
         let brightness = brightness_high[(((y + 4 - aura_transl.y).min(255).max(0) >> 4) * 16
             + ((x + 4 - aura_transl.x).min(255).max(0) >> 4))
             as usize];
@@ -689,30 +686,46 @@ impl Bitmap {
         let gmask = (lerped_color_mask >> 8) & 0xff;
         let bmask = lerped_color_mask & 0xff;
 
+        // mute = the minimum brightness of the blocks outside of either aura
         let mute = if is_colored { 0x0f } else { 0x2f };
-        // let mute = 0x2f;
+
+        // adding the small aura effect
         let mute = (low_brightness).max(mute);
 
-        let mut r_scale = ((brightness * rmask) >> 8).max(mute);
-        let mut g_scale = ((brightness * gmask) >> 8).max(mute);
-        let mut b_scale = ((brightness * bmask) >> 8).max(mute);
 
-        if is_colored {
-            if mask_color.intersects(TileFlags::RED) {
-                g_scale = r_scale;
-                b_scale = r_scale;
-            } else if mask_color.intersects(TileFlags::GREEN) {
-                r_scale = g_scale;
-                b_scale = g_scale;
-            } else if mask_color.intersects(TileFlags::BLUE) {
-                r_scale = b_scale;
-                g_scale = b_scale;
+        let (r_scale, g_scale, b_scale) = if is_colored {
+            if tile_type.intersects(TileFlags::RED) {
+                (
+                    ((brightness * rmask) >> 9).max(mute),
+                    ((brightness * rmask) >> 9).max(mute),
+                    ((brightness * rmask) >> 9).max(mute),
+                )
+            } else if tile_type.intersects(TileFlags::GREEN) {
+                (
+                    ((brightness * gmask) >> 8).max(mute),
+                    ((brightness * gmask) >> 8).max(mute),
+                    ((brightness * gmask) >> 8).max(mute),
+                )
+            } else if tile_type.intersects(TileFlags::BLUE) {
+                (
+                    ((brightness * bmask) >> 8).max(mute),
+                    ((brightness * bmask) >> 8).max(mute),
+                    ((brightness * bmask) >> 8).max(mute),
+                )
             } else {
-                r_scale = ((brightness * 0xff) >> 8).max(mute);
-                b_scale = ((brightness * 0xff) >> 8).max(mute);
-                r_scale = ((brightness * 0xff) >> 8).max(mute);
+                (
+                    ((brightness * rmask) >> 8).max(mute),
+                    ((brightness * gmask) >> 8).max(mute),
+                    ((brightness * bmask) >> 8).max(mute),
+                )
             }
-        }
+        } else {
+            (
+                ((brightness * rmask) >> 8).max(mute),
+                ((brightness * gmask) >> 8).max(mute),
+                ((brightness * bmask) >> 8).max(mute),
+            )
+        };
 
         let mut sw = self.width as i32;
         let mut sh = self.height as i32;
@@ -739,8 +752,7 @@ impl Bitmap {
             for x in 0..sw {
                 unsafe {
                     let c = *self.pixels().get_unchecked((line1 + sx + x) as usize);
-                    if (c & 0xff000000) != 0 { 
-
+                    if (c & 0xff000000) != 0 {
                         let r = (c >> 16) & 0xff;
                         let g = (c >> 8) & 0xff;
                         let b = c & 0xff;
@@ -755,12 +767,12 @@ impl Bitmap {
 
                         let pixels = target.pixels_mut();
 
-                        // let c = if is_colored {
-                        //     let prev = *pixels.get_unchecked_mut(index);
-                        //     blend(prev, c, (brightness << 6).min(256).max(64))
-                        // } else {
-                        // c
-                        // };
+                        let c = if is_colored {
+                            let prev = *pixels.get_unchecked_mut(index);
+                            blend(prev, c, (brightness << 6).min(0xff).max(0x20)) // max(..) = the minimum alpha of the blocks outside the aura
+                        } else {
+                            c
+                        };
 
                         *pixels.get_unchecked_mut(index) = c;
                     }

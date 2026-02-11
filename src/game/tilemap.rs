@@ -336,21 +336,21 @@ impl TileMap {
                     let is_tile_shown =
                         !tile_type.intersects(TileFlags::WHITE) || tile_type.intersects(mask_color);
                     if is_tile_shown {
-                    tile_obj.sprite.draw_tile_different_colors(
-                        target,
-                        sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
-                        sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
-                        is_colored,
-                        mask_color,
-                        tile_type,
-                        lerped_color_mask,
-                        // &tile_set.aura_low,
-                        // &tile_set.aura,
-                        &tile_set.brightness_low,
-                        &tile_set.brightness,
-                        aura_transl,
-                    );
-                }
+                        tile_obj.sprite.draw_tile_different_colors(
+                            target,
+                            sx - camera.x as i32 + tile_min_x as i32 * self.tile_size as i32,
+                            sy - camera.y as i32 + tile_min_y as i32 * self.tile_size as i32,
+                            is_colored,
+                            mask_color,
+                            tile_type,
+                            lerped_color_mask,
+                            // &tile_set.aura_low,
+                            // &tile_set.aura,
+                            &tile_set.brightness_low,
+                            &tile_set.brightness,
+                            aura_transl,
+                        );
+                    }
                 }
 
                 //     let tile = &tile_set.tiles[(tile_index - 1) as usize];
