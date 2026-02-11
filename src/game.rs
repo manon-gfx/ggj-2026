@@ -624,6 +624,11 @@ impl Game {
             (40, 24), // bottom vertical spike/lava etc.
             (48, 24), // top vertical spike/lava etc.
             (56, 24), // top vertical spike/lava etc. filled
+            (72, 0),  // small grass
+            (80, 0),  // medium grass
+            (88, 0),  // small plant
+            (72, 8),  // medium plant
+            (80, 8),  // flower
         ];
         let tile_flags_per_color = vec![
             TileFlags::COLLISION,
@@ -661,6 +666,11 @@ impl Game {
             TileFlags::SPIKE,
             TileFlags::SPIKE | TileFlags::COLLISION,
             TileFlags::SPIKE | TileFlags::COLLISION,
+            TileFlags::empty(),
+            TileFlags::empty(),
+            TileFlags::empty(),
+            TileFlags::empty(),
+            TileFlags::empty(),
         ];
 
         let tile_set: TileSet = build_tileset(
