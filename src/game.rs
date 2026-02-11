@@ -26,7 +26,7 @@ const MOVEMENT_SPEED_X: f32 = 100.0;
 const FRICTION: f32 = 1500.0;
 const PEAK_SCALE: f32 = 60.0;
 
-const DEBUG_MASKS: bool = false;
+const DEBUG_MASKS: bool = true;
 const DEBUG_MODE: bool = false;
 const ALLOW_EDITOR: bool = true;
 const ALLOW_KEYBOAD_MODE: bool = true;
@@ -65,7 +65,7 @@ pub enum Key {
     SaveLevelEdit, // Save in level editor mode
     EditMode,      // Space
     SelectPrev,    // LeftBracket
-    SelectNext,  // RightBracket
+    SelectNext,    // RightBracket
 
     Key1,
     Key2,
@@ -1272,19 +1272,24 @@ impl Game {
                         &self.font,
                         self.player_inventory.masks[i].keyboard_key_name.as_str(),
                         self.player_inventory.position_on_screen.x as i32
-                            + (i as i32 + 1) * self.player_inventory.tile_size + 5,
+                            + (i as i32 + 1) * self.player_inventory.tile_size
+                            + 5,
                         self.player_inventory.position_on_screen.y as i32 + 19,
                         self.player_inventory.masks[i].color,
                     );
                     screen.draw_rectangle(
                         self.player_inventory.position_on_screen.x as i32
-                            + ((i as i32 + 1) * (self.player_inventory.tile_size as i32)) + 2,
+                            + ((i as i32 + 1) * (self.player_inventory.tile_size as i32))
+                            + 2,
                         self.player_inventory.position_on_screen.y as i32
-                            + self.player_inventory.tile_size + 1,
+                            + self.player_inventory.tile_size
+                            + 1,
                         self.player_inventory.position_on_screen.x as i32
-                            + ((i as i32 + 2) * (self.player_inventory.tile_size as i32)) - 4,
+                            + ((i as i32 + 2) * (self.player_inventory.tile_size as i32))
+                            - 4,
                         self.player_inventory.position_on_screen.y as i32
-                            + 3* (self.player_inventory.tile_size >> 1) + 2,
+                            + 3 * (self.player_inventory.tile_size >> 1)
+                            + 2,
                         false,
                         self.player_inventory.masks[i].color,
                     );
@@ -1401,7 +1406,13 @@ impl Game {
                     if self.player_uses_controller {
                         screen.draw_str(&self.font, "Press (Y) to jump", 80, 60, 0xdcaf00);
                     } else {
-                        screen.draw_str(&self.font, "Press (Z) or (Space) to jump", 80, 60, 0xdcaf00);
+                        screen.draw_str(
+                            &self.font,
+                            "Press (Z) or (Space) to jump",
+                            80,
+                            60,
+                            0xdcaf00,
+                        );
                     }
                 }
             }
