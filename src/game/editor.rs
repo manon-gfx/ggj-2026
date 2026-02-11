@@ -18,6 +18,7 @@ pub(crate) enum ObjectType {
     RedHedgehog,
     GreenHedgehog,
     BlueHedgehog,
+    Savepoint,
 }
 
 pub(crate) struct ObjectSpawn {
@@ -61,12 +62,11 @@ fn extract_sprite_from_sheet(sheet: &Bitmap, x: i32, y: i32, w: usize, h: usize)
 }
 
 impl EditorState {
-    pub fn new(enemy_sprite_sheet: &Bitmap) -> Self {
+    pub fn new(enemy_sprite_sheet: &Bitmap, savepoint_bitmap: Bitmap) -> Self {
         let white_hedgehog_icon = extract_sprite_from_sheet(enemy_sprite_sheet, 0, 0, 16, 8);
         let red_hedgehog_icon = extract_sprite_from_sheet(enemy_sprite_sheet, 0, 8, 16, 8);
         let green_hedgehog_icon = extract_sprite_from_sheet(enemy_sprite_sheet, 0, 16, 16, 8);
         let blue_hedgehog_icon = extract_sprite_from_sheet(enemy_sprite_sheet, 0, 24, 16, 8);
-
         let object_buttons = vec![
             ObjectButton {
                 object_type: ObjectType::WhiteHedgehog,
@@ -86,6 +86,11 @@ impl EditorState {
             ObjectButton {
                 object_type: ObjectType::BlueHedgehog,
                 icon_bitmap: blue_hedgehog_icon,
+                icon_scale: 1.0,
+            },
+            ObjectButton {
+                object_type: ObjectType::Savepoint,
+                icon_bitmap: savepoint_bitmap,
                 icon_scale: 1.0,
             },
         ];
@@ -301,7 +306,7 @@ impl EditorState {
 
                     button.icon_bitmap.draw_on_scaled(
                         screen,
-                        4 + i as i32 * 18,
+                        4 + i as i32 * 18 + (16 - (button.icon_bitmap.width.min(16) as i32)) / 2,
                         184 + 4 + (16 - (button.icon_bitmap.height.min(16) as i32)) / 2,
                         button.icon_scale,
                         button.icon_scale,

@@ -196,11 +196,24 @@ impl MaskObject {
 struct SaveGamePoint {
     position: Vec2,
     aabb: Aabb,
-    sprite_scene_off: Rc<Bitmap>,
-    sprite_scene_on: Rc<Bitmap>,
+    sprite_save_off: Rc<Bitmap>,
+    sprite_save_on: Rc<Bitmap>,
     activated: bool,
 }
 impl SaveGamePoint {
+    fn new(position: Vec2, sprite_save_off: Rc<Bitmap>, sprite_save_on: Rc<Bitmap>) -> Self {
+        Self {
+            position,
+            sprite_save_off,
+            sprite_save_on,
+            aabb: Aabb {
+                min: Vec2::ZERO,
+                max: vec2(7.0, 7.0),
+            },
+            activated: false,
+        }
+    }
+
     fn aabb_world_space(&self) -> Aabb {
         Aabb {
             min: self.aabb.min + self.position,
@@ -378,6 +391,9 @@ pub struct Game {
     enemy_sprite_green: Sprite,
     enemy_sprite_blue: Sprite,
     enemy_sprite_white: Sprite,
+
+    sprite_save_off: Rc<Bitmap>,
+    sprite_save_on: Rc<Bitmap>,
 
     died_position: Vec2,
     player: Player,
@@ -625,30 +641,20 @@ impl Game {
             visible: true,
         };
 
-        let sprite_scene_off = Rc::new(Bitmap::load("assets/sprites/savepoint_off.png"));
-        let sprite_scene_on = Rc::new(Bitmap::load("assets/sprites/savepoint_on.png"));
+        let sprite_save_off = Rc::new(Bitmap::load("assets/sprites/savepoint_off.png"));
+        let sprite_save_on = Rc::new(Bitmap::load("assets/sprites/savepoint_on.png"));
+        let save_point_icon = Bitmap::load("assets/sprites/savepoint_on.png");
 
-        let savepoint_1 = SaveGamePoint {
-            position: vec2(1809.0, 2176.0),
-            aabb: Aabb {
-                min: Vec2::ZERO,
-                max: vec2(8.0, 8.0),
-            },
-            sprite_scene_off: sprite_scene_off.clone(),
-            sprite_scene_on: sprite_scene_on.clone(),
-            activated: false,
-        };
-
-        let savepoint_2 = SaveGamePoint {
-            position: vec2(2105.0, 2013.0),
-            aabb: Aabb {
-                min: Vec2::ZERO,
-                max: vec2(8.0, 8.0),
-            },
-            sprite_scene_off,
-            sprite_scene_on,
-            activated: false,
-        };
+        let savepoint_1 = SaveGamePoint::new(
+            vec2(1809.0, 2176.0),
+            sprite_save_off.clone(),
+            sprite_save_on.clone(),
+        );
+        let savepoint_2 = SaveGamePoint::new(
+            vec2(2105.0, 2013.0),
+            sprite_save_off.clone(),
+            sprite_save_on.clone(),
+        );
 
         let player_sprite_sheet = Bitmap::load("assets/sprite/spritesheet_animation.png");
 
@@ -765,7 +771,7 @@ impl Game {
 
             save_state: None,
 
-            editor_state: EditorState::new(&enemy_sprite_sheet),
+            editor_state: EditorState::new(&enemy_sprite_sheet, save_point_icon),
 
             background: Background::new(),
             tile_set,
@@ -780,6 +786,9 @@ impl Game {
             enemy_sprite_red,
             enemy_sprite_green,
             enemy_sprite_blue,
+
+            sprite_save_off,
+            sprite_save_on,
 
             died_position: Vec2::ZERO,
             player: Player {
@@ -926,6 +935,8 @@ impl Game {
                     self.camera.zoom = 1.0;
 
                     self.enemies.clear();
+                    self.savepoint_objects.clear();
+
                     for spawn in self.editor_state.object_spawns.iter() {
                         match spawn.object_type {
                             ObjectType::WhiteHedgehog => {
@@ -958,6 +969,13 @@ impl Game {
                                     false,
                                     &self.enemy_sprite_blue,
                                     bitmap::BLUE,
+                                ));
+                            }
+                            ObjectType::Savepoint => {
+                                self.savepoint_objects.push(SaveGamePoint::new(
+                                    spawn.position,
+                                    self.sprite_save_off.clone(),
+                                    self.sprite_save_on.clone(),
                                 ));
                             }
                         }
@@ -1614,11 +1632,11 @@ impl Game {
             let pos: Vec2 = world_space_to_screen_space(savepoint.position, &self.camera);
             if savepoint.activated {
                 savepoint
-                    .sprite_scene_on
+                    .sprite_save_on
                     .draw_on(screen, pos.x as i32, pos.y as i32);
             } else {
                 savepoint
-                    .sprite_scene_off
+                    .sprite_save_off
                     .draw_on(screen, pos.x as i32, pos.y as i32);
             }
             // Save and turn on if position overlaps with player
@@ -1629,7 +1647,7 @@ impl Game {
                 if !savepoint.activated {
                     savepoint.activated = true;
                     savepoint
-                        .sprite_scene_on
+                        .sprite_save_on
                         .draw_on(screen, pos.x as i32, pos.y as i32);
 
                     if let Some(audio) = &self.audio {
