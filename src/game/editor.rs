@@ -194,7 +194,7 @@ impl EditorState {
                         let mouse_ws = mouse_ws.as_uvec2();
                         let mouse_ts = mouse_ws / tile_map.tile_size;
                         if mouse_ts.x < tile_map.width && mouse_ts.y < tile_map.height {
-                            tile_map.tiles[(mouse_ts.x + mouse_ts.y * tile_map.width) as usize] = 0;
+                            tile_map.tiles[(mouse_ts.x + mouse_ts.y * tile_map.width) as usize] = -1;
                         }
                     }
                 }
