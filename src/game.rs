@@ -1162,9 +1162,13 @@ impl Game {
                 )
             } else {
                 // keyboard input: only allow peeking up and down when standing still
-                if self.player.velocity == vec2(0.0, 0.0) && self.input_state.is_key_down(Key::MoveDown) {
+                if self.player.velocity == vec2(0.0, 0.0)
+                    && self.input_state.is_key_down(Key::MoveDown)
+                {
                     vec2(0.0, 1.0)
-                } else if self.player.velocity == vec2(0.0, 0.0) && self.input_state.is_key_down(Key::MoveUp) {
+                } else if self.player.velocity == vec2(0.0, 0.0)
+                    && self.input_state.is_key_down(Key::MoveUp)
+                {
                     vec2(0.0, -1.0)
                 } else {
                     vec2(0.0, 0.0)
