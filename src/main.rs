@@ -184,7 +184,10 @@ fn main() {
         handle_key_events(minifb::Key::Left, game::Key::Left);
         handle_key_events(minifb::Key::Right, game::Key::Right);
         handle_key_events(minifb::Key::Z, game::Key::Jump);
+        handle_key_events(minifb::Key::LeftCtrl, game::Key::LeftCtrl);
+        handle_key_events(minifb::Key::LeftShift, game::Key::LeftShift);
         handle_key_events(minifb::Key::S, game::Key::S);
+        handle_key_events(minifb::Key::O, game::Key::O);
         handle_key_events(minifb::Key::Space, game::Key::Space);
         handle_key_events(minifb::Key::LeftBracket, game::Key::LeftBracket);
         handle_key_events(minifb::Key::RightBracket, game::Key::RightBracket);

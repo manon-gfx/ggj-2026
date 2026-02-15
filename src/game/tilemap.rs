@@ -33,6 +33,7 @@ pub struct TileSet {
     pub aura_low: Bitmap,
 }
 
+#[derive(Clone)]
 pub struct TileMap {
     pub tile_size: u32,
 
@@ -42,49 +43,6 @@ pub struct TileMap {
 }
 
 impl TileMap {
-    pub fn from_file(path: &str) -> Self {
-        // Read level file
-        let level_layout_file =
-            std::fs::read_to_string(path).expect("Could not load level file :(");
-        let mut accumulator = String::new();
-        let mut row_content: Vec<u32> = Vec::new();
-        let mut layout: Vec<Vec<u32>> = Vec::new();
-        let mut tile_count_x = 0;
-        for char in level_layout_file.chars() {
-            if char == ',' {
-                let tile_index: u32 = accumulator
-                    .parse::<u32>()
-                    .unwrap_or_else(|_| panic!("Could not parse! :({})", &accumulator));
-                row_content.push(tile_index);
-                accumulator = String::new();
-            } else if char == '\r' {
-                continue;
-            } else if char == '\n' {
-                layout.push(row_content.clone());
-                tile_count_x = tile_count_x.max(row_content.len() as u32);
-                row_content.clear();
-            } else {
-                accumulator.push(char);
-            }
-        }
-
-        // Create flat tile vector
-        let mut tile_indices: Vec<u32> = Vec::new();
-        let tile_count_y = layout.len() as u32;
-        for mut row in layout {
-            assert!(row.len() <= tile_count_x as usize);
-            row.resize(tile_count_x as usize, 0);
-            tile_indices.append(&mut row);
-        }
-
-        Self {
-            tile_size: 8,
-            width: tile_count_x,
-            height: tile_count_y,
-            tiles: tile_indices,
-        }
-    }
-
     pub fn world_to_tile_index(&self, position: Vec2) -> IVec2 {
         (position / self.tile_size as f32).as_ivec2()
     }
@@ -247,15 +205,66 @@ impl TileMap {
         }
     }
 
-    pub fn store_to_file(&self, path: &str) {
-        let mut data = String::default();
+    pub fn serialize(&self, writer: &mut dyn std::io::Write) {
         for y in 0..self.height {
             for x in 0..self.width {
-                data += &format!("{},", self.tiles[(y * self.width + x) as usize]);
+                write!(writer, "{},", self.tiles[(y * self.width + x) as usize]).unwrap();
             }
-            data.pop();
-            data.push('\n');
+            writeln!(writer).unwrap();
         }
-        std::fs::write(path, data).unwrap();
+    }
+    pub fn deserialize<R>(mut reader: R) -> Self
+    where
+        R: std::io::Read,
+    {
+        let mut level_layout_file = String::new();
+        reader.read_to_string(&mut level_layout_file).unwrap();
+
+        let mut accumulator = String::new();
+        let mut row_content: Vec<u32> = Vec::new();
+        let mut layout: Vec<Vec<u32>> = Vec::new();
+        let mut tile_count_x = 0;
+
+        for char in level_layout_file.chars() {
+            if char == ',' {
+                let tile_index: u32 = accumulator
+                    .parse::<u32>()
+                    .unwrap_or_else(|_| panic!("Could not parse! :({})", &accumulator));
+                row_content.push(tile_index);
+                accumulator = String::new();
+            } else if char == '\r' {
+                continue;
+            } else if char == '\n' {
+                if !accumulator.is_empty() {
+                    let tile_index: u32 = accumulator
+                        .parse::<u32>()
+                        .unwrap_or_else(|_| panic!("Could not parse! :({})", &accumulator));
+                    row_content.push(tile_index);
+                    accumulator = String::new();
+                }
+
+                layout.push(row_content.clone());
+                tile_count_x = tile_count_x.max(row_content.len() as u32);
+                row_content.clear();
+            } else {
+                accumulator.push(char);
+            }
+        }
+
+        // Create flat tile vector
+        let mut tile_indices: Vec<u32> = Vec::new();
+        let tile_count_y = layout.len() as u32;
+        for mut row in layout {
+            assert!(row.len() <= tile_count_x as usize);
+            row.resize(tile_count_x as usize, 0);
+            tile_indices.append(&mut row);
+        }
+
+        Self {
+            tile_size: 8,
+            width: tile_count_x,
+            height: tile_count_y,
+            tiles: tile_indices,
+        }
     }
 }

@@ -2,6 +2,7 @@ pub mod background;
 pub mod camera;
 pub mod editor;
 pub mod enemy;
+pub mod level;
 pub mod sprite;
 pub mod tilemap;
 
@@ -12,11 +13,13 @@ use crate::audio::sound::SoundTypes;
 use crate::bitmap::{self, Bitmap, Font};
 use crate::game::background::Background;
 use crate::game::camera::{Camera, world_space_to_screen_space};
+use crate::game::level::Level;
 use crate::game::sprite::Sprite;
 use editor::{EditorState, ObjectType};
 use enemy::{Enemy, spawn_enemies};
 use glam::*;
 
+use serde::{Deserialize, Serialize};
 use tilemap::{TileFlags, TileMap, TileSet};
 
 const GRAVITY: f32 = 600.0;
@@ -64,7 +67,10 @@ pub enum Key {
     Down,
     Left,
     Right,
+    LeftCtrl,
+    LeftShift,
     S,
+    O,
     Space,
     LeftBracket,
     RightBracket,
@@ -118,7 +124,7 @@ struct PlayerInventory {
     masks: Vec<MaskObject>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Aabb {
     pub min: Vec2,
     pub max: Vec2,
@@ -377,6 +383,7 @@ pub struct Game {
 
     input_state: InputState,
 
+    level: Level,
     editor_state: EditorState,
 
     background: Background,
@@ -568,8 +575,9 @@ impl Game {
             aura,
             aura_low: aura2,
         };
-        let tile_map = TileMap::from_file("assets/level0.txt");
 
+        let level = Level::from_file(std::path::Path::new("assets/levels/level0.zip"));
+        let tile_map = level.tile_map.clone();
         // Game objects for masks
         pub const MASK_SPRITE_SIZE: f32 = 16.0;
         let red_mask = MaskObject {
@@ -771,7 +779,15 @@ impl Game {
 
             save_state: None,
 
-            editor_state: EditorState::new(&enemy_sprite_sheet, save_point_icon),
+            level,
+            editor_state: EditorState::new(
+                &enemy_sprite_sheet,
+                save_point_icon,
+                Bitmap::load("assets/sprites/red_mask_in_scene.png"),
+                Bitmap::load("assets/sprites/green_mask_in_scene.png"),
+                Bitmap::load("assets/sprites/blue_mask_in_scene.png"),
+                Bitmap::load("assets/sprites/king_mask_in_scene.png"),
+            ),
 
             background: Background::new(),
             tile_set,
@@ -937,9 +953,10 @@ impl Game {
                     self.enemies.clear();
                     self.savepoint_objects.clear();
 
-                    for spawn in self.editor_state.object_spawns.iter() {
+                    self.tile_map = self.level.tile_map.clone();
+                    for spawn in self.level.object_spawns.iter() {
                         match spawn.object_type {
-                            ObjectType::WhiteHedgehog => {
+                            ObjectType::HedgehogWhite => {
                                 self.enemies.push(Enemy::new(
                                     spawn.position,
                                     false,
@@ -947,7 +964,7 @@ impl Game {
                                     0xffffff,
                                 ));
                             }
-                            ObjectType::RedHedgehog => {
+                            ObjectType::HedgehogRed => {
                                 self.enemies.push(Enemy::new(
                                     spawn.position,
                                     false,
@@ -955,7 +972,7 @@ impl Game {
                                     bitmap::RED,
                                 ));
                             }
-                            ObjectType::GreenHedgehog => {
+                            ObjectType::HedgehogGreen => {
                                 self.enemies.push(Enemy::new(
                                     spawn.position,
                                     false,
@@ -963,7 +980,7 @@ impl Game {
                                     bitmap::GREEN,
                                 ));
                             }
-                            ObjectType::BlueHedgehog => {
+                            ObjectType::HedgehogBlue => {
                                 self.enemies.push(Enemy::new(
                                     spawn.position,
                                     false,
@@ -978,6 +995,7 @@ impl Game {
                                     self.sprite_save_on.clone(),
                                 ));
                             }
+                            _ => todo!(),
                         }
                     }
                 }
@@ -1102,7 +1120,8 @@ impl Game {
         );
 
         if self.editor_mode {
-            self.tile_map
+            self.level
+                .tile_map
                 .editor_draw(&self.tile_set, screen, &self.camera);
         } else {
             self.tile_map.draw(
@@ -1135,7 +1154,7 @@ impl Game {
             self.editor_state.tick(
                 delta_time,
                 screen,
-                &mut self.tile_map,
+                &mut self.level,
                 &self.tile_set,
                 &mut self.camera,
                 &self.input_state,
