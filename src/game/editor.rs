@@ -1,29 +1,39 @@
-use super::{Aabb, MouseButton, draw_aabb_ws};
+use std::{collections::HashMap, path::PathBuf};
+
+use super::{Aabb, MouseButton, draw_aabb_ws, level::Level};
 use crate::{
     Bitmap,
     game::{
         InputState, Key,
         camera::{Camera, screen_to_world_space, world_space_to_screen_space},
         draw_aabb_ss,
-        tilemap::{TileMap, TileSet},
+        tilemap::TileSet,
     },
 };
 use glam::*;
+use serde::{Deserialize, Serialize};
+use zip::write::SimpleFileOptions;
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash,
+)]
 #[repr(u32)]
 pub(crate) enum ObjectType {
     #[default]
-    WhiteHedgehog,
-    RedHedgehog,
-    GreenHedgehog,
-    BlueHedgehog,
+    HedgehogWhite,
+    HedgehogRed,
+    HedgehogGreen,
+    HedgehogBlue,
     Savepoint,
+    MaskRed,
+    MaskGreen,
+    MaskBlue,
+    MaskGold,
 }
 
+#[derive(Serialize, Deserialize)]
 pub(crate) struct ObjectSpawn {
     pub(crate) position: Vec2,
-    pub(crate) aabb: Aabb,
     pub(crate) object_type: ObjectType,
 }
 
@@ -35,10 +45,30 @@ pub enum EditorMode {
     ObjectMode,
 }
 
-pub(crate) struct ObjectButton {
+pub(crate) struct PlaceableObject {
     pub(crate) object_type: ObjectType,
     pub(crate) icon_bitmap: Bitmap,
     pub(crate) icon_scale: f32,
+
+    pub(crate) aabb: Aabb,
+}
+impl PlaceableObject {
+    fn new(object_type: ObjectType, icon_bitmap: Bitmap) -> Self {
+        let aabb = Aabb {
+            min: Vec2::ZERO,
+            max: vec2(
+                (icon_bitmap.width - 1) as f32,
+                (icon_bitmap.height - 1) as f32,
+            ),
+        };
+
+        Self {
+            object_type,
+            icon_bitmap,
+            icon_scale: 1.0,
+            aabb,
+        }
+    }
 }
 
 pub struct EditorState {
@@ -49,10 +79,11 @@ pub struct EditorState {
 
     // object mode
     pub(crate) selected_object: u32,
-    pub(crate) object_spawns: Vec<ObjectSpawn>,
-    pub(crate) object_buttons: Vec<ObjectButton>,
+    pub(crate) placeable_objects: Vec<PlaceableObject>,
+    pub(crate) placeable_objects_lut: HashMap<ObjectType, u32>,
 
     held_object: Option<usize>,
+    pub loaded_level_path: PathBuf,
 }
 
 fn extract_sprite_from_sheet(sheet: &Bitmap, x: i32, y: i32, w: usize, h: usize) -> Bitmap {
@@ -62,46 +93,45 @@ fn extract_sprite_from_sheet(sheet: &Bitmap, x: i32, y: i32, w: usize, h: usize)
 }
 
 impl EditorState {
-    pub fn new(enemy_sprite_sheet: &Bitmap, savepoint_bitmap: Bitmap) -> Self {
+    pub fn new(
+        enemy_sprite_sheet: &Bitmap,
+        savepoint_bitmap: Bitmap,
+        mask_red_bitmap: Bitmap,
+        mask_green_bitmap: Bitmap,
+        mask_blue_bitmap: Bitmap,
+        mask_gold_bitmap: Bitmap,
+    ) -> Self {
         let white_hedgehog_icon = extract_sprite_from_sheet(enemy_sprite_sheet, 0, 0, 16, 8);
         let red_hedgehog_icon = extract_sprite_from_sheet(enemy_sprite_sheet, 0, 8, 16, 8);
         let green_hedgehog_icon = extract_sprite_from_sheet(enemy_sprite_sheet, 0, 16, 16, 8);
         let blue_hedgehog_icon = extract_sprite_from_sheet(enemy_sprite_sheet, 0, 24, 16, 8);
-        let object_buttons = vec![
-            ObjectButton {
-                object_type: ObjectType::WhiteHedgehog,
-                icon_bitmap: white_hedgehog_icon,
-                icon_scale: 1.0,
-            },
-            ObjectButton {
-                object_type: ObjectType::RedHedgehog,
-                icon_bitmap: red_hedgehog_icon,
-                icon_scale: 1.0,
-            },
-            ObjectButton {
-                object_type: ObjectType::GreenHedgehog,
-                icon_bitmap: green_hedgehog_icon,
-                icon_scale: 1.0,
-            },
-            ObjectButton {
-                object_type: ObjectType::BlueHedgehog,
-                icon_bitmap: blue_hedgehog_icon,
-                icon_scale: 1.0,
-            },
-            ObjectButton {
-                object_type: ObjectType::Savepoint,
-                icon_bitmap: savepoint_bitmap,
-                icon_scale: 1.0,
-            },
+        let placeable_objects = vec![
+            PlaceableObject::new(ObjectType::HedgehogWhite, white_hedgehog_icon),
+            PlaceableObject::new(ObjectType::HedgehogRed, red_hedgehog_icon),
+            PlaceableObject::new(ObjectType::HedgehogGreen, green_hedgehog_icon),
+            PlaceableObject::new(ObjectType::HedgehogBlue, blue_hedgehog_icon),
+            PlaceableObject::new(ObjectType::Savepoint, savepoint_bitmap),
+            PlaceableObject::new(ObjectType::MaskRed, mask_red_bitmap),
+            PlaceableObject::new(ObjectType::MaskGreen, mask_green_bitmap),
+            PlaceableObject::new(ObjectType::MaskBlue, mask_blue_bitmap),
+            PlaceableObject::new(ObjectType::MaskGold, mask_gold_bitmap),
         ];
+
+        let placeable_objects_lut = placeable_objects
+            .iter()
+            .enumerate()
+            .map(|(i, entry)| (entry.object_type, i as u32))
+            .collect();
 
         Self {
             editor_mode: Default::default(),
             selected_tile: Default::default(),
             selected_object: Default::default(),
-            object_spawns: Default::default(),
-            object_buttons,
+            placeable_objects_lut,
+
+            placeable_objects,
             held_object: None,
+            loaded_level_path: "assets/levels/level0.zip".into(),
         }
     }
 
@@ -109,14 +139,58 @@ impl EditorState {
         &mut self,
         delta_time: f32,
         screen: &mut Bitmap,
-        tile_map: &mut TileMap,
+        level: &mut Level,
         tile_set: &TileSet,
         camera: &mut Camera,
         input_state: &InputState,
     ) {
-        if input_state.is_key_pressed(Key::S) {
-            tile_map.store_to_file("assets/level0.txt");
-            println!("Level Saved!");
+        if input_state.is_key_down(Key::LeftCtrl) && input_state.is_key_pressed(Key::S) {
+            let file_path = if input_state.is_key_down(Key::LeftShift) {
+                let mut save_dir = std::env::current_dir().unwrap();
+                save_dir.push("assets");
+                save_dir.push("levels");
+                rfd::FileDialog::new()
+                    .add_filter("level", &["zip"])
+                    .set_directory(save_dir)
+                    .save_file()
+            } else {
+                Some(self.loaded_level_path.clone())
+            };
+
+            if let Some(file_path) = file_path {
+                if let Some(parent) = file_path.parent() {
+                    std::fs::create_dir_all(parent).unwrap();
+                }
+
+                let mut zip_writer =
+                    zip::ZipWriter::new(std::fs::File::create(&file_path).unwrap());
+                zip_writer
+                    .start_file("tiles.csv", SimpleFileOptions::default())
+                    .unwrap();
+                level.tile_map.serialize(&mut zip_writer);
+                zip_writer
+                    .start_file("objects.json", SimpleFileOptions::default())
+                    .unwrap();
+                serde_json::to_writer(&mut zip_writer, &level.object_spawns).unwrap();
+                drop(zip_writer);
+
+                println!("Level Saved! {:?}", &file_path);
+            }
+        }
+        if input_state.is_key_down(Key::LeftCtrl) && input_state.is_key_pressed(Key::O) {
+            let mut save_dir = std::env::current_dir().unwrap();
+            save_dir.push("assets");
+            save_dir.push("levels");
+            let file = rfd::FileDialog::new()
+                .add_filter("level", &["zip"])
+                .set_directory(save_dir)
+                .pick_file();
+
+            if let Some(file_path) = file {
+                *level = Level::from_file(&file_path);
+                println!("Level Loaded! {:?}", &file_path);
+                self.loaded_level_path = file_path;
+            }
         }
 
         if input_state.mouse_scroll_delta.y != 0.0 {
@@ -160,7 +234,8 @@ impl EditorState {
         // Draw level bounds
         let aabb = Aabb {
             min: vec2(-1.0, -1.0),
-            max: vec2(tile_map.width as f32, tile_map.height as f32) * (tile_map.tile_size as f32),
+            max: vec2(level.tile_map.width as f32, level.tile_map.height as f32)
+                * (level.tile_map.tile_size as f32),
         };
         draw_aabb_ws(screen, &aabb, camera, 0x00ff00);
 
@@ -179,18 +254,20 @@ impl EditorState {
                     if input_state.is_mouse_down(MouseButton::Left) {
                         let mouse_ws = screen_to_world_space(input_state.mouse, camera);
                         let mouse_ws = mouse_ws.as_uvec2();
-                        let mouse_ts = mouse_ws / tile_map.tile_size;
-                        if mouse_ts.x < tile_map.width && mouse_ts.y < tile_map.height {
-                            tile_map.tiles[(mouse_ts.x + mouse_ts.y * tile_map.width) as usize] =
+                        let mouse_ts = mouse_ws / level.tile_map.tile_size;
+                        if mouse_ts.x < level.tile_map.width && mouse_ts.y < level.tile_map.height {
+                            level.tile_map.tiles
+                                [(mouse_ts.x + mouse_ts.y * level.tile_map.width) as usize] =
                                 self.selected_tile + 1;
                         }
                     }
                     if input_state.is_mouse_down(MouseButton::Right) {
                         let mouse_ws = screen_to_world_space(input_state.mouse, camera);
                         let mouse_ws = mouse_ws.as_uvec2();
-                        let mouse_ts = mouse_ws / tile_map.tile_size;
-                        if mouse_ts.x < tile_map.width && mouse_ts.y < tile_map.height {
-                            tile_map.tiles[(mouse_ts.x + mouse_ts.y * tile_map.width) as usize] = 0;
+                        let mouse_ts = mouse_ws / level.tile_map.tile_size;
+                        if mouse_ts.x < level.tile_map.width && mouse_ts.y < level.tile_map.height {
+                            level.tile_map.tiles
+                                [(mouse_ts.x + mouse_ts.y * level.tile_map.width) as usize] = 0;
                         }
                     }
                 }
@@ -220,68 +297,58 @@ impl EditorState {
                     self.selected_object -= 1;
                 }
                 if input_state.is_key_pressed(Key::RightBracket)
-                    && self.selected_object < (self.object_buttons.len() - 1) as u32
+                    && self.selected_object < (self.placeable_objects.len() - 1) as u32
                 {
                     self.selected_object += 1;
                 }
 
                 // Draw object spawn list
-                for object in self.object_spawns.iter() {
-                    // TODO(manon): Linear search for every object *PUKE*
-                    if let Some(button) = self
-                        .object_buttons
-                        .iter()
-                        .find(|button| button.object_type == object.object_type)
-                    {
-                        let position = world_space_to_screen_space(object.position, camera);
+                for object in level.object_spawns.iter() {
+                    let index = self.placeable_objects_lut[&object.object_type];
+                    let placeable_object = &self.placeable_objects[index as usize];
+                    let position = world_space_to_screen_space(object.position, camera);
 
-                        button.icon_bitmap.draw_on_scaled(
-                            screen,
-                            position.x as i32,
-                            position.y as i32,
-                            camera.zoom,
-                            camera.zoom,
-                        );
-                    }
+                    placeable_object.icon_bitmap.draw_on_scaled(
+                        screen,
+                        position.x as i32,
+                        position.y as i32,
+                        camera.zoom,
+                        camera.zoom,
+                    );
                 }
 
-                let selected_button = &self.object_buttons[self.selected_object as usize];
+                let selected_button = &self.placeable_objects[self.selected_object as usize];
                 let mouse_pos_ws = screen_to_world_space(input_state.mouse, camera);
                 let rounded_pos_ws = (mouse_pos_ws / 8.0).floor() * 8.0;
 
                 if input_state.is_mouse_pressed(MouseButton::Right)
                     && input_state.mouse.y < 184.0
-                    && let Some(index_to_remove) = self.object_spawns.iter().position(|object| {
-                        object
+                    && let Some(index_to_remove) = level.object_spawns.iter().position(|object| {
+                        self.placeable_objects
+                            [self.placeable_objects_lut[&object.object_type] as usize]
                             .aabb
                             .translate(object.position)
                             .point_intersects(mouse_pos_ws)
                     })
                 {
-                    self.object_spawns.remove(index_to_remove);
+                    level.object_spawns.remove(index_to_remove);
                 }
 
                 if input_state.is_mouse_pressed(MouseButton::Left) {
                     if input_state.mouse.y < 184.0 {
-                        self.held_object = self.object_spawns.iter().position(|object| {
-                            object
+                        self.held_object = level.object_spawns.iter().position(|object| {
+                            self.placeable_objects
+                                [self.placeable_objects_lut[&object.object_type] as usize]
                                 .aabb
                                 .translate(object.position)
                                 .point_intersects(mouse_pos_ws)
                         });
 
                         if self.held_object.is_none() {
-                            self.held_object = Some(self.object_spawns.len());
+                            self.held_object = Some(level.object_spawns.len());
 
-                            self.object_spawns.push(ObjectSpawn {
+                            level.object_spawns.push(ObjectSpawn {
                                 position: rounded_pos_ws,
-                                aabb: Aabb {
-                                    min: Vec2::ZERO,
-                                    max: vec2(
-                                        (selected_button.icon_bitmap.width - 1) as f32,
-                                        (selected_button.icon_bitmap.height - 1) as f32,
-                                    ),
-                                },
                                 object_type: selected_button.object_type,
                             })
                         }
@@ -289,7 +356,7 @@ impl EditorState {
                 } else if input_state.is_mouse_down(MouseButton::Left)
                     && let Some(held_object) = self.held_object
                 {
-                    self.object_spawns[held_object].position = rounded_pos_ws;
+                    level.object_spawns[held_object].position = rounded_pos_ws;
                 }
 
                 if input_state.is_mouse_released(MouseButton::Left) {
@@ -298,7 +365,7 @@ impl EditorState {
 
                 screen.draw_rectangle(0, 184, 255, 207, true, 0x0);
                 screen.draw_rectangle(0, 184, 255, 207, false, 0xffffffff);
-                for (i, button) in self.object_buttons.iter().enumerate() {
+                for (i, button) in self.placeable_objects.iter().enumerate() {
                     let aabb = Aabb {
                         min: vec2(3.0 + i as f32 * 18.0, 184.0 + 3.0),
                         max: vec2(20.0 + i as f32 * 18.0, 184.0 + 20.0),
